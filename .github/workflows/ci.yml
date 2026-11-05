@@ -29,6 +29,11 @@ jobs:
           components: rustfmt, clippy
       - name: GUI build dependencies
         run: |
+          # The Azure mirror can stall for minutes per package. Keep Ubuntu's
+          # main archive first when the runner uses an APT mirror list.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libpulse-dev libxkbcommon-dev \
             libwayland-dev libgl1-mesa-dev cmake libclang-dev ruby
@@ -78,6 +83,9 @@ jobs:
       - name: GUI build dependencies
         if: runner.os == 'Linux'
         run: |
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libpulse-dev libxkbcommon-dev \
             libwayland-dev libgl1-mesa-dev cmake libclang-dev
