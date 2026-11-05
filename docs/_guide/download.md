@@ -14,3 +14,15 @@ assets. Release preparation does not mean downloads are available yet.
 Earlier release notes are inherited Spotifast history.
 There is not yet a published Navifast release to install from Homebrew, AUR,
 Flathub or an automatic updater.
+
+## Installing the Mac preview
+
+The `0.1.0-rc.1` preview is not Developer ID-signed or notarized. Download the
+Mac DMG from this repository's GitHub Releases page, open it, and drag Navifast
+to Applications. Try opening the installed app once.
+
+If macOS blocks it because the developer cannot be verified, open **System
+Settings → Privacy & Security**, choose **Open Anyway** for Navifast, then
+confirm **Open**. Use this exception only for a download you trust.
+[Apple's instructions](https://support.apple.com/en-us/102445) explain the
+warning and the app-specific exception.

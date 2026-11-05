@@ -120,7 +120,7 @@ jobs:
           $runtime = $imports | Select-String -Pattern 'MSVCP[0-9_]*\.dll|VCRUNTIME[0-9_]*\.dll'
           if ($runtime) { throw "Navifast imports an MSVC runtime:`n$runtime" }
 
-      - name: Windows installer syntax and renamed inputs
+      - name: Windows installer build, launch and removal
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -129,6 +129,8 @@ jobs:
           if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
           & $iscc "/DVersion=$version" /DArch=x86_64 "/DBinary=$PWD\target\debug\navifast.exe" "/DOutputDir=$env:RUNNER_TEMP\navifast-installer-check" packaging\windows\navifast.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./packaging/windows/test-install.ps1 -Version $version `
+            -Installer "$env:RUNNER_TEMP\navifast-installer-check\navifast-v$version-x86_64-pc-windows-msvc-setup.exe"
 
       - name: macOS bundle identity and helper startup
         if: runner.os == 'macOS'

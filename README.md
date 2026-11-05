@@ -84,6 +84,11 @@ not mean the downloads have been published: use the assets listed on
 [GitHub Releases](https://github.com/nizarcan/navifast/releases), or build from
 source until they are available. Earlier release notes document Spotifast history.
 
+The Mac preview is not Developer ID-signed or notarized. After copying Navifast
+from the DMG to Applications and trying to open it, macOS may require
+**System Settings → Privacy & Security → Open Anyway**. See the
+[preview installation guide](docs/_guide/download.md#installing-the-mac-preview).
+
 For an optimized binary, run `cargo build --locked --release --bin navifast`.
 See [PACKAGING.md](PACKAGING.md) for app bundles and
 [the release checklist](packaging/RELEASING.md) for signing and publication.

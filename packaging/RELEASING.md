@@ -18,11 +18,15 @@ to this project. Keep the original MIT notices and README attribution.
 4. For a Developer ID-signed and notarized Mac download, add the six Apple
    secrets listed in [PACKAGING.md](../PACKAGING.md#automatic-macos-notarization).
    Without them the workflow creates an ad-hoc-signed DMG, which does not
-   establish a trusted developer identity for downloaded apps. The first
-   public Mac release should be notarized and checked on a second Mac.
+   establish a trusted developer identity for downloaded apps. The maintainer
+   has chosen an unsigned preview for `0.1.0-rc.1`; keep the Mac installation
+   guidance and unsigned-download notice in its release notes. Developer ID
+   signing and notarization remain a follow-up for later releases.
 5. Windows installers are currently unsigned. Authenticode signing is optional
    for a preview, but recipients may see an unrecognized-publisher warning.
-   Check the installer and portable ZIP on Windows before sharing them.
+   CI installs, launches and removes the x64 installer on Windows. The release
+   job repeats that check with the release binary. Check the portable ZIP and
+   playback on a Windows desktop too; ARM64 still needs native testing.
 
 If the release key was generated during local preparation, it is in the
 ignored `.release-secrets/navifast-release-key.pem` with owner-only permissions.
@@ -74,7 +78,7 @@ screenshots and unit tests do not replace playback against a real server.
 2. Run the checks in CONTRIBUTING.md and `python3 packaging/check-release.py`.
    Commit and push the preparation to `main`. Wait for every CI job to pass.
    A release tag must point at that exact successful commit.
-3. When signing secrets and native validation are ready, tag and push:
+3. When the update-signing secret and native validation are ready, tag and push:
 
    ```sh
    git tag v0.1.0-rc.1
@@ -86,7 +90,8 @@ screenshots and unit tests do not replace playback against a real server.
 5. Check the published notes, screenshot, Mac/Windows/Linux downloads,
    `checksums.txt`, and `checksums.txt.sig`. Verify the manifest with
    `native-packages verify-checksums` and the committed public key. Confirm
-   macOS notarization and run the downloaded packages on their native systems.
+   the documented Mac signing status and run the downloaded packages on their
+   native systems. For a notarized release, also verify Apple's notarization.
 
 Stop here for a prerelease. A later stable release also needs the website,
 Homebrew, AUR, and native package validation described in AGENTS.md and

@@ -133,6 +133,14 @@ jobs:
             "/DOutputDir=$PWD\dist" packaging\windows\navifast.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Install, launch and remove the Windows release
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart("v")
+          ./packaging/windows/test-install.ps1 -Version $version `
+            -Installer "dist\navifast-v$version-x86_64-pc-windows-msvc-setup.exe"
+
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
