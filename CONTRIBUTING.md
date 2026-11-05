@@ -5,6 +5,10 @@ where practical, replacing Spotify-specific services with OpenSubsonic. Keep
 network and decoding work off the UI thread. Do not add a browser engine,
 telemetry or a hosted backend.
 
+Navifast is maintained independently from Spotifast. There is no routine
+upstream merge or release synchronization. Keep the original MIT notices and
+README attribution when changing inherited code.
+
 ## Before opening an issue
 
 Search open and closed issues first. For a bug, use the bug form and include

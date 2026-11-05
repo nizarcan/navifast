@@ -1,7 +1,7 @@
 # Navifast
 
-A native Navidrome desktop client written in Rust with egui. This fork reuses
-the original interface, audio DSP and platform integrations from
+A native Navidrome desktop client written in Rust with egui. Navifast is
+maintained independently and reuses the original interface, audio DSP and platform integrations from
 [Spotifast](https://github.com/crmne/spotifast), originally by Carmine Paolino.
 Original copyrights and the MIT license are retained.
 
@@ -72,16 +72,21 @@ Deterministic Navidrome UI previews require the `demo` feature:
 cargo run --locked --features demo --bin navifast -- --demo --demo-navidrome
 ```
 
-Add `--demo-page album:alb0`, `--demo-page settings`, `--demo-show light,equalizer`, or
-`--demo-show signed-out`. `--demo-shot PATH --demo-size 1100x760` captures a PNG.
+Add `--demo-page album:alb0`, `--demo-page settings`, `--demo-show about`,
+`--demo-show light,equalizer`, or `--demo-show signed-out`.
+`--demo-shot PATH --demo-size 1100x760` captures a PNG.
 The inherited `--demo` without `--demo-navidrome` is available for migration
 comparisons and does not connect to Spotify. Legacy modules and their tests
 remain until their remaining reusable features have moved over.
 
-The package version is inherited from the fork baseline. It does not indicate
-a published Navifast release. Build from this repository until a Navifast
-release is explicitly published. Existing release notes document upstream
-history, not new Navifast releases.
+The first Navifast release candidate is `0.1.0-rc.1`. Release preparation does
+not mean the downloads have been published: use the assets listed on
+[GitHub Releases](https://github.com/nizarcan/navifast/releases), or build from
+source until they are available. Earlier release notes document Spotifast history.
+
+For an optimized binary, run `cargo build --locked --release --bin navifast`.
+See [PACKAGING.md](PACKAGING.md) for app bundles and
+[the release checklist](packaging/RELEASING.md) for signing and publication.
 
 ---
 

@@ -19,8 +19,8 @@
   <url type="help">https://github.com/nizarcan/navifast/blob/main/docs/_guide/getting-started.md</url>
   <url type="vcs-browser">https://github.com/nizarcan/navifast</url>
   <branding>
-    <color type="primary" scheme_preference="light">#1ed760</color>
-    <color type="primary" scheme_preference="dark">#144a2a</color>
+    <color type="primary" scheme_preference="light">#76b9ff</color>
+    <color type="primary" scheme_preference="dark">#7565d9</color>
   </branding>
   <content_rating type="oars-1.1" />
   <requires>
@@ -31,6 +31,12 @@
     <control>pointing</control>
     <control>keyboard</control>
   </supports>
-  <!-- No Navifast release has been published yet. Add its release entry when
-       preparing the first release; upstream history lives in release-notes/. -->
+  <releases>
+    <release version="0.1.0-rc.1" date="2026-11-05" type="development">
+      <description>
+        <p>First Navifast release candidate, with Navidrome sign-in, album browsing,
+        original-audio playback, an equalizer, and buffered streaming.</p>
+      </description>
+    </release>
+  </releases>
 </component>

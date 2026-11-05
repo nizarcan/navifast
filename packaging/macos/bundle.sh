@@ -28,7 +28,9 @@ sed -e "s/__VERSION__/$version/g" -e "s/__BUILD__/$build/g" \
     -e "s/__EXECUTABLE__/$executable/g" -e "s/__IDENTIFIER__/$identifier/g" "$here/Info.plist" \
     > "$app/Contents/Info.plist"
 
-iconset="$(mktemp -d)/navifast.iconset"
+scratch="$(mktemp -d)"
+trap 'rm -rf "$scratch"' EXIT
+iconset="$scratch/navifast.iconset"
 mkdir -p "$iconset"
 # iconutil reads only these base sizes, each with an optional @2x. It ignores
 # an icon_64x64 without saying so, so generating one is two wasted sips calls.

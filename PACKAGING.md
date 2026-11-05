@@ -11,7 +11,7 @@ The app and Linux packages use the original vinyl mark in
 ICO. The macOS bundle converts the PNG to ICNS. The monochrome menu-bar version
 is `assets/navifast-tray.svg`.
 
-Navifast is currently a source-built client. No fork release, public AUR
+Navifast is currently a source-built client. No Navifast release, public AUR
 package, Homebrew cask or Flathub listing has been published. The recipes use
 Navifast names and the application ID `io.github.nizarcan.Navifast`.
 
@@ -152,18 +152,12 @@ native-packages build \
 Secret configuration applies to future builds. Existing published DMGs retain
 their original signatures; this setup does not replace release assets.
 
-`packaging/release-names.py DIST TAG` prepares the public `navifast-` names
-and checksums. Through 0.9.1 it also creates byte-identical compatibility
-downloads; later versions reject old-named downloads. The 0.9.1 portable
-archives contain both directory layouts for older updaters. Later archives
-contain only the Navifast layout and executable. The macOS bundle retains
-the old executable and bundle ID for 0.9.1 only; that release's updater accepts
-the new bundle identity used afterward. Run `python3 packaging/test-release-names.py`
-when changing this step. Published historical downloads are never rewritten.
+`packaging/release-names.py DIST TAG` writes checksums for files named
+`navifast-vVERSION-*`. Navifast starts its own version sequence at
+`0.1.0-rc.1`; no Spotifast or Fastpotify compatibility downloads are generated.
+Inputs with another identity or version fail before the manifest is written.
+Run `python3 packaging/test-release-names.py` when changing this step.
 
-Native Linux package builds accept archives from 0.9.0 onward, which contain
-the Navifast executable. The directory-name wildcard accommodates the old
-0.9.0 layout and the new layout. The 0.9.1 compatibility directory contains
-only its executable, so it cannot duplicate packaged desktop files or licenses.
-AUR and Flatpak also accept older fixtures; `packaging/test-launchers.py`
-tests their installation commands.
+Historical fixtures remain only for installation and coexistence regressions.
+They are not Navifast releases. See [RELEASING.md](packaging/RELEASING.md)
+for the first release's repository setup, local build, and publication steps.

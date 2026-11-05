@@ -50,7 +50,7 @@ jekyll_vitepress:
     page_type: TechArticle
     image:
       path: /screenshot.png
-      alt: Navifast showing a playlist with the queue open and a track playing
+      alt: Navifast showing a Navidrome album with demonstration content
     publisher:
       type: Person
       name: Navifast contributors
@@ -61,8 +61,7 @@ jekyll_vitepress:
     title: Navifast
     description: >-
       Documentation for a native Navidrome client for Linux, macOS,
-      and Windows. It covers local playback, library access, and Navidrome
-      Connect.
+      and Windows. It covers local playback, library access, and server connections.
     full: true
     details: >-
       Covers installation, sign-in, everyday use, settings, and Navidrome

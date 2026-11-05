@@ -6,12 +6,30 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  preflight:
+    name: Release prerequisites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check version, notes, screenshot and public key
+        run: python3 packaging/check-release.py --tag "$GITHUB_REF_NAME"
+      - name: Require successful CI on this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f head_sha="$GITHUB_SHA" -f status=completed \
+            --jq '.workflow_runs | any(.conclusion == "success" and .head_branch == "main")' \
+            | grep -qx true
+
   build:
+    needs: preflight
     name: build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     env:
@@ -63,7 +81,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
       # No compiler cache: published binaries never build from outputs
       # restored from an Actions cache.
-      - run: cargo build --release --target ${{ matrix.target }} ${{ matrix.features }}
+      - run: cargo build --locked --release --bin navifast --target ${{ matrix.target }} ${{ matrix.features }}
 
       # The zip and installer must run on a clean Windows machine without a
       # separately installed Visual C++ redistributable.
@@ -88,37 +106,16 @@ jobs:
           fi
           cp README.md LICENSE "dist/$name/"
           cp packaging/navifast-portable.txt "dist/$name/"
-          if [ "$GITHUB_REF_NAME" = "v0.9.1" ]; then
-            cp packaging/fastpotify-portable.txt "dist/$name/"
-            if [ "${{ runner.os }}" = "Windows" ]; then
-              cp "dist/$name/navifast.exe" "dist/$name/fastpotify.exe"
-            else
-              cp "dist/$name/navifast" "dist/$name/fastpotify"
-            fi
-          fi
           if [ "${{ runner.os }}" = "Linux" ]; then
             # Desktop integration for package builds and hand-installs.
             cp --parents packaging/applications/navifast.desktop packaging/icons/navifast.svg "dist/$name/"
             cp --parents contrib/omarchy/navifast.json.tpl contrib/omarchy/navifast-theme "dist/$name/"
           fi
           cd dist
-          roots=("$name")
-          # Final bridge for updaters shipped through 0.9.0: those clients
-          # hardcode the old archive directory and executable names.
-          if [ "$GITHUB_REF_NAME" = "v0.9.1" ]; then
-            legacy="fastpotify-${GITHUB_REF_NAME}-${{ matrix.target }}"
-            mkdir "$legacy"
-            if [ "${{ runner.os }}" = "Windows" ]; then
-              cp "$name/fastpotify.exe" "$legacy/fastpotify.exe"
-            else
-              cp "$name/fastpotify" "$legacy/fastpotify"
-            fi
-            roots+=("$legacy")
-          fi
           if [ "${{ runner.os }}" = "Windows" ]; then
-            7z a "$name.zip" "${roots[@]}"
+            7z a "$name.zip" "$name"
           else
-            tar czf "$name.tar.gz" "${roots[@]}"
+            tar czf "$name.tar.gz" "$name"
           fi
 
       # Inno Setup ships with the runner image. PowerShell, because bash on
@@ -146,6 +143,7 @@ jobs:
           if-no-files-found: error
 
   macos:
+    needs: preflight
     name: macOS universal app
     runs-on: macos-latest
     env:
@@ -165,8 +163,8 @@ jobs:
       # No compiler cache, as in the build job above.
       - name: Build both architectures
         run: |
-          cargo build --release --target aarch64-apple-darwin
-          cargo build --release --target x86_64-apple-darwin
+          cargo build --locked --release --bin navifast --target aarch64-apple-darwin
+          cargo build --locked --release --bin navifast --target x86_64-apple-darwin
 
       - name: Universal binary
         run: |
@@ -259,7 +257,7 @@ jobs:
           curl --fail --location --retry 3 \
             "https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz" \
             --output "dist/navifast-${GITHUB_REF_NAME}-source.tar.gz"
-      - name: Public filenames, updater compatibility and checksums
+      - name: Navifast release filenames and checksums
         run: python3 packaging/release-names.py dist "$GITHUB_REF_NAME"
       - uses: ruby/setup-ruby@v1
         with:

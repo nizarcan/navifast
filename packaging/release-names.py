@@ -1,47 +1,32 @@
 #!/usr/bin/env python3
-"""Publish Navifast filenames and byte-identical names for older updaters."""
+"""Write checksums for an independent Navifast release."""
 
 import argparse
 import hashlib
 from pathlib import Path
 import re
-import shutil
 
 
 def prepare(directory, tag):
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", tag):
         raise ValueError("Expected a release tag")
-    bridge = tuple(map(int, tag[1:].split("-")[0].split("."))) <= (0, 9, 1)
-    pairs = {}
+    files = []
     for path in directory.iterdir():
-        for prefix in ("navifast-", "fastpotify-"):
-            if path.name.startswith(prefix + tag + "-"):
-                if not bridge and prefix == "fastpotify-":
-                    raise ValueError("Legacy release downloads are forbidden after 0.9.1")
-                if not path.is_file() or path.is_symlink():
-                    raise ValueError(f"Expected a regular release file: {path.name}")
-                suffix = path.name[len(prefix):]
-                pairs[suffix] = (
-                    directory / ("navifast-" + suffix),
-                    directory / ("fastpotify-" + suffix),
-                )
-    if not pairs:
+        if path.name == "checksums.txt":
+            continue
+        if not path.name.startswith(f"navifast-{tag}-"):
+            raise ValueError(f"Unexpected release download: {path.name}")
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"Expected a regular release file: {path.name}")
+        files.append(path)
+    if not files:
         raise ValueError("No release downloads found")
-    # Check every pair before writing, so conflicting inputs never get replaced.
+
     def digest(path):
         with path.open("rb") as stream:
             return hashlib.file_digest(stream, "sha256").hexdigest()
 
-    for canonical, legacy in pairs.values():
-        if canonical.exists() and legacy.exists() and digest(canonical) != digest(legacy):
-            raise ValueError(f"Different bytes for {canonical.name} and {legacy.name}")
-    for canonical, legacy in pairs.values():
-        if not canonical.exists():
-            shutil.copyfile(legacy, canonical)
-        elif bridge and not legacy.exists():
-            shutil.copyfile(canonical, legacy)
-    files = sorted(path for pair in pairs.values() for path in (pair if bridge else pair[:1]))
-    manifest = "".join(f"{digest(path)}  {path.name}\n" for path in files)
+    manifest = "".join(f"{digest(path)}  {path.name}\n" for path in sorted(files))
     (directory / "checksums.txt").write_text(manifest)
 
 

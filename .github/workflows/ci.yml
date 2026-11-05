@@ -47,8 +47,10 @@ jobs:
         run: python3 packaging/flatpak/test-metainfo.py
       - name: Linux launcher packaging regressions
         run: python3 packaging/test-launchers.py
-      - name: Release name migration regressions
-        run: python3 packaging/test-release-names.py
+      - name: Release metadata and download checks
+        run: |
+          python3 packaging/test-release-names.py
+          python3 packaging/check-release.py
       - name: Clippy (default features)
         run: mbx clippy --locked --all-targets -- -D warnings
       - name: Clippy (all features)
