@@ -139,7 +139,7 @@ async fn run(
         .can_go_next(true)
         .can_go_previous(true)
         .can_seek(true)
-        .supported_uri_schemes(Vec::new())
+        .supported_uri_schemes(Vec::<String>::new())
         .build()
         .await?;
 
