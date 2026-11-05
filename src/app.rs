@@ -22683,7 +22683,9 @@ mod tests {
         .unwrap()
         .get_property("SupportedUriSchemes")
         .unwrap();
-        assert!(schemes.iter().any(|scheme| scheme == "https"));
+        // Keep exercising the inherited link routing as a migration reference,
+        // but the shared media service must not advertise it for Navidrome.
+        assert!(schemes.is_empty(), "Navidrome has no external URI handler");
         app.apply_actions(&egui::Context::default());
         assert_eq!(*app.page(), Page::Search);
         assert_eq!(app.search.query, "here comes the sun");
