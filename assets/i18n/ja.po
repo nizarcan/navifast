@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-10-06 11:49+0300\n"
+"POT-Creation-Date: 2026-11-05 23:41+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Japanese\n"
@@ -587,29 +587,23 @@ msgstr "すべて選択"
 msgid "Clear"
 msgstr "クリア"
 
-#. Translators: {name} is replaced by the author's name, shown as a link.
-#: src/ui/widgets.rs:2890
-#, rust-format
-msgid "Built with love by {name}"
-msgstr "{name}が心を込めて制作"
-
-#: src/ui/widgets.rs:3035
+#: src/ui/widgets.rs:3011
 msgid "Host"
 msgstr "ホスト"
 
-#: src/ui/widgets.rs:3052
+#: src/ui/widgets.rs:3028
 msgid "Port"
 msgstr "ポート"
 
-#: src/ui/widgets.rs:3070
+#: src/ui/widgets.rs:3046
 msgid "Username"
 msgstr "ユーザー名"
 
-#: src/ui/widgets.rs:3081
+#: src/ui/widgets.rs:3057
 msgid "Password"
 msgstr "パスワード"
 
-#: src/ui/widgets.rs:3099
+#: src/ui/widgets.rs:3075
 msgid ""
 "Proxy login applies to Web requests. Local playback uses this proxy only "
 "without a login."
@@ -617,7 +611,7 @@ msgstr ""
 "プロキシのログイン情報はWebリクエストに適用されます。ローカル再生では、ログイ"
 "ン情報がない場合のみこのプロキシを使用します。"
 
-#: src/ui/widgets.rs:3103
+#: src/ui/widgets.rs:3079
 msgid ""
 "Spotify hostnames are resolved by the proxy. Local playback connects "
 "directly."
@@ -1413,7 +1407,7 @@ msgstr "「システムに合わせる」ではOmarchyの色を使います。"
 msgid "Follow system uses your desktop's light or dark appearance."
 msgstr "「システムに合わせる」ではデスクトップのライト／ダーク設定を使います。"
 
-#: src/ui/settings.rs:813 src/ui/settings.rs:1966
+#: src/ui/settings.rs:813 src/ui/settings.rs:1961
 msgid "Language"
 msgstr "言語"
 
@@ -1839,16 +1833,16 @@ msgid "Source code"
 msgstr "ソースコード"
 
 #. Translators: {query} is the text typed into the settings search field.
-#: src/ui/settings.rs:1922
+#: src/ui/settings.rs:1917
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "「{query}」に一致する設定はありません"
 
-#: src/ui/settings.rs:1923
+#: src/ui/settings.rs:1918
 msgid "Try fewer words, or check the spelling."
 msgstr "語句を減らすか、スペルを確認してください。"
 
-#: src/ui/settings.rs:1939
+#: src/ui/settings.rs:1934
 msgctxt "language"
 msgid "System"
 msgstr "システム"
@@ -3115,15 +3109,15 @@ msgid "{count} week ago"
 msgid_plural "{count} weeks ago"
 msgstr[0] "{count}週間前"
 
-#: src/util.rs:310
+#: src/util.rs:230
 msgid "Good morning"
 msgstr "おはようございます"
 
-#: src/util.rs:311
+#: src/util.rs:231
 msgid "Good afternoon"
 msgstr "こんにちは"
 
-#: src/util.rs:312
+#: src/util.rs:232
 msgid "Good evening"
 msgstr "こんばんは"
 
@@ -3132,6 +3126,7 @@ msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr ""
 "Waylandでは、デスクトップの「常に手前に表示」ショートカットかウインドウルール"
 "を使ってください。"
+
 
 #~ msgid "Scroll left"
 #~ msgstr "左へスクロール"

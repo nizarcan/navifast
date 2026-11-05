@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-10-06 11:49+0300\n"
+"POT-Creation-Date: 2026-11-05 23:41+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: French\n"
@@ -592,29 +592,23 @@ msgstr "Tout sélectionner"
 msgid "Clear"
 msgstr "Effacer"
 
-#. Translators: {name} is replaced by the author's name, shown as a link.
-#: src/ui/widgets.rs:2890
-#, rust-format
-msgid "Built with love by {name}"
-msgstr "Fait avec amour par {name}"
-
-#: src/ui/widgets.rs:3035
+#: src/ui/widgets.rs:3011
 msgid "Host"
 msgstr "Hôte"
 
-#: src/ui/widgets.rs:3052
+#: src/ui/widgets.rs:3028
 msgid "Port"
 msgstr "Port"
 
-#: src/ui/widgets.rs:3070
+#: src/ui/widgets.rs:3046
 msgid "Username"
 msgstr "Nom d’utilisateur"
 
-#: src/ui/widgets.rs:3081
+#: src/ui/widgets.rs:3057
 msgid "Password"
 msgstr "Mot de passe"
 
-#: src/ui/widgets.rs:3099
+#: src/ui/widgets.rs:3075
 msgid ""
 "Proxy login applies to Web requests. Local playback uses this proxy only "
 "without a login."
@@ -622,7 +616,7 @@ msgstr ""
 "L’identifiant du proxy s’applique aux requêtes Web. La lecture locale "
 "n’utilise ce proxy que sans identifiant."
 
-#: src/ui/widgets.rs:3103
+#: src/ui/widgets.rs:3079
 msgid ""
 "Spotify hostnames are resolved by the proxy. Local playback connects "
 "directly."
@@ -1427,7 +1421,7 @@ msgid "Follow system uses your desktop's light or dark appearance."
 msgstr ""
 "Suivre le système utilise l’apparence claire ou sombre de votre bureau."
 
-#: src/ui/settings.rs:813 src/ui/settings.rs:1966
+#: src/ui/settings.rs:813 src/ui/settings.rs:1961
 msgid "Language"
 msgstr "Langue"
 
@@ -1864,16 +1858,16 @@ msgid "Source code"
 msgstr "Code source"
 
 #. Translators: {query} is the text typed into the settings search field.
-#: src/ui/settings.rs:1922
+#: src/ui/settings.rs:1917
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "Aucun paramètre pour « {query} »"
 
-#: src/ui/settings.rs:1923
+#: src/ui/settings.rs:1918
 msgid "Try fewer words, or check the spelling."
 msgstr "Essayez avec moins de mots ou vérifiez l’orthographe."
 
-#: src/ui/settings.rs:1939
+#: src/ui/settings.rs:1934
 msgctxt "language"
 msgid "System"
 msgstr "Système"
@@ -3165,15 +3159,15 @@ msgid_plural "{count} weeks ago"
 msgstr[0] "il y a {count} semaine"
 msgstr[1] "il y a {count} semaines"
 
-#: src/util.rs:310
+#: src/util.rs:230
 msgid "Good morning"
 msgstr "Bonjour"
 
-#: src/util.rs:311
+#: src/util.rs:231
 msgid "Good afternoon"
 msgstr "Bon après-midi"
 
-#: src/util.rs:312
+#: src/util.rs:232
 msgid "Good evening"
 msgstr "Bonsoir"
 
@@ -3182,6 +3176,7 @@ msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr ""
 "Sous Wayland, utilisez le raccourci ou la règle de fenêtre « Garder au-"
 "dessus » de votre bureau."
+
 
 #~ msgid "Scroll left"
 #~ msgstr "Faire défiler vers la gauche"

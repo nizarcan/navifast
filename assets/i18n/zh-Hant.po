@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-10-06 11:49+0300\n"
+"POT-Creation-Date: 2026-11-05 23:41+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Traditional Chinese\n"
@@ -587,36 +587,30 @@ msgstr "全選"
 msgid "Clear"
 msgstr "清除"
 
-#. Translators: {name} is replaced by the author's name, shown as a link.
-#: src/ui/widgets.rs:2890
-#, rust-format
-msgid "Built with love by {name}"
-msgstr "由 {name} 用心打造"
-
-#: src/ui/widgets.rs:3035
+#: src/ui/widgets.rs:3011
 msgid "Host"
 msgstr "主機"
 
-#: src/ui/widgets.rs:3052
+#: src/ui/widgets.rs:3028
 msgid "Port"
 msgstr "連接埠"
 
-#: src/ui/widgets.rs:3070
+#: src/ui/widgets.rs:3046
 msgid "Username"
 msgstr "使用者名稱"
 
-#: src/ui/widgets.rs:3081
+#: src/ui/widgets.rs:3057
 msgid "Password"
 msgstr "密碼"
 
-#: src/ui/widgets.rs:3099
+#: src/ui/widgets.rs:3075
 msgid ""
 "Proxy login applies to Web requests. Local playback uses this proxy only "
 "without a login."
 msgstr ""
 "Proxy 登入資訊僅套用於 Web 要求。本機播放只會在不需登入時使用這個 Proxy。"
 
-#: src/ui/widgets.rs:3103
+#: src/ui/widgets.rs:3079
 msgid ""
 "Spotify hostnames are resolved by the proxy. Local playback connects "
 "directly."
@@ -1384,7 +1378,7 @@ msgstr "「跟隨系統」會使用你的 Omarchy 色彩。"
 msgid "Follow system uses your desktop's light or dark appearance."
 msgstr "「跟隨系統」會使用桌面的淺色或深色外觀。"
 
-#: src/ui/settings.rs:813 src/ui/settings.rs:1966
+#: src/ui/settings.rs:813 src/ui/settings.rs:1961
 msgid "Language"
 msgstr "語言"
 
@@ -1786,16 +1780,16 @@ msgid "Source code"
 msgstr "原始碼"
 
 #. Translators: {query} is the text typed into the settings search field.
-#: src/ui/settings.rs:1922
+#: src/ui/settings.rs:1917
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "沒有與「{query}」相關的設定"
 
-#: src/ui/settings.rs:1923
+#: src/ui/settings.rs:1918
 msgid "Try fewer words, or check the spelling."
 msgstr "請減少字詞，或檢查拼字。"
 
-#: src/ui/settings.rs:1939
+#: src/ui/settings.rs:1934
 msgctxt "language"
 msgid "System"
 msgstr "系統"
@@ -3048,21 +3042,22 @@ msgid "{count} week ago"
 msgid_plural "{count} weeks ago"
 msgstr[0] "{count} 週前"
 
-#: src/util.rs:310
+#: src/util.rs:230
 msgid "Good morning"
 msgstr "早安"
 
-#: src/util.rs:311
+#: src/util.rs:231
 msgid "Good afternoon"
 msgstr "午安"
 
-#: src/util.rs:312
+#: src/util.rs:232
 msgid "Good evening"
 msgstr "晚安"
 
 #: src/window.rs:12
 msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr "在 Wayland 上，請使用桌面環境的「最上層顯示」快捷鍵或視窗規則。"
+
 
 #~ msgid "Scroll left"
 #~ msgstr "向左捲動"

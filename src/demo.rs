@@ -2999,52 +2999,26 @@ mod tests {
             .collect()
     }
 
-    /// The About card ends with the author's credit, and the name opens
-    /// the author's website.
     #[test]
-    fn the_about_card_credits_the_author() {
-        let (ctx, mut app) = accessible_app("about-credit");
-        settings_text(&ctx, &mut app, "Rust");
-        let texts = view_frame(&ctx, &mut app, vec![], crate::ui::settings::show);
+    fn the_about_card_identifies_navifast_without_the_upstream_tagline() {
+        let (ctx, mut app) = accessible_app("about-identity");
+        app.navidrome_mode = true;
+        let texts = settings_text(&ctx, &mut app, "Rust");
         assert!(
             texts
                 .iter()
-                .any(|(text, _)| text.contains("Built with love by")),
-            "{texts:?}"
-        );
-        let name = texts
-            .iter()
-            .find(|(text, _)| text == "Carmine Paolino")
-            .map(|(_, rect)| rect.center())
-            .expect("the author's name");
-        app.actions.clear();
-        view_frame(
-            &ctx,
-            &mut app,
-            vec![
-                egui::Event::PointerMoved(name),
-                egui::Event::PointerButton {
-                    pos: name,
-                    button: egui::PointerButton::Primary,
-                    pressed: true,
-                    modifiers: egui::Modifiers::NONE,
-                },
-                egui::Event::PointerButton {
-                    pos: name,
-                    button: egui::PointerButton::Primary,
-                    pressed: false,
-                    modifiers: egui::Modifiers::NONE,
-                },
-            ],
-            crate::ui::settings::show,
+                .any(|text| text == &format!("Navifast {}", env!("CARGO_PKG_VERSION")))
         );
         assert!(
-            app.actions.iter().any(|action| matches!(
-                action,
-                Action::OpenUrl(url) if url == crate::ui::widgets::AUTHOR_URL
-            )),
-            "{:?}",
-            app.actions
+            texts
+                .iter()
+                .any(|text| text.contains("Playback from your Navidrome library"))
+        );
+        assert!(texts.iter().any(|text| text == "Source code"));
+        assert!(
+            !texts
+                .iter()
+                .any(|text| text.contains("Built with love") || text.contains("Carmine Paolino"))
         );
         app.backend.shutdown();
     }

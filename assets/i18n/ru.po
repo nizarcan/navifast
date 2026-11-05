@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-10-06 11:49+0300\n"
+"POT-Creation-Date: 2026-11-05 23:41+0300\n"
 "PO-Revision-Date: 2026-09-23 20:00+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Russian\n"
@@ -598,29 +598,23 @@ msgstr "Выделить всё"
 msgid "Clear"
 msgstr "Очистить"
 
-#. Translators: {name} is replaced by the author's name, shown as a link.
-#: src/ui/widgets.rs:2890
-#, rust-format
-msgid "Built with love by {name}"
-msgstr "Сделано с любовью: {name}"
-
-#: src/ui/widgets.rs:3035
+#: src/ui/widgets.rs:3011
 msgid "Host"
 msgstr "Хост"
 
-#: src/ui/widgets.rs:3052
+#: src/ui/widgets.rs:3028
 msgid "Port"
 msgstr "Порт"
 
-#: src/ui/widgets.rs:3070
+#: src/ui/widgets.rs:3046
 msgid "Username"
 msgstr "Имя пользователя"
 
-#: src/ui/widgets.rs:3081
+#: src/ui/widgets.rs:3057
 msgid "Password"
 msgstr "Пароль"
 
-#: src/ui/widgets.rs:3099
+#: src/ui/widgets.rs:3075
 msgid ""
 "Proxy login applies to Web requests. Local playback uses this proxy only "
 "without a login."
@@ -628,7 +622,7 @@ msgstr ""
 "Логин прокси применяется к веб-запросам. Локальное воспроизведение "
 "использует этот прокси только без логина."
 
-#: src/ui/widgets.rs:3103
+#: src/ui/widgets.rs:3079
 msgid ""
 "Spotify hostnames are resolved by the proxy. Local playback connects "
 "directly."
@@ -1428,7 +1422,7 @@ msgid "Follow system uses your desktop's light or dark appearance."
 msgstr ""
 "«Как в системе» использует светлое или тёмное оформление рабочего стола."
 
-#: src/ui/settings.rs:813 src/ui/settings.rs:1966
+#: src/ui/settings.rs:813 src/ui/settings.rs:1961
 msgid "Language"
 msgstr "Язык"
 
@@ -1856,16 +1850,16 @@ msgid "Source code"
 msgstr "Исходный код"
 
 #. Translators: {query} is the text typed into the settings search field.
-#: src/ui/settings.rs:1922
+#: src/ui/settings.rs:1917
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "Нет настроек по запросу «{query}»"
 
-#: src/ui/settings.rs:1923
+#: src/ui/settings.rs:1918
 msgid "Try fewer words, or check the spelling."
 msgstr "Попробуй меньше слов или проверь написание."
 
-#: src/ui/settings.rs:1939
+#: src/ui/settings.rs:1934
 msgctxt "language"
 msgid "System"
 msgstr "Системный"
@@ -3159,15 +3153,15 @@ msgstr[0] "{count} неделю назад"
 msgstr[1] "{count} недели назад"
 msgstr[2] "{count} недель назад"
 
-#: src/util.rs:310
+#: src/util.rs:230
 msgid "Good morning"
 msgstr "Доброе утро"
 
-#: src/util.rs:311
+#: src/util.rs:231
 msgid "Good afternoon"
 msgstr "Добрый день"
 
-#: src/util.rs:312
+#: src/util.rs:232
 msgid "Good evening"
 msgstr "Добрый вечер"
 
@@ -3176,6 +3170,7 @@ msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr ""
 "В Wayland используй сочетание клавиш или правило окна «Поверх других окон» "
 "своего окружения."
+
 
 #~ msgid "Scroll left"
 #~ msgstr "Прокрутить влево"

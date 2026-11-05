@@ -1905,11 +1905,6 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                         .open_url(egui::OpenUrl::new_tab(env!("CARGO_PKG_REPOSITORY")));
                 }
             });
-            ui.add_space(14.0);
-            if widgets::credit(ui, &palette, locale) {
-                app.actions
-                    .push(Action::OpenUrl(widgets::AUTHOR_URL.to_owned()));
-            }
         });
     }
 

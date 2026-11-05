@@ -970,6 +970,12 @@ impl App {
                 data.insert_temp(egui::Id::new("settings-filter"), "Appearance".to_string())
             });
         }
+        if flags.contains(&"about") {
+            self.presentation.history = vec![crate::model::Page::Settings];
+            ctx.data_mut(|data| {
+                data.insert_temp(egui::Id::new("settings-filter"), "About".to_string())
+            });
+        }
     }
 
     fn capture(&mut self, ctx: &egui::Context) {
