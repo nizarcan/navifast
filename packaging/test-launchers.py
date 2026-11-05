@@ -26,27 +26,27 @@ def yaml(path):
 def payload(root, desktop):
     (root / "packaging/applications").mkdir(parents=True)
     (root / "packaging/icons").mkdir(parents=True)
-    source = ROOT / ("packaging/applications/spotifast.desktop" if desktop == "spotifast"
+    source = ROOT / ("packaging/applications/navifast.desktop" if desktop == "navifast"
                      else "packaging/fixtures/fastpotify-0.8.0.desktop")
     shutil.copyfile(source, root / f"packaging/applications/{desktop}.desktop")
-    shutil.copyfile(ROOT / "packaging/icons/spotifast.svg", root / f"packaging/icons/{desktop}.svg")
+    shutil.copyfile(ROOT / "packaging/icons/navifast.svg", root / f"packaging/icons/{desktop}.svg")
     (root / "target/release").mkdir(parents=True)
     for name in ["fastpotify", "target/release/fastpotify"]:
         shutil.copyfile(shutil.which("true"), root / name)
-    if desktop == "spotifast":
-        for name in ["spotifast", "target/release/spotifast"]:
+    if desktop == "navifast":
+        for name in ["navifast", "target/release/navifast"]:
             shutil.copyfile(shutil.which("true"), root / name)
     for name in ["LICENSE", "README.md"]:
         shutil.copyfile(ROOT / name, root / name)
     shutil.copytree(ROOT / "contrib/omarchy", root / "contrib/omarchy")
     (root / "packaging/flatpak").mkdir()
-    shutil.copyfile(ROOT / "packaging/flatpak/rocks.spotifast.Spotifast.metainfo.xml",
-                    root / "packaging/flatpak/rocks.spotifast.Spotifast.metainfo.xml")
+    shutil.copyfile(ROOT / "packaging/flatpak/io.github.nizarcan.Navifast.metainfo.xml",
+                    root / "packaging/flatpak/io.github.nizarcan.Navifast.metainfo.xml")
 
 
 class LauncherInstallTest(unittest.TestCase):
     def test_generated_aur_versions_start_at_the_requested_release(self):
-        for package in ["spotifast", "spotifast-bin", "spotifast-git"]:
+        for package in ["navifast", "navifast-bin", "navifast-git"]:
             with self.subTest(package=package), tempfile.TemporaryDirectory() as directory:
                 recipe = Path(directory) / "PKGBUILD"
                 template = (ROOT / f"packaging/arch/{package}/PKGBUILD.in").read_text()
@@ -62,21 +62,25 @@ class LauncherInstallTest(unittest.TestCase):
         parser = configparser.ConfigParser(interpolation=None)
         parser.read(entries[0])
         entry = parser["Desktop Entry"]
-        self.assertEqual(entry["Name"], "Spotifast")
+        self.assertEqual(entry["Name"], "Navifast")
         self.assertEqual(entry["Icon"], icon)
         self.assertEqual(entry["StartupWMClass"], window_class)
-        self.assertEqual(entry["Exec"], "spotifast %u")
-        self.assertIn("x-scheme-handler/spotify;", entry["MimeType"])
+        if window_class == "fastpotify":
+            self.assertEqual(entry["Exec"], "navifast %u")
+            self.assertIn("x-scheme-handler/spotify;", entry["MimeType"])
+        else:
+            self.assertEqual(entry["Exec"], "navifast")
+            self.assertNotIn("MimeType", entry)
         icons = list((prefix / "share/icons/hicolor/scalable/apps").glob("*.svg"))
         self.assertEqual([p.name for p in icons], [icon + ".svg"])
-        self.assertEqual(icons[0].read_bytes(), (ROOT / "packaging/icons/spotifast.svg").read_bytes())
-        self.assertFalse((prefix / "bin/spotifast").is_symlink())
-        self.assertTrue((prefix / "bin/spotifast").is_file())
-        self.assertEqual(os.readlink(prefix / "bin/fastpotify"), "spotifast")
+        self.assertEqual(icons[0].read_bytes(), (ROOT / "packaging/icons/navifast.svg").read_bytes())
+        self.assertFalse((prefix / "bin/navifast").is_symlink())
+        self.assertTrue((prefix / "bin/navifast").is_file())
+        self.assertFalse((prefix / "bin/fastpotify").exists())
 
     def test_current_and_historical_aur_payloads_install_matching_launchers(self):
-        for package in ["spotifast", "spotifast-bin", "spotifast-git"]:
-            for desktop in ["spotifast", "fastpotify"]:
+        for package in ["navifast", "navifast-bin", "navifast-git"]:
+            for desktop in ["navifast", "fastpotify"]:
                 if package.endswith("-git") and desktop == "fastpotify":
                     continue  # The git package builds only the current source.
                 with self.subTest(package=package, desktop=desktop), tempfile.TemporaryDirectory() as directory:
@@ -98,10 +102,10 @@ class LauncherInstallTest(unittest.TestCase):
                     self.check_launcher(root / "pkg/usr", desktop, desktop, desktop)
 
     def test_flatpak_install_commands_keep_app_id_and_icon_aligned(self):
-        for manifest in ["rocks.spotifast.Spotifast.yml", "rocks.spotifast.Spotifast.bundle.yml"]:
+        for manifest in ["io.github.nizarcan.Navifast.yml", "io.github.nizarcan.Navifast.bundle.yml"]:
             config = yaml(ROOT / "packaging/flatpak" / manifest)
             commands = config["modules"][-1]["build-commands"]
-            for desktop in ["spotifast", "fastpotify"]:
+            for desktop in ["navifast", "fastpotify"]:
                 with self.subTest(manifest=manifest, desktop=desktop), tempfile.TemporaryDirectory() as directory:
                     root = Path(directory)
                     payload(root / "source", desktop)
@@ -111,13 +115,13 @@ class LauncherInstallTest(unittest.TestCase):
                     command = "\n".join(c.replace("/app/", str(root / "app") + "/") for c in commands_to_run)
                     subprocess.run(["bash", "-euc", command], check=True, cwd=root / "source")
                     self.check_launcher(root / "app", config["id"],
-                                        config["id"] if desktop == "spotifast" else desktop, config["id"])
+                                        config["id"] if desktop == "navifast" else desktop, config["id"])
 
     def test_native_manifest_preserves_the_input_launcher_filename(self):
         config = yaml(ROOT / "native-packages.yaml")
         entries = [c for c in config["nfpm"]["contents"] if "/packaging/" in c["src"]]
         self.assertEqual(len(entries), 2)
-        for desktop in ["spotifast", "fastpotify"]:
+        for desktop in ["navifast", "fastpotify"]:
             with self.subTest(desktop=desktop), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 payload(root / (desktop + "-v9.8.7-linux-amd64"), desktop)

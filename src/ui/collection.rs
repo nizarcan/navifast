@@ -244,28 +244,34 @@ pub fn actions_row(
                 }
             }
             let shuffle = app.playing_context_shuffle();
-            if theme::icon_button(
-                ui,
-                Icon::Shuffle,
-                26.0,
-                if shuffle {
-                    palette.accent
-                } else {
-                    palette.secondary
-                },
-                palette.text,
-                &if shuffle {
-                    gettext(locale, "Shuffle off")
-                } else {
-                    gettext(locale, "Shuffle")
-                },
-            )
-            .clicked()
+            if ui
+                .add_enabled_ui(!app.navidrome_mode, |ui| {
+                    theme::icon_button(
+                        ui,
+                        Icon::Shuffle,
+                        26.0,
+                        if shuffle {
+                            palette.accent
+                        } else {
+                            palette.secondary
+                        },
+                        palette.text,
+                        &if shuffle {
+                            gettext(locale, "Shuffle off")
+                        } else {
+                            gettext(locale, "Shuffle")
+                        },
+                    )
+                })
+                .inner
+                .clicked()
             {
                 app.actions.push(Action::SetShuffle(!shuffle));
             }
         }
-        if let Some((uri, saved)) = &actions.saved {
+        if let Some((uri, saved)) = &actions.saved
+            && !app.navidrome_mode
+        {
             let (icon, tooltip, color) = if *saved {
                 (
                     actions.saved_icons.1,
@@ -2626,7 +2632,7 @@ mod tests {
 
     fn test_app() -> App {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-table-cache-{}-{}",
+            "navifast-table-cache-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

@@ -1,4 +1,4 @@
-//! Linux desktop media controls (MPRIS) for Spotifast.
+//! Linux desktop media controls (MPRIS) for Navifast.
 //!
 //! D-Bus runs on its own thread with a local executor and exchanges bounded
 //! messages with the interface, which stays the only owner of playback
@@ -17,7 +17,6 @@ use crate::media::{MediaCommand, MediaState, MediaTrack};
 use crate::player::{Playback, RepeatMode};
 
 const PLAYING_POSITION_INTERVAL: Duration = Duration::from_millis(1000);
-const TRACK_OBJECT_PATH_PREFIX: &str = "/rocks/spotifast/Track/";
 
 enum Update {
     State(MediaState, bool),
@@ -41,7 +40,7 @@ impl MediaService {
         let (command_tx, commands) = std::sync::mpsc::channel();
         let wake: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(wake);
         let spawned = thread::Builder::new()
-            .name("spotifast-mpris".to_string())
+            .name("navifast-mpris".to_string())
             .spawn(move || {
                 let runtime = match tokio::runtime::Builder::new_current_thread()
                     .enable_all()
@@ -129,8 +128,8 @@ async fn run(
     commands: Sender<MediaCommand>,
     wake: std::sync::Arc<dyn Fn() + Send + Sync>,
 ) -> mpris_server::zbus::Result<()> {
-    let player = Player::builder("spotifast")
-        .identity("Spotifast")
+    let player = Player::builder("navifast")
+        .identity("Navifast")
         .desktop_entry(desktop_entry())
         .can_raise(true)
         .can_quit(true)
@@ -140,11 +139,7 @@ async fn run(
         .can_go_next(true)
         .can_go_previous(true)
         .can_seek(true)
-        .supported_uri_schemes(vec![
-            "spotify".to_string(),
-            "https".to_string(),
-            "http".to_string(),
-        ])
+        .supported_uri_schemes(Vec::new())
         .build()
         .await?;
 
@@ -331,26 +326,11 @@ fn metadata(track: Option<&MediaTrack>) -> Metadata {
 }
 
 fn object_path_for(uri: &str) -> Option<TrackId> {
-    let id: String = uri
-        .rsplit(':')
-        .next()
-        .unwrap_or("track")
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '_')
-        .collect();
-    let id = if id.is_empty() {
-        "track".to_string()
-    } else {
-        id
-    };
-    let kind = crate::util::uri_kind(uri).unwrap_or("track");
-    TrackId::try_from(format!("{TRACK_OBJECT_PATH_PREFIX}{kind}_{id}")).ok()
+    TrackId::try_from(crate::media::track_object_path(uri)?).ok()
 }
 
 fn uri_from_object_path(path: &str) -> Option<String> {
-    let rest = path.strip_prefix(TRACK_OBJECT_PATH_PREFIX)?;
-    let (kind, id) = rest.split_once('_')?;
-    Some(format!("spotify:{kind}:{id}"))
+    crate::media::track_uri_from_path(path)
 }
 
 /// The desktop entry's name: inside a Flatpak the entry is exported under
@@ -368,9 +348,9 @@ fn desktop_entry_for(app_id: Option<&str>, in_flatpak: bool) -> &str {
     if let Some(app_id) = app_id.filter(|id| !id.is_empty()) {
         app_id
     } else if in_flatpak {
-        "rocks.spotifast.Spotifast"
+        "io.github.nizarcan.Navifast"
     } else {
-        "spotifast"
+        "navifast"
     }
 }
 
@@ -380,14 +360,14 @@ mod tests {
 
     #[test]
     fn desktop_entry_matches_the_installed_flatpak_id() {
-        for id in ["rocks.spotifast.Spotifast", "rocks.fastpotify.Fastpotify"] {
+        for id in ["io.github.nizarcan.Navifast", "rocks.fastpotify.Fastpotify"] {
             assert_eq!(desktop_entry_for(Some(id), true), id);
         }
-        assert_eq!(desktop_entry_for(None, false), "spotifast");
-        assert_eq!(desktop_entry_for(None, true), "rocks.spotifast.Spotifast");
+        assert_eq!(desktop_entry_for(None, false), "navifast");
+        assert_eq!(desktop_entry_for(None, true), "io.github.nizarcan.Navifast");
         assert_eq!(
             desktop_entry_for(Some(""), true),
-            "rocks.spotifast.Spotifast"
+            "io.github.nizarcan.Navifast"
         );
     }
 
@@ -431,12 +411,12 @@ mod tests {
     fn a_volume_write_is_answered_with_the_new_level_on_a_private_bus() {
         use std::time::Duration;
         use zbus::zvariant::{OwnedValue, Value};
-        const CHILD: &str = "SPOTIFAST_VOLUME_PRIVATE_BUS";
+        const CHILD: &str = "NAVIFAST_VOLUME_PRIVATE_BUS";
         const NAME: &str =
             "media_controls::tests::a_volume_write_is_answered_with_the_new_level_on_a_private_bus";
         if std::env::var_os(CHILD).is_none() {
             let root = std::env::temp_dir().join(format!(
-                "spotifast-volume-bus-{:016x}",
+                "navifast-volume-bus-{:016x}",
                 rand::random::<u64>()
             ));
             std::fs::create_dir(&root).unwrap();
@@ -471,7 +451,7 @@ mod tests {
             .build()
             .unwrap();
         let properties = zbus::blocking::fdo::PropertiesProxy::builder(&client)
-            .destination("org.mpris.MediaPlayer2.spotifast")
+            .destination("org.mpris.MediaPlayer2.navifast")
             .unwrap()
             .path("/org/mpris/MediaPlayer2")
             .unwrap()

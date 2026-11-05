@@ -1,0 +1,38 @@
+# The release workflow's Flatpak: the binary the Linux job built, packaged
+# into the same sandbox as io.github.nizarcan.Navifast.yml describes. The
+# job unpacks the release tarball into built/ beside this file first.
+id: io.github.nizarcan.Navifast
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: navifast
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --socket=pulseaudio
+  - --share=network
+  # Reserved for future protected Navidrome credential storage.
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.mpris.MediaPlayer2.navifast
+  - --own-name=io.github.nizarcan.Navifast.Instance
+  - --persist=.local/state
+modules:
+  - name: navifast
+    buildsystem: simple
+    build-commands:
+      - binary=navifast; test -f $binary || binary=fastpotify; install -Dm755 $binary /app/bin/navifast
+      - install -Dm644 packaging/applications/*.desktop /app/share/applications/io.github.nizarcan.Navifast.desktop
+      - sed -i 's/^Icon=.*$/Icon=io.github.nizarcan.Navifast/;s/^StartupWMClass=navifast$/StartupWMClass=io.github.nizarcan.Navifast/' /app/share/applications/io.github.nizarcan.Navifast.desktop
+      - install -Dm644 packaging/icons/*.svg /app/share/icons/hicolor/scalable/apps/io.github.nizarcan.Navifast.svg
+      - install -Dm644 packaging/flatpak/io.github.nizarcan.Navifast.metainfo.xml /app/share/metainfo/io.github.nizarcan.Navifast.metainfo.xml
+      - install -Dm644 LICENSE /app/share/licenses/navifast/LICENSE
+    sources:
+      - type: dir
+        path: built
+      # Metainfo belongs to this packaging checkout, not the portable archive.
+      - type: file
+        path: io.github.nizarcan.Navifast.metainfo.xml
+        dest: packaging/flatpak

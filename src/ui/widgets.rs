@@ -134,6 +134,11 @@ fn paint_cover_url(
     if let Some(art) = art {
         art.touch(url);
     }
+    if url.starts_with("navifast-art:") {
+        // Touch the bounded Navidrome artwork cache even when the GPU texture
+        // is already loaded, so visible covers survive collection scrolling.
+        let _ = ui.ctx().try_load_image(url, Default::default());
+    }
     let image = egui::Image::new(url).show_loading_spinner(false);
     let Ok(egui::load::TexturePoll::Ready { texture }) = image.load_for_size(ui.ctx(), rect.size())
     else {
@@ -555,6 +560,12 @@ pub fn picked_menu(
     ui.set_max_width(300.0);
     let count = songs.len();
     let uris: Vec<String> = songs.iter().map(|item| item.uri().to_string()).collect();
+    if app.navidrome_mode {
+        if menu_item(ui, &palette, Some(Icon::Play), &gettext(locale, "Play")) {
+            app.actions.push(Action::PlayUris { uris, index: 0 });
+        }
+        return;
+    }
     ui.add_space(4.0);
     ui.horizontal(|ui| {
         ui.add_space(10.0);
@@ -807,6 +818,18 @@ pub fn item_menu(
     ui.set_min_width(220.0);
     ui.set_max_width(300.0);
     let uri = item.uri().to_string();
+    if app.navidrome_mode {
+        if menu_item(ui, &palette, Some(Icon::Play), &gettext(locale, "Play"))
+            && let (Some(context), Some(index)) = (context, index)
+        {
+            app.actions.push(Action::PlayFromRow {
+                context: context.clone(),
+                uri,
+                index: index as u32,
+            });
+        }
+        return;
+    }
     let label = item.name().to_string();
     if menu_item(
         ui,
@@ -1000,6 +1023,9 @@ pub fn context_menu_items(
             offset_uri: None,
             offset_index: None,
         });
+    }
+    if app.navidrome_mode {
+        return;
     }
     if kind != "artist"
         && menu_item(
@@ -3352,7 +3378,7 @@ mod tests {
 
     fn test_app() -> App {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-virtual-{}-{}",
+            "navifast-virtual-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

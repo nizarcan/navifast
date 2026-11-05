@@ -1,22 +1,22 @@
 [package]
-name = "spotifast"
-default-run = "spotifast"
+name = "navifast"
+default-run = "navifast"
 version = "0.11.2"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
-description = "A native Spotify client"
-repository = "https://github.com/crmne/spotifast"
-keywords = ["spotify", "music", "egui", "librespot", "player"]
+description = "A native Navidrome client"
+repository = "https://github.com/nizarcan/navifast"
+keywords = ["navidrome", "subsonic", "music", "egui", "player"]
 categories = ["multimedia::audio"]
 
 [lib]
-name = "spotifast"
+name = "navifast"
 path = "src/lib.rs"
 
 [[bin]]
-name = "spotifast"
-path = "src/spotifast.rs"
+name = "navifast"
+path = "src/navifast.rs"
 
 # Compatibility command for scripts and the updater in earlier releases.
 [[bin]]
@@ -40,7 +40,7 @@ keyring-core = "1"
 eframe = { version = "0.36", default-features = false, features = ["accesskit", "glow", "default_fonts", "links", "wayland", "x11", "persistence"] }
 egui = "0.36"
 egui_extras = { version = "0.36", features = ["image", "svg"] }
-# The shared foundation of Spotifast, ZapFast, RekordFlash and TonePush
+# The shared foundation of Navifast, ZapFast, RekordFlash and TonePush
 # (crmne/fastframe). Every crate comes from the same revision; move them
 # together.
 fastframe-text = { git = "https://github.com/crmne/fastframe", tag = "v0.2.3" }
@@ -117,6 +117,11 @@ protobuf = "3"
 # so nothing new is compiled.
 rodio = { version = "0.21", default-features = false, features = ["playback"] }
 cpal = "0.16"
+# Decode Navidrome's original files while retaining our PCM EQ/visualizer path.
+# Symphonia is already used by librespot; explicitly enable the library codecs.
+symphonia = { version = "0.5.5", features = ["aac", "alac", "isomp4", "pcm", "wav", "aiff", "mp3"] }
+# Subsonic's specified password + random salt authentication, never password URLs.
+md-5 = "0.10"
 # `socks` is SOCKS5 proxy support for the Web API, artwork, lyrics, and
 # update checks. HTTP proxies work without it. `system-proxy` reads the OS
 # proxy on macOS and Windows when the mode is System; Linux uses environment
@@ -251,7 +256,7 @@ epaint_default_fonts = { git = "https://github.com/crmne/egui", rev = "61a38149a
 # crmne/winit apps-0.30, shared with the same apps: winit 0.30.13 plus Wayland
 # `Occluded` for the xdg-shell suspended state with commits on the app's behalf
 # while it isn't presenting (rust-windowing/winit#4709, #4710), macOS Quit
-# through close requests behind a feature Spotifast leaves off (winit#4692),
+# through close requests behind a feature Navifast leaves off (winit#4692),
 # and file drag and drop on Wayland through the one data device egui's
 # clipboard also uses, since Hyprland gives the clipboard and drags only to an
 # app's first data device (#614). eframe from the fork above calls the
@@ -265,7 +270,7 @@ projectm-sys = { git = "https://github.com/crmne/projectm-rs", branch = "respect
 # hyper-proxy2's unreleased rustls 0.23 update plus our upstream provider
 # compatibility fix. Drop this fork when a release includes both changes.
 hyper-proxy2 = { git = "https://github.com/crmne/hyper-proxy2", rev = "efca4811371ddae81c06be168de54194938d70b1" }
-# librespot 0.8.0 plus the small patches Spotifast needs: queue controls,
+# librespot 0.8.0 plus the small patches Navifast needs: queue controls,
 # normalisation-factor reporting for the visualisers, and a distinct event
 # when Spotify refuses an audio key, bounded socket setup with DNS address
 # fallback, an in-memory credential cache for platform storage, full

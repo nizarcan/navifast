@@ -1,4 +1,4 @@
-//! Spotifast's internals, exposed so diagnostics and tests can reach them.
+//! Navifast's internals, exposed so diagnostics and tests can reach them.
 
 pub mod api;
 pub mod app;
@@ -36,6 +36,7 @@ pub mod media_controls;
 pub mod media_controls;
 pub mod milkdrop;
 pub mod model;
+pub mod navidrome;
 pub mod opener;
 pub mod paths;
 pub mod player;

@@ -11,13 +11,13 @@ use std::process::Command;
 #[test]
 fn update_flags_are_intercepted_before_the_arguments_are_parsed() {
     for (program, name) in [
-        (env!("CARGO_BIN_EXE_spotifast"), "spotifast"),
+        (env!("CARGO_BIN_EXE_navifast"), "navifast"),
         (env!("CARGO_BIN_EXE_fastpotify"), "fastpotify"),
     ] {
         for flags in [
             [
                 "--update-receipt",
-                "/missing/.spotifast-update-0000000000000000/handoff.json",
+                "/missing/.navifast-update-0000000000000000/handoff.json",
             ],
             [
                 "--update-error",
@@ -45,11 +45,11 @@ fn update_flags_are_intercepted_before_the_arguments_are_parsed() {
 #[test]
 fn apply_update_runs_the_helper_before_the_app() {
     let scratch = std::env::temp_dir().join(format!(
-        "spotifast-apply-update-{:016x}",
+        "navifast-apply-update-{:016x}",
         rand::random::<u64>()
     ));
     std::fs::create_dir(&scratch).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_spotifast"))
+    let output = Command::new(env!("CARGO_BIN_EXE_navifast"))
         .arg("--apply-update")
         .arg(scratch.join("missing-job.json"))
         .env("HOME", &scratch)

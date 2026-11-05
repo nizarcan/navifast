@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="rim" x1="22" y1="8" x2="101" y2="121" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8dc8ff"/><stop offset="0.42" stop-color="#6179ed"/><stop offset="1" stop-color="#53409b"/>
+    </linearGradient>
+    <linearGradient id="vinyl" x1="25" y1="12" x2="97" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#343c59"/><stop offset="0.5" stop-color="#171c32"/><stop offset="1" stop-color="#0c1021"/>
+    </linearGradient>
+    <linearGradient id="label" x1="47" y1="43" x2="83" y2="85" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#77deff"/><stop offset="0.45" stop-color="#6489fa"/><stop offset="1" stop-color="#a878e8"/>
+    </linearGradient>
+    <linearGradient id="reflection" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0.18" stop-color="#b9d6ff" stop-opacity="0"/>
+      <stop offset="0.38" stop-color="#b9d6ff" stop-opacity="0.02"/>
+      <stop offset="0.49" stop-color="#b9d6ff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#b9d6ff" stop-opacity="0.08"/>
+      <stop offset="0.72" stop-color="#b9d6ff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="spindle"><rect width="128" height="128" fill="white"/><circle cx="64" cy="64" r="4" fill="black"/></mask>
+  </defs>
+  <g mask="url(#spindle)">
+    <circle cx="64" cy="64" r="62" fill="url(#rim)"/>
+    <circle cx="64" cy="64" r="57" fill="url(#vinyl)"/>
+    <circle cx="64" cy="64" r="56.5" fill="none" stroke="#bad0ff" stroke-opacity="0.25"/>
+    <g fill="none" stroke="#8a9fd4" stroke-width="0.9" stroke-opacity="0.28">
+      <circle cx="64" cy="64" r="49"/>
+      <circle cx="64" cy="64" r="43"/>
+      <circle cx="64" cy="64" r="37"/>
+      <circle cx="64" cy="64" r="31"/>
+    </g>
+    <circle cx="64" cy="64" r="56" fill="url(#reflection)"/>
+    <circle cx="64" cy="64" r="23" fill="#080c19"/>
+    <circle cx="64" cy="64" r="21" fill="url(#label)"/>
+    <circle cx="64" cy="64" r="20.5" fill="none" stroke="#d4e6ff" stroke-opacity="0.45"/>
+    <circle cx="64" cy="64" r="7" fill="#171d35"/>
+    <circle cx="64" cy="64" r="7" fill="none" stroke="#cad8ff" stroke-opacity="0.5"/>
+  </g>
+</svg>

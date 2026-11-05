@@ -32,7 +32,7 @@ class ReleaseMetainfoTests(unittest.TestCase):
         result = ET.fromstring(metainfo.rename_metainfo(self.fixture(), "0.8.0"))
         self.assertEqual(result.findtext("id"), metainfo.APP_ID)
         self.assertEqual(result.findtext("launchable"), metainfo.APP_ID + ".desktop")
-        self.assertEqual(result.findtext("name"), "Spotifast")
+        self.assertEqual(result.findtext("name"), "Navifast")
         self.assertEqual(result.findtext("description/p"), "Existing release description.")
         self.assertEqual(result.find("releases/release").attrib,
                          {"version": "0.8.0", "date": "2026-09-14"})

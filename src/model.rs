@@ -1131,7 +1131,7 @@ pub enum Action {
     SetSkinScale(u8),
     ToggleWinampOnTop,
     SetWinampTaskbar(bool),
-    /// Windows: draw Spotifast's own title bar instead of the standard one.
+    /// Windows: draw Navifast's own title bar instead of the standard one.
     SetCustomTitlebar(bool),
     OpenSkinsFolder,
     /// Pick a different skin each time the mini player opens.

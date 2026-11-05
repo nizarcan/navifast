@@ -50,7 +50,7 @@ const ARTISTS: &[&str] = &[
     "Four Tet",
 ];
 
-const ALBUMS: &[(&str, usize, &str)] = &[
+pub(crate) const ALBUMS: &[(&str, usize, &str)] = &[
     ("Fragments", 0, "2022"),
     ("Mordechai", 1, "2020"),
     ("All Melody", 2, "2018"),
@@ -144,7 +144,7 @@ fn artist(index: usize) -> Artist {
     }
 }
 
-fn album(index: usize) -> Album {
+pub(crate) fn album(index: usize) -> Album {
     let (name, artist_index, year) = ALBUMS[index % ALBUMS.len()];
     Album {
         id: format!("alb{index}"),
@@ -168,7 +168,7 @@ fn album(index: usize) -> Album {
     }
 }
 
-fn track(index: usize) -> Track {
+pub(crate) fn track(index: usize) -> Track {
     let album_index = index % ALBUMS.len();
     let mut album = album(album_index);
     album.tracks = None;
@@ -560,7 +560,7 @@ pub fn populate(app: &mut App) {
     app.devices = vec![
         Device {
             id: Some("local-demo".into()),
-            name: "Spotifast".into(),
+            name: "Navifast".into(),
             is_active: false,
             is_restricted: false,
             volume_percent: Some(70),
@@ -908,7 +908,7 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
             "update" => {
                 app.update = Some(crate::updates::Release {
                     version: "0.7.1".into(),
-                    url: "https://spotifast.rocks/download/".into(),
+                    url: "https://nizarcan.github.io/navifast/download/".into(),
                 });
             }
             "personal-app" => app.dialog = Some(Dialog::PersonalAppIntro),
@@ -1233,7 +1233,7 @@ mod tests {
 
     fn accessible_app(name: &str) -> (egui::Context, App) {
         let root =
-            std::env::temp_dir().join(format!("spotifast-a11y-{name}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-a11y-{name}-{}", std::process::id()));
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let waker = crate::backend::Waker::default();
@@ -4885,7 +4885,7 @@ mod tests {
             crate::ui::settings::show,
         );
         assert!(app.actions.iter().any(|action| matches!(action,
-            Action::OpenUrl(url) if url == "https://spotifast.rocks/settings-and-files/#custom-themes")));
+            Action::OpenUrl(url) if url == "https://nizarcan.github.io/navifast/settings-and-files/#custom-themes")));
         app.backend.shutdown();
     }
 
@@ -5492,8 +5492,7 @@ mod tests {
     /// A toast is wide enough to avoid wrapping every word.
     #[test]
     fn a_toast_is_wide_enough_to_read() {
-        let root =
-            std::env::temp_dir().join(format!("spotifast-toast-test-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("navifast-toast-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -5567,7 +5566,7 @@ mod tests {
     #[test]
     fn the_shortcuts_dialog_fits_a_small_window() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-shortcuts-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-shortcuts-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -5620,7 +5619,7 @@ mod tests {
     #[test]
     fn interface_zoom_puts_minus_on_the_left() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-zoom-order-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-zoom-order-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -5701,7 +5700,7 @@ mod tests {
     #[test]
     fn the_frame_rate_dial_steps_between_its_stops() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-fps-dial-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-fps-dial-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -5781,10 +5780,8 @@ mod tests {
     /// Rule: side-panel headers stay on one line at their narrowest width.
     #[test]
     fn the_narrowest_panels_keep_their_headers_on_one_row() {
-        let root = std::env::temp_dir().join(format!(
-            "spotifast-queue-header-test-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("navifast-queue-header-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -5877,10 +5874,8 @@ mod tests {
     /// With nothing reported, the row is not drawn.
     #[test]
     fn the_queue_names_where_the_song_plays_from() {
-        let root = std::env::temp_dir().join(format!(
-            "spotifast-playing-from-test-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("navifast-playing-from-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -6130,7 +6125,7 @@ mod tests {
     #[test]
     fn fullscreen_lyrics_highlight_preserves_line_layout() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-lyrics-layout-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-lyrics-layout-{}", std::process::id()));
         let ctx = egui::Context::default();
         let waker = crate::backend::Waker::default();
         waker.attach(&ctx);
@@ -6200,7 +6195,7 @@ mod tests {
     #[test]
     fn every_surface_renders_headless() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-render-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-render-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -6318,7 +6313,7 @@ mod tests {
     #[test]
     fn a_long_virtual_queue_and_library_still_draw() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-virtual-long-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-virtual-long-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -6383,10 +6378,8 @@ mod tests {
     }
 
     fn drop_songs_on_sidebar(count: usize) {
-        let root = std::env::temp_dir().join(format!(
-            "spotifast-drag-test-{}-{count}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("navifast-drag-test-{}-{count}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -6770,7 +6763,7 @@ mod tests {
     #[test]
     fn dragging_the_now_playing_song_supplies_a_playlist_row() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-now-playing-drag-test-{}",
+            "navifast-now-playing-drag-test-{}",
             std::process::id()
         ));
         let dirs = AppDirs {
@@ -7196,7 +7189,7 @@ mod tests {
         app.backend.shutdown();
     }
 
-    /// "Next up" plays from the current context, not from a list Spotifast
+    /// "Next up" plays from the current context, not from a list Navifast
     /// can rewrite, so it is never a drop target: dropping a queued row on
     /// it must not move or insert anything, even though the row sits inside
     /// the same scrollable list as "Playing next".
@@ -7702,7 +7695,7 @@ mod tests {
     #[test]
     fn dragging_within_the_pinned_block_reorders_it() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-reorder-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-reorder-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -7780,7 +7773,7 @@ mod tests {
     #[test]
     fn dropping_between_unpinned_playlists_creates_the_custom_order() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-unpinned-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-unpinned-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -8556,7 +8549,7 @@ mod tests {
     /// before asking the server.
     #[test]
     fn dragging_a_row_within_a_playlist_reorders_it() {
-        let root = std::env::temp_dir().join(format!("spotifast-move-test-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("navifast-move-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -8844,7 +8837,7 @@ mod tests {
     #[test]
     fn clicking_search_in_library_shelf_focuses_search_field() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-sidebar-search-focus-test-{}",
+            "navifast-sidebar-search-focus-test-{}",
             std::process::id()
         ));
         let dirs = AppDirs {

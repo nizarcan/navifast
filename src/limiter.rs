@@ -67,6 +67,11 @@ pub struct Limiter {
 }
 
 impl Limiter {
+    /// Frames of look-ahead latency, also the tail to drain at end of input.
+    pub fn delayed_frames(&self) -> usize {
+        self.held.len()
+    }
+
     pub fn new(sample_rate: f64) -> Self {
         let lookahead = ((LOOKAHEAD_MS / 1000.0 * sample_rate).round() as usize).max(1);
         Self {

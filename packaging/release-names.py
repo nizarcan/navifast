@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish Spotifast filenames and byte-identical names for older updaters."""
+"""Publish Navifast filenames and byte-identical names for older updaters."""
 
 import argparse
 import hashlib
@@ -14,7 +14,7 @@ def prepare(directory, tag):
     bridge = tuple(map(int, tag[1:].split("-")[0].split("."))) <= (0, 9, 1)
     pairs = {}
     for path in directory.iterdir():
-        for prefix in ("spotifast-", "fastpotify-"):
+        for prefix in ("navifast-", "fastpotify-"):
             if path.name.startswith(prefix + tag + "-"):
                 if not bridge and prefix == "fastpotify-":
                     raise ValueError("Legacy release downloads are forbidden after 0.9.1")
@@ -22,7 +22,7 @@ def prepare(directory, tag):
                     raise ValueError(f"Expected a regular release file: {path.name}")
                 suffix = path.name[len(prefix):]
                 pairs[suffix] = (
-                    directory / ("spotifast-" + suffix),
+                    directory / ("navifast-" + suffix),
                     directory / ("fastpotify-" + suffix),
                 )
     if not pairs:

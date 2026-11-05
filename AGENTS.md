@@ -1,16 +1,15 @@
-# Spotifast agent guide
+# Navifast agent guide
 
 Follow `CONTRIBUTING.md`; it is the canonical product and contribution policy.
 These instructions add implementation constraints for coding agents.
 
 ## Product boundaries
 
-- Keep Spotifast a small native Spotify client. Do not add a browser engine,
-  telemetry, a hosted backend, or alternate sources for Spotify audio.
-- Playback capabilities come from librespot. Do not advertise or implement a
-  capability merely because its name appears in a protobuf or enum. In
-  particular, do not pursue Spotify Lossless or DRM circumvention unless
-  lawful support first lands upstream.
+- Keep Navifast a small native Navidrome client. Do not add a browser engine,
+  telemetry or a hosted backend. The requested pivot replaces Spotify services.
+- Playback comes from the user's Navidrome library over OpenSubsonic. Discover
+  optional server capabilities and validate codec/output support before
+  advertising them. Inherited Spotify modules are migration references only.
 - Do not broaden a task into adjacent features or a general refactor. Preserve
   existing user behaviour unless the task explicitly changes it.
 
@@ -40,25 +39,20 @@ These instructions add implementation constraints for coding agents.
   the laid-out runs; never reorder the string before layout.
 
 Read `docs/_reference/how-it-connects.md` before changing authentication,
-Spotify requests, Connect, credential storage, or network behaviour. Read
+server requests, credential storage or network behaviour. Read
 `docs/_reference/queue.md` before touching the queue: its rules are the
 contract, and the queue tests in `src/app.rs` enforce them. Read the
 nearby module tests before changing a state machine or API fallback.
 
-`docs/_reference/what-spotify-allows.md` lists what the Web API, the
-librespot session, and librespot playback each offer, and the requests
-none of them can serve (pins synchronised with Spotify, folder editing,
-Smart Shuffle, lossless, local files, and more), each with its reason.
-Before building or promising a Spotify-facing feature, and before answering
-an issue that asks for one, find it there. A request in the last section is
-answered with that reason and closed, not worked on; if the reason has
-lapsed because librespot or the Web API gained the capability, update the
-page in the same change.
+`docs/_reference/what-spotify-allows.md` records inherited Spotify limitations.
+For the current client, follow Navidrome/OpenSubsonic documentation and the
+implemented capabilities in `src/navidrome/`. Never infer support from dormant
+Spotify code.
 
 The interface is optimistic, always. A control shows its result the
 moment it is used: a double-clicked song is the playing song, Next pops
 the queue's head, an added song has its row. The backend then makes it
-true and Spotify's state catches up behind; an answer that still tells
+true and server state catches up behind; an answer that still tells
 the story from before the user's action is stale, so hold the shown
 state and ask again rather than let the lagging answer undo what the
 user just did. Nothing the user did may ever flicker away and come back.
@@ -186,7 +180,7 @@ A release is not the tag alone. Do these in order:
    Homebrew, and AUR. The prerelease remains available from GitHub's releases
    page.
 4. For a stable release, only after the GitHub release exists, update
-   `docs/_config.yml` `spotifast_version` and
+   `docs/_config.yml` `navifast_version` and
    `docs/_data/versions.yml`. The selector carries only the latest stable
    version: replace its version entry, make it `current`, and point it at
    `/download/`. Do not retain older version entries; they remain available

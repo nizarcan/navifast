@@ -23,7 +23,7 @@ class ReleaseNamesTest(unittest.TestCase):
     def test_releases_after_the_bridge_have_only_the_new_name(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "spotifast-v0.9.2-linux.tar.gz").write_bytes(b"new build")
+            (root / "navifast-v0.9.2-linux.tar.gz").write_bytes(b"new build")
             release_names.prepare(root, "v0.9.2")
             self.assertEqual(len((root / "checksums.txt").read_text().splitlines()), 1)
             self.assertFalse((root / "fastpotify-v0.9.2-linux.tar.gz").exists())
@@ -35,9 +35,9 @@ class ReleaseNamesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "fastpotify-v0.8.0-linux.tar.gz").write_bytes(b"unchanged Linux build")
-            (root / "spotifast-v0.8.0-macos.dmg").write_bytes(b"notarized Mac build")
+            (root / "navifast-v0.8.0-macos.dmg").write_bytes(b"notarized Mac build")
             release_names.prepare(root, "v0.8.0")
-            self.assertEqual((root / "spotifast-v0.8.0-linux.tar.gz").read_bytes(), b"unchanged Linux build")
+            self.assertEqual((root / "navifast-v0.8.0-linux.tar.gz").read_bytes(), b"unchanged Linux build")
             self.assertEqual((root / "fastpotify-v0.8.0-macos.dmg").read_bytes(), b"notarized Mac build")
             before = (root / "checksums.txt").read_bytes()
             self.assertEqual(len(before.splitlines()), 4)
@@ -48,7 +48,7 @@ class ReleaseNamesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             old = root / "fastpotify-v0.8.0-linux.tar.gz"
-            new = root / "spotifast-v0.8.0-linux.tar.gz"
+            new = root / "navifast-v0.8.0-linux.tar.gz"
             old.write_bytes(b"old")
             new.write_bytes(b"new")
             with self.assertRaisesRegex(ValueError, "Different bytes"):

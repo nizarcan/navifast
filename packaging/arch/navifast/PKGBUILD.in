@@ -1,30 +1,28 @@
-# Maintainer: Carmine Paolino <carmine@paolino.me>
-pkgname=spotifast
+# Maintainer: Navifast contributors
+pkgname=navifast
 pkgver=@VERSION@
 pkgrel=@PKGREL@
-pkgdesc="Native Spotify client"
+pkgdesc="Native Navidrome client"
 arch=('x86_64' 'aarch64')
-url="https://github.com/crmne/spotifast"
+url="https://github.com/nizarcan/navifast"
 license=('MIT')
 install="${pkgname}.install"
 depends=('dbus' 'alsa-lib' 'libpulse' 'libglvnd' 'libxkbcommon' 'wayland' 'libx11')
 makedepends=('cargo' 'cmake' 'clang')
 optdepends=('libxkbcommon-x11: keyboard handling in X11 sessions'
             'pipewire-pulse: PipeWire as the PulseAudio server')
-provides=("fastpotify=$pkgver")
-conflicts=('fastpotify' 'fastpotify-bin' 'fastpotify-git' 'spotifast-bin' 'spotifast-git')
-replaces=('fastpotify')
+conflicts=('navifast-bin' 'navifast-git')
 # !lto because ring compiles its own C and Arch's default CFLAGS put LTO
 # objects in the archive, which lld then cannot resolve: the link fails on
 # undefined ring_core_* symbols.
 options=('!debug' '!lto')
-source=("${pkgname}-${pkgver}.tar.gz::${url}/releases/download/v${pkgver}/spotifast-v${pkgver}-source.tar.gz")
+source=("${pkgname}-${pkgver}.tar.gz::${url}/releases/download/v${pkgver}/navifast-v${pkgver}-source.tar.gz")
 sha256sums=('@SOURCE_SHA256@')
 
 # GitHub archives use the repository name; older releases used Fastpotify.
 _source_dir() {
-  if [[ -d "${srcdir}/spotifast-${pkgver}" ]]; then
-    printf '%s\n' "${srcdir}/spotifast-${pkgver}"
+  if [[ -d "${srcdir}/navifast-${pkgver}" ]]; then
+    printf '%s\n' "${srcdir}/navifast-${pkgver}"
   else
     printf '%s\n' "${srcdir}/fastpotify-${pkgver}"
   fi
@@ -58,15 +56,14 @@ check() {
 package() {
   cd "$(_source_dir)"
 
-  local binary=spotifast
+  local binary=navifast
   [[ -f "target/release/$binary" ]] || binary=fastpotify
-  install -Dm755 "target/release/$binary" "${pkgdir}/usr/bin/spotifast"
-  ln -s spotifast "${pkgdir}/usr/bin/fastpotify"
+  install -Dm755 "target/release/$binary" "${pkgdir}/usr/bin/navifast"
   install -Dm644 "LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
   install -Dm644 "README.md" "${pkgdir}/usr/share/doc/${pkgname}/README.md"
   # Historical releases retain their matching launcher/window identity.
-  local desktop=spotifast
-  if [[ ! -f "packaging/applications/spotifast.desktop" ]]; then
+  local desktop=navifast
+  if [[ ! -f "packaging/applications/navifast.desktop" ]]; then
     desktop=fastpotify
   fi
   install -Dm644 "packaging/applications/${desktop}.desktop" \
@@ -75,7 +72,7 @@ package() {
     "${pkgdir}/usr/share/icons/hicolor/scalable/apps/${desktop}.svg"
   # Older release fixtures predate the optional integration.
   if [[ -d contrib/omarchy ]]; then
-    install -Dm644 contrib/omarchy/spotifast.json.tpl "${pkgdir}/usr/share/spotifast/omarchy/spotifast.json.tpl"
-    install -Dm755 contrib/omarchy/spotifast-theme "${pkgdir}/usr/share/spotifast/omarchy/spotifast-theme"
+    install -Dm644 contrib/omarchy/navifast.json.tpl "${pkgdir}/usr/share/navifast/omarchy/navifast.json.tpl"
+    install -Dm755 contrib/omarchy/navifast-theme "${pkgdir}/usr/share/navifast/omarchy/navifast-theme"
   fi
 }

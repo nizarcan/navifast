@@ -1,4 +1,4 @@
-//! Where Spotifast keeps its files.
+//! Where Navifast keeps its files.
 //!
 //! Configuration, durable non-secret state, and disposable caches live in the
 //! platform's conventional directories. Spotify grants use the platform store;
@@ -17,7 +17,7 @@ pub struct AppDirs {
 
 impl AppDirs {
     pub fn discover() -> Self {
-        Self::for_name("spotifast")
+        Self::for_name("navifast")
     }
 
     pub(crate) fn legacy() -> Self {
@@ -49,12 +49,16 @@ impl AppDirs {
         if self.is_legacy_profile() {
             "fastpotify"
         } else {
-            "spotifast"
+            "navifast"
         }
     }
 
     fn for_name(name: &str) -> Self {
-        let project = ProjectDirs::from("me", "paolino", name);
+        let project = if name == "navifast" {
+            ProjectDirs::from("io.github", "nizarcan", name)
+        } else {
+            ProjectDirs::from("me", "paolino", name)
+        };
         match project {
             Some(project) => Self {
                 config: project.config_dir().to_path_buf(),
@@ -149,7 +153,7 @@ impl AppDirs {
 
     /// The log of the current run, replaced at every start.
     pub fn log_file(&self) -> PathBuf {
-        self.state.join("spotifast.log")
+        self.state.join("navifast.log")
     }
 
     /// Where a panic is recorded before the process dies of it.
@@ -242,7 +246,7 @@ mod tests {
         use sha2::{Digest, Sha256};
         for shared in [false, true] {
             let root =
-                std::env::temp_dir().join(format!("spotifast-migration-{}", rand::random::<u64>()));
+                std::env::temp_dir().join(format!("navifast-migration-{}", rand::random::<u64>()));
             let dirs = |name: &str| AppDirs {
                 config: root
                     .join(name)

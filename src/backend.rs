@@ -914,7 +914,7 @@ impl Backend {
         let (event_tx, event_rx) = std::sync::mpsc::channel();
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
-            .thread_name("spotifast-runtime")
+            .thread_name("navifast-runtime")
             .enable_all()
             .build()
             .expect("unable to start the async runtime");
@@ -935,7 +935,7 @@ impl Backend {
         let worker_art = art.clone();
         let worker_commands = command_tx.clone();
         let thread = std::thread::Builder::new()
-            .name("spotifast-backend".to_string())
+            .name("navifast-backend".to_string())
             .spawn(move || {
                 runtime.block_on(async move {
                     let mut worker = Worker::new(
@@ -2909,7 +2909,7 @@ impl Worker {
                 if !lease.current() {
                     return Err("Sign-in changed before receiver activation.".into());
                 }
-                crate::zeroconf::add_user(&http, &receiver, &info, &credentials, "Spotifast")
+                crate::zeroconf::add_user(&http, &receiver, &info, &credentials, "Navifast")
                     .map_err(|error| error.to_string())
             })();
             let _ = events.send(Event::ReceiverActivated { name, result });
@@ -4596,7 +4596,7 @@ mod playlist_cache_tests {
     #[test]
     fn incremental_checkpoints_append_only_new_rows_and_recover_from_failed_publication() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-incremental-{}-{:?}",
+            "navifast-playlist-cache-incremental-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4670,7 +4670,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn incremental_cache_replaces_changed_snapshot_and_keeps_legacy_reader() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-migration-{}-{:?}",
+            "navifast-playlist-cache-migration-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4742,7 +4742,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn reopening_a_cache_removes_rows_left_by_an_interrupted_replacement() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-orphan-test-{}-{:?}",
+            "navifast-playlist-cache-orphan-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4808,7 +4808,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn the_file_reader_accepts_legacy_caches_and_ignores_unknown_fields() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-legacy-read-test-{}-{:?}",
+            "navifast-playlist-cache-legacy-read-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4832,7 +4832,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn the_file_reader_rejects_missing_corrupt_and_trailing_data() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-invalid-read-test-{}-{:?}",
+            "navifast-playlist-cache-invalid-read-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4858,7 +4858,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn a_new_checkpoint_atomically_replaces_the_previous_one() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-test-{}-{:?}",
+            "navifast-playlist-cache-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4887,7 +4887,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn streaming_preserves_the_cache_bytes_and_duplicate_unavailable_rows() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-stream-test-{}-{:?}",
+            "navifast-playlist-cache-stream-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -4940,7 +4940,7 @@ mod playlist_cache_tests {
     #[tokio::test]
     async fn failed_checkpoint_keeps_existing_data_and_cleans_only_its_temporary_file() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-playlist-cache-failure-test-{}-{:?}",
+            "navifast-playlist-cache-failure-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
@@ -5132,7 +5132,7 @@ mod authorization_tests {
 
     #[test]
     fn proxy_changes_compare_with_the_running_engine() {
-        const CHILD: &str = "SPOTIFAST_PROXY_SNAPSHOT_TEST";
+        const CHILD: &str = "NAVIFAST_PROXY_SNAPSHOT_TEST";
         if std::env::var_os(CHILD).is_none() {
             let status = std::process::Command::new(std::env::current_exe().unwrap())
                 .args([
@@ -5447,7 +5447,7 @@ mod authorization_tests {
             .build()
             .unwrap();
         let root =
-            std::env::temp_dir().join(format!("spotifast-auth-{name}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-auth-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let dirs = AppDirs {
             config: root.join("config"),

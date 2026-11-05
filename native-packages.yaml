@@ -11,32 +11,26 @@ libraries:
     deb: libasound2t64
     rpm: alsa-lib
 nfpm:
-  name: spotifast
-  maintainer: Carmine Paolino <carmine@paolino.me>
-  homepage: https://github.com/crmne/spotifast
-  description: A native Spotify client
+  name: navifast
+  maintainer: Navifast contributors
+  homepage: https://github.com/nizarcan/navifast
+  description: A native Navidrome client
   license: MIT
-  provides: [fastpotify]
-  replaces: [fastpotify]
-  conflicts: [fastpotify]
   contents:
   # A glob source makes nFPM append its basename to the destination directory.
-  - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/spotifast"
+  - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/navifast"
     dst: "/usr/bin/"
     file_info:
       mode: 493
-  - src: spotifast
-    dst: /usr/bin/fastpotify
-    type: symlink
   - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/LICENSE"
-    dst: "/usr/share/licenses/spotifast/"
+    dst: "/usr/share/licenses/navifast/"
     file_info:
       mode: 420
   - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/README.md"
-    dst: "/usr/share/doc/spotifast/"
+    dst: "/usr/share/doc/navifast/"
     file_info:
       mode: 420
-  # Retain the input release's launcher identity: current builds use Spotifast,
+  # Retain the input release's launcher identity: current builds use Navifast,
   # while historical binaries still advertise the Fastpotify window class.
   - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/packaging/applications/*.desktop"
     dst: "/usr/share/applications/"
@@ -46,12 +40,12 @@ nfpm:
     dst: "/usr/share/icons/hicolor/scalable/apps/"
     file_info:
       mode: 420
-  - src: contrib/omarchy/spotifast.json.tpl
-    dst: /usr/share/spotifast/omarchy/spotifast.json.tpl
+  - src: contrib/omarchy/navifast.json.tpl
+    dst: /usr/share/navifast/omarchy/navifast.json.tpl
     file_info:
       mode: 420
-  - src: contrib/omarchy/spotifast-theme
-    dst: /usr/share/spotifast/omarchy/spotifast-theme
+  - src: contrib/omarchy/navifast-theme
+    dst: /usr/share/navifast/omarchy/navifast-theme
     file_info:
       mode: 493
   overrides:
@@ -109,7 +103,7 @@ targets:
       local: dist/macos-input
     native:
       command: [ruby, packaging/macos/dmg.rb, '@PAYLOAD@', '@PACKAGE@']
-      output: 'spotifast-@TAG@-macos-universal.dmg'
+      output: 'navifast-@TAG@-macos-universal.dmg'
   linux-amd64:
     platform: linux
     arch: amd64
@@ -120,8 +114,8 @@ targets:
     - rpm
     - appimage
     input:
-      local: dist/spotifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
-      release_asset: spotifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
+      local: dist/navifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
+      release_asset: navifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
   linux-arm64:
     platform: linux
     arch: arm64
@@ -132,75 +126,75 @@ targets:
     - rpm
     - appimage
     input:
-      local: dist/spotifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
-      release_asset: spotifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
+      local: dist/navifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
+      release_asset: navifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
 release:
-  repository: crmne/spotifast
+  repository: nizarcan/navifast
   prereleases: true
   checksums: checksums.txt
 assets:
   AMD64:
-    file: spotifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
-    local: dist/spotifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
+    file: navifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
+    local: dist/navifast-v@VERSION@-x86_64-unknown-linux-gnu.tar.gz
   ARM64:
-    file: spotifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
-    local: dist/spotifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
+    file: navifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
+    local: dist/navifast-v@VERSION@-aarch64-unknown-linux-gnu.tar.gz
   SOURCE:
-    file: spotifast-v@VERSION@-source.tar.gz
-    local: dist/spotifast-v@VERSION@-source.tar.gz
+    file: navifast-v@VERSION@-source.tar.gz
+    local: dist/navifast-v@VERSION@-source.tar.gz
   MACOS:
-    file: spotifast-v@VERSION@-macos-universal.dmg
-    local: dist/spotifast-v@VERSION@-macos-universal.dmg
+    file: navifast-v@VERSION@-macos-universal.dmg
+    local: dist/navifast-v@VERSION@-macos-universal.dmg
 templates:
-  arch/spotifast/PKGBUILD: packaging/arch/spotifast/PKGBUILD.in
-  arch/spotifast/spotifast.install: packaging/arch/spotifast.install
-  arch/spotifast-bin/PKGBUILD: packaging/arch/spotifast-bin/PKGBUILD.in
-  arch/spotifast-bin/spotifast-bin.install: packaging/arch/spotifast.install
-  arch/spotifast-git/PKGBUILD: packaging/arch/spotifast-git/PKGBUILD.in
-  arch/spotifast-git/spotifast-git.install: packaging/arch/spotifast.install
-  homebrew/spotifast.rb: packaging/homebrew/spotifast.rb.in
+  arch/navifast/PKGBUILD: packaging/arch/navifast/PKGBUILD.in
+  arch/navifast/navifast.install: packaging/arch/navifast.install
+  arch/navifast-bin/PKGBUILD: packaging/arch/navifast-bin/PKGBUILD.in
+  arch/navifast-bin/navifast-bin.install: packaging/arch/navifast.install
+  arch/navifast-git/PKGBUILD: packaging/arch/navifast-git/PKGBUILD.in
+  arch/navifast-git/navifast-git.install: packaging/arch/navifast.install
+  homebrew/navifast.rb: packaging/homebrew/navifast.rb.in
 repositories:
   aur-source:
     group: aur
-    url: https://aur.archlinux.org/spotifast.git
-    push_url: ssh://aur@aur.archlinux.org/spotifast.git
+    url: https://aur.archlinux.org/navifast.git
+    push_url: ssh://aur@aur.archlinux.org/navifast.git
     branch: master
     package_path: "."
     files:
-      arch/spotifast: "."
+      arch/navifast: "."
     version_file: ".SRCINFO"
     version_pattern: "^\\s*pkgver = (\\S+)"
     publish: push
   aur-bin:
     group: aur
-    url: https://aur.archlinux.org/spotifast-bin.git
-    push_url: ssh://aur@aur.archlinux.org/spotifast-bin.git
+    url: https://aur.archlinux.org/navifast-bin.git
+    push_url: ssh://aur@aur.archlinux.org/navifast-bin.git
     branch: master
     package_path: "."
     files:
-      arch/spotifast-bin: "."
+      arch/navifast-bin: "."
     version_file: ".SRCINFO"
     version_pattern: "^\\s*pkgver = (\\S+)"
     publish: push
   aur-git:
     group: aur
-    url: https://aur.archlinux.org/spotifast-git.git
-    push_url: ssh://aur@aur.archlinux.org/spotifast-git.git
+    url: https://aur.archlinux.org/navifast-git.git
+    push_url: ssh://aur@aur.archlinux.org/navifast-git.git
     branch: master
     package_path: "."
     files:
-      arch/spotifast-git: "."
+      arch/navifast-git: "."
     version_file: ".SRCINFO"
     version_pattern: "^\\s*pkgver = (\\S+)"
     publish: push
   homebrew:
-    url: https://github.com/crmne/homebrew-tap.git
-    push_url: https://github.com/crmne/homebrew-tap.git
+    url: https://github.com/nizarcan/homebrew-tap.git
+    push_url: https://github.com/nizarcan/homebrew-tap.git
     branch: main
     package_path: Casks
     files:
-      homebrew/spotifast.rb: Casks/spotifast.rb
-    version_file: Casks/spotifast.rb
+      homebrew/navifast.rb: Casks/navifast.rb
+    version_file: Casks/navifast.rb
     version_pattern: version "([^"]+)"
     publish: push
 version_file: Cargo.toml

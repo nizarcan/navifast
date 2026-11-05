@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Navifast
+GenericName=Music Player
+Comment=A native Navidrome client
+Exec=navifast
+Terminal=false
+Categories=AudioVideo;Audio;Player;Music;
+Keywords=navidrome;subsonic;music;player;streaming;navifast;
+Icon=navifast
+StartupNotify=true
+StartupWMClass=navifast

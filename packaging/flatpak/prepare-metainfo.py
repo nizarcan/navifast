@@ -7,7 +7,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-APP_ID = "rocks.spotifast.Spotifast"
+APP_ID = "io.github.nizarcan.Navifast"
 LEGACY_ID = "rocks.fastpotify.Fastpotify"
 
 
@@ -25,7 +25,7 @@ def rename_metainfo(contents, version):
         raise ValueError("release metainfo version does not match the requested tag")
     app_id.text = APP_ID
     launchable.text = APP_ID + ".desktop"
-    name.text = "Spotifast"
+    name.text = "Navifast"
     return ET.tostring(component, encoding="utf-8", xml_declaration=True) + b"\n"
 
 

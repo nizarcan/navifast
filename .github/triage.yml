@@ -23,8 +23,8 @@ sources:
 - docs/_reference/*.md
 - src/*.rs
 documentation:
-  docs/_guide/*.md: https://spotifast.rocks/%{name}/
-  docs/_reference/*.md: https://spotifast.rocks/%{name}/
+  docs/_guide/*.md: https://nizarcan.github.io/navifast/%{name}/
+  docs/_reference/*.md: https://nizarcan.github.io/navifast/%{name}/
 replies:
   version: Which version are you using?
   reproduction: What are the shortest steps that reproduce this?
@@ -62,7 +62,7 @@ instructions: |
   librespot session or audio-key refusal. Do not dismiss a valid caching
   request or repeat setup advice already tried. Local playback needs Premium.
   No alternate audio sources, DRM bypass, embedded browser, telemetry, or
-  hosted Spotifast service. Use wontfix only for an exactly documented
+  hosted Navifast service. Use wontfix only for an exactly documented
   unavailable capability; out-of-scope only for a documented product boundary.
   Never infer an antivirus false positive from a detection name, unsigned
   binary, or source code. Ask for the flagged artifact's SHA-256 when missing.
@@ -91,5 +91,5 @@ pull_requests:
   out_of_scope: close
 
 board:
-  project: https://github.com/users/crmne/projects/1
-  assign_urgent_to: crmne
+  project: https://github.com/users/nizarcan/projects/1
+  assign_urgent_to: nizarcan

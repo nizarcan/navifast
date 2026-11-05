@@ -307,6 +307,60 @@ pub fn shortcuts(locale: Locale) -> Vec<(Cow<'static, str>, Cow<'static, str>)> 
     ]
 }
 
+/// The same native shortcut dialog, limited to migrated operations.
+pub fn navidrome_shortcuts(locale: Locale) -> Vec<(Cow<'static, str>, Cow<'static, str>)> {
+    let keys = |text: &'static str| Cow::Borrowed(text);
+    vec![
+        (
+            pgettext(locale, "key", "Space"),
+            gettext(locale, "Play or pause"),
+        ),
+        (
+            keys(platform_shortcut("Ctrl+←  /  Ctrl+→", "Cmd+←  /  Cmd+→")),
+            gettext(locale, "Previous or next"),
+        ),
+        (
+            keys("Shift+←  /  Shift+→"),
+            gettext(locale, "Seek 10 seconds"),
+        ),
+        (
+            keys(platform_shortcut("Ctrl+↑  /  Ctrl+↓", "Cmd+↑  /  Cmd+↓")),
+            gettext(locale, "Volume up or down"),
+        ),
+        (keys("M"), gettext(locale, "Mute or unmute")),
+        (
+            keys("Shift+↑  /  Shift+↓"),
+            gettext(locale, "Song list: extend or shrink the selection"),
+        ),
+        (
+            keys(platform_shortcut("Ctrl+A", "Cmd+A")),
+            gettext(locale, "Song list: select all"),
+        ),
+        (
+            keys(SIDEBAR_SHORTCUT),
+            gettext(locale, "Show or hide the sidebar"),
+        ),
+        (keys("Alt+←  /  Alt+→"), gettext(locale, "Back or forward")),
+        (
+            keys(platform_shortcut("Ctrl+H", "Cmd+Shift+H")),
+            gettext(locale, "Albums"),
+        ),
+        (
+            keys(platform_shortcut("Ctrl+Shift+B", "Cmd+Shift+B")),
+            gettext(locale, "Go to the playing album"),
+        ),
+        (
+            keys(platform_shortcut("Ctrl+,", "Cmd+,")),
+            gettext(locale, "Settings"),
+        ),
+        (
+            keys(platform_shortcut("Ctrl+W", "Cmd+W")),
+            gettext(locale, "Close the window"),
+        ),
+        (keys(QUIT_SHORTCUT), gettext(locale, "Quit")),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -321,7 +375,7 @@ mod tests {
     #[test]
     fn a_focused_text_field_keeps_the_arrow_keys_it_edits_with() {
         let root =
-            std::env::temp_dir().join(format!("spotifast-text-arrows-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-text-arrows-test-{}", std::process::id()));
         let dirs = AppDirs {
             config: root.join("config"),
             state: root.join("state"),
@@ -526,7 +580,7 @@ mod tests {
     #[test]
     fn b_toggles_the_playing_song_in_liked_songs() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-like-shortcut-test-{}",
+            "navifast-like-shortcut-test-{}",
             std::process::id()
         ));
         let dirs = AppDirs {
@@ -574,7 +628,7 @@ mod tests {
     #[test]
     fn a_shift_shortcut_is_not_taken_by_the_plain_one_it_extends() {
         let root = std::env::temp_dir().join(format!(
-            "spotifast-shift-shortcut-test-{}",
+            "navifast-shift-shortcut-test-{}",
             std::process::id()
         ));
         let dirs = AppDirs {

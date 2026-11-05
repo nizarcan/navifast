@@ -5,35 +5,27 @@ it pins the shared CLI and nFPM versions and declares Linux amd64/arm64 inputs,
 DEB/RPM/AppImage contents, dependencies, recipe templates and downstream repositories.
 Application assets and native recipes stay in `packaging/`.
 
-Public AUR, Homebrew, DEB/RPM and release download names use Spotifast.
-AUR and native Linux packages declare the old package replacements, and the
-Homebrew tap contains a `fastpotify` to `spotifast` cask rename mapping. Linux packages install `spotifast` as the executable and keep `fastpotify` as a compatibility alias. See [rename compatibility](docs/_reference/renaming.md)
-for the macOS bundle and updater requirements.
+The app and Linux packages use the original vinyl mark in
+`packaging/icons/navifast.svg`. After editing it, run
+`cargo run --locked --example app_icon` to regenerate the macOS PNG and Windows
+ICO. The macOS bundle converts the PNG to ICNS. The monochrome menu-bar version
+is `assets/navifast-tray.svg`.
 
-On main, after 0.8.0, Linux builds provide `spotifast.desktop` and
-`spotifast.svg`, matching the native window and MPRIS desktop-entry ID.
-Flatpak installs those assets under its full application ID and sets the
-window class to match. Version 0.9.1 migrates main-window state to the new profile.
-Historical release payloads keep their original launcher/icon names and
-window class: the package-only 0.8.0 rename did not rebuild those executables.
-AUR recipes and nFPM take the identity from the input payload; the git recipe
-requires the current Spotifast assets. Existing release files are not rewritten.
-`python3 packaging/test-launchers.py` exercises both input generations through
-the actual AUR and Flatpak installation commands, using Ruby to read YAML.
+Navifast is currently a source-built client. No fork release, public AUR
+package, Homebrew cask or Flathub listing has been published. The recipes use
+Navifast names and the application ID `io.github.nizarcan.Navifast`.
 
-Linux packages also install the optional Omarchy template and hook under
-`share/spotifast/omarchy` in their installation prefix. The normal application
-launch registers missing per-user files and prepares the current palette on an
-Omarchy desktop, without changing existing files or the selected theme. Setup
-runs in the background; package-manager scripts do not write into user homes.
-DEB/RPM packages take these small assets from the checked-out configuration,
-so package validation can still use the pinned older binary fixture. AUR and
-portable Linux release archives carry the assets with their source/binary
-payloads. Source and binary AUR recipes also accept older releases that predate
-the integration; the git recipe requires the current files. Nix installs the
-Linux desktop assets beside its binaries and packages the signed macOS
-`Spotifast.app` bundle in the same derivation. Flatpak does not install host
-desktop hooks.
+Install Navifast alongside the upstream app. Current packages install only
+`navifast`, its launcher and its icon, and do not replace the upstream package,
+claim its command name or migrate its Spotify profile. The Cargo compatibility
+binary and older payload fixtures remain migration references. Historical
+release notes describe the upstream releases, not Navifast releases.
+
+`python3 packaging/test-launchers.py` exercises AUR and Flatpak installation
+commands using isolated payload fixtures and Ruby to read YAML. Nix installs
+the Linux desktop assets or the signed macOS bundle, without the compatibility
+command. Flatpak uses its full application ID. Linux recipes also include the
+optional Omarchy hook, whose active-app integration is deferred to a later stage.
 
 ```sh
 gem install native-packages --version 0.8.1
@@ -67,22 +59,18 @@ Runtime-loaded GUI libraries must be declared explicitly in the YAML; ELF
 inspection only discovers linked dependencies. The ALSA library mapping also
 uses the Debian/Ubuntu `libasound2t64` name for this baseline.
 
-Packaging CI builds both architectures using a pinned published release
-(`v0.9.0`) for pushes and PRs, or the requested version for manual and release
-runs. It then installs and removes each package in clean Ubuntu 24.04, Debian
-13, Fedora 41 and current Fedora containers on native amd64 and arm64 runners.
-Each case first installs the original Fastpotify 0.8.0 package, replaces it
-with Spotifast, and verifies that the old package is gone and a settings
-fixture survives installation and removal. The checks run both `spotifast --version` and `fastpotify --version`, load the GUI libraries with `dlopen`,
-and verify the desktop entry and icon. They cover installation and library
-resolution, not a running desktop or Spotify playback. On release runs these
-checks follow artifact attachment; a failure marks the workflow as failed.
-The generated Homebrew cask is also installed, launched with `--version`,
-signature-checked, and uninstalled on a native macOS runner. Wait for this
-check before publishing the staged cask to the tap.
-The install script defaults to the new `spotifast` desktop ID; its fourth
-argument is explicitly `fastpotify` only when checking the historical 0.8.0
-fixture. Both cases reject a second launcher and check removal of both names.
+Pushes and pull requests run packaging source regressions. Once a real fork
+release exists, manually supply its version to Packaging CI, or let the release
+workflow call it. It builds packages for both Linux architectures, checks them
+in clean Ubuntu 24.04, Debian 13 and Fedora containers, and installs the generated
+Homebrew cask on macOS. Each Linux check also installs an immutable upstream
+Fastpotify 0.8.0 fixture and verifies that both applications and the upstream
+settings survive Navifast installation and removal. No upstream Spotify binary
+is republished as a Navifast validation release.
+
+These checks validate installation, signatures and library resolution. They do
+not validate a running desktop or Navidrome playback. Native package checks
+remain required before publishing the first release.
 
 To repeat a check locally on the matching architecture, with Docker and a C
 compiler available:
@@ -118,7 +106,7 @@ for commands and supported formats.
 The manual **Flatpak from release** workflow can rebuild a missing Flatpak from
 an existing tag. It verifies the published Linux archive against `checksums.txt`
 and uses that tag's version and description with the current Flatpak app ID,
-`rocks.spotifast.Spotifast`, without compiling or replacing binaries.
+`io.github.nizarcan.Navifast`, without compiling or replacing binaries.
 It uploads a workflow artifact only. After checking the bundle, attach it to the
 existing release and add its hash to `checksums.txt`, preserving every existing
 asset and checksum. Release tags stay immutable.
@@ -164,17 +152,17 @@ native-packages build \
 Secret configuration applies to future builds. Existing published DMGs retain
 their original signatures; this setup does not replace release assets.
 
-`packaging/release-names.py DIST TAG` prepares the public `spotifast-` names
+`packaging/release-names.py DIST TAG` prepares the public `navifast-` names
 and checksums. Through 0.9.1 it also creates byte-identical compatibility
 downloads; later versions reject old-named downloads. The 0.9.1 portable
 archives contain both directory layouts for older updaters. Later archives
-contain only the Spotifast layout and executable. The macOS bundle retains
+contain only the Navifast layout and executable. The macOS bundle retains
 the old executable and bundle ID for 0.9.1 only; that release's updater accepts
 the new bundle identity used afterward. Run `python3 packaging/test-release-names.py`
 when changing this step. Published historical downloads are never rewritten.
 
 Native Linux package builds accept archives from 0.9.0 onward, which contain
-the Spotifast executable. The directory-name wildcard accommodates the old
+the Navifast executable. The directory-name wildcard accommodates the old
 0.9.0 layout and the new layout. The 0.9.1 compatibility directory contains
 only its executable, so it cannot duplicate packaged desktop files or licenses.
 AUR and Flatpak also accept older fixtures; `packaging/test-launchers.py`

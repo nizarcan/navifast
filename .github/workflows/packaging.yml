@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Published version (empty tests the pinned v0.9.0 fixture)
+        description: Published Navifast version (empty runs source checks)
         type: string
         default: ''
       publish:
@@ -38,15 +38,27 @@ permissions:
   contents: read
 
 jobs:
+  source-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Packaging source regressions
+        run: |
+          python3 packaging/test-launchers.py
+          python3 packaging/test-release-names.py
+          python3 packaging/flatpak/test-metainfo.py
+          bash -n packaging/test-install.sh
+
   packaging:
+    # The fork has no published binaries yet. Do not pass upstream Spotify
+    # releases off as Navifast packages; validate a real fork release explicitly.
+    if: inputs.version != ''
     permissions:
       contents: write
     uses: crmne/native-packages/.github/workflows/package.yml@999768410cf53cdc68c8679c09cb14de1a6bca7b # v0.8.1
     with:
       targets: linux-amd64,linux-arm64
-      # Packaging changes exercise real release binaries on both architectures.
-      # Update this fixture deliberately; releases use their own tag instead.
-      version: ${{ inputs.version || 'v0.9.0' }}
+      version: ${{ inputs.version }}
       publish: ${{ inputs.publish == true && inputs.version != '' }}
     secrets: inherit
 
@@ -64,16 +76,16 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
-          brew tap-new --no-git spotifast/validation
-          tap="$(brew --repository)/Library/Taps/spotifast/homebrew-validation"
+          brew tap-new --no-git navifast/validation
+          tap="$(brew --repository)/Library/Taps/navifast/homebrew-validation"
           mkdir -p "$tap/Casks"
-          cp dist/native-packages/recipes/homebrew/spotifast.rb "$tap/Casks/spotifast.rb"
-          brew install --cask spotifast/validation/spotifast
-          app=/Applications/Spotifast.app
+          cp dist/native-packages/recipes/homebrew/navifast.rb "$tap/Casks/navifast.rb"
+          brew install --cask navifast/validation/navifast
+          app=/Applications/Navifast.app
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")
           "$app/Contents/MacOS/$executable" --version
           codesign --verify --strict "$app"
-          brew uninstall --cask spotifast/validation/spotifast
+          brew uninstall --cask navifast/validation/navifast
           test ! -e "$app"
 
   # The AppImage carries no libraries of its own, so the runner supplies
@@ -109,10 +121,10 @@ jobs:
             libdbus-1-3 libgl1 libegl1 libxkbcommon0 libxkbcommon-x11-0 \
             libwayland-client0 libwayland-cursor0 libwayland-egl1 libx11-6 \
             libx11-xcb1 libxcursor1 libxi6 libxrandr2 libasound2t64 libpulse0
-          set -- dist/native-packages/packages/"$TARGET"/appimage/spotifast-*-"$ARCH".AppImage
+          set -- dist/native-packages/packages/"$TARGET"/appimage/navifast-*-"$ARCH".AppImage
           test "$#" -eq 1
           chmod +x "$1"
-          "$1" --appimage-extract-and-run --version | grep -Ex '(spotifast|fastpotify) [0-9]+\.[0-9]+\.[0-9]+.*'
+          "$1" --appimage-extract-and-run --version | grep -Ex '(navifast|fastpotify) [0-9]+\.[0-9]+\.[0-9]+.*'
 
   installation:
     name: Install (${{ matrix.os }}, ${{ matrix.image }})
@@ -130,7 +142,7 @@ jobs:
         with:
           name: native-packages
           path: dist/native-packages
-      - name: Download the old package for replacement checks
+      - name: Download the upstream package for coexistence checks
         env:
           GH_TOKEN: ${{ github.token }}
           IMAGE: ${{ matrix.image }}
@@ -144,7 +156,7 @@ jobs:
             fedora:*) file="fastpotify-0.8.0-1.${rpm_arch}.rpm" ;;
           esac
           mkdir -p dist/legacy
-          gh release download v0.8.0 --repo "$GITHUB_REPOSITORY" \
+          gh release download v0.8.0 --repo crmne/spotifast \
             --pattern "$file" --dir dist/legacy
           cp packaging/fixtures/fastpotify-0.8.0-checksums.txt dist/legacy/packaging-checksums.txt
           cd dist/legacy
@@ -156,11 +168,5 @@ jobs:
       - name: Install and check runtime libraries in a clean container
         env:
           IMAGE: ${{ matrix.image }}
-          PACKAGE_VERSION: ${{ inputs.version || 'v0.9.0' }}
         run: |
-          # The immutable 0.8.0 fixture still has its original window identity.
-          case "$PACKAGE_VERSION" in
-            v0.8.0|0.8.0) desktop_id=fastpotify ;;
-            *) desktop_id=spotifast ;;
-          esac
-          bash packaging/test-install.sh "$IMAGE" dist/native-packages dist/legacy "$desktop_id"
+          bash packaging/test-install.sh "$IMAGE" dist/native-packages dist/legacy

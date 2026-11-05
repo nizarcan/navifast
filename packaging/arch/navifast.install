@@ -1,0 +1,18 @@
+print_navifast_post_install() {
+  cat <<'EOF2'
+Navifast setup:
+
+  Open Navifast and enter your Navidrome server URL, username and password.
+  Open an album to start listening. Passwords are session-only in this build.
+
+Docs: https://github.com/nizarcan/navifast
+EOF2
+}
+
+post_install() {
+  print_navifast_post_install
+}
+
+post_upgrade() {
+  print_navifast_post_install
+}

@@ -325,15 +325,19 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             let search_width = fit.search;
             let id = egui::Id::new("global-search");
             let before = app.search.query.clone();
-            let response = super::widgets::search_field(
-                ui,
-                &palette,
-                app.locale,
-                id,
-                &mut app.search.query,
-                &gettext(locale, "What do you want to play?"),
-                search_width,
-            );
+            let response = ui
+                .add_enabled_ui(!app.navidrome_mode, |ui| {
+                    super::widgets::search_field(
+                        ui,
+                        &palette,
+                        app.locale,
+                        id,
+                        &mut app.search.query,
+                        &gettext(locale, "What do you want to play?"),
+                        search_width,
+                    )
+                })
+                .inner;
             if app.search.focus_requested {
                 app.search.focus_requested = false;
                 response.request_focus();
@@ -476,37 +480,39 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 {
                     app.actions.push(Action::Open(Page::Settings));
                 }
-                if theme::icon_button(
-                    ui,
-                    Icon::AudioLines,
-                    ICON_BUTTON_ICON,
-                    if app.settings.milkdrop_open {
-                        palette.accent
-                    } else {
-                        palette.secondary
-                    },
-                    palette.text,
-                    super::keys::platform_shortcut(
-                        &gettext(locale, "MilkDrop visualiser (Ctrl+Shift+K)"),
-                        &gettext(locale, "MilkDrop visualiser (Cmd+Shift+K)"),
-                    ),
-                )
-                .clicked()
+                if !app.navidrome_mode
+                    && theme::icon_button(
+                        ui,
+                        Icon::AudioLines,
+                        ICON_BUTTON_ICON,
+                        if app.settings.milkdrop_open {
+                            palette.accent
+                        } else {
+                            palette.secondary
+                        },
+                        palette.text,
+                        super::keys::platform_shortcut(
+                            &gettext(locale, "MilkDrop visualiser (Ctrl+Shift+K)"),
+                            &gettext(locale, "MilkDrop visualiser (Cmd+Shift+K)"),
+                        ),
+                    )
+                    .clicked()
                 {
                     app.actions.push(Action::ToggleWinampMilkdrop);
                 }
-                if theme::icon_button(
-                    ui,
-                    Icon::Shrink,
-                    ICON_BUTTON_ICON,
-                    palette.secondary,
-                    palette.text,
-                    super::keys::platform_shortcut(
-                        &gettext(locale, "Winamp mini player (Ctrl+M)"),
-                        &gettext(locale, "Winamp mini player (Cmd+Shift+M)"),
-                    ),
-                )
-                .clicked()
+                if !app.navidrome_mode
+                    && theme::icon_button(
+                        ui,
+                        Icon::Shrink,
+                        ICON_BUTTON_ICON,
+                        palette.secondary,
+                        palette.text,
+                        super::keys::platform_shortcut(
+                            &gettext(locale, "Winamp mini player (Ctrl+M)"),
+                            &gettext(locale, "Winamp mini player (Cmd+Shift+M)"),
+                        ),
+                    )
+                    .clicked()
                 {
                     app.actions.push(Action::ToggleWinampWindow);
                 }

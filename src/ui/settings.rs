@@ -60,7 +60,8 @@ impl<'a> RowText<'a> {
 }
 
 /// The guide to writing a palette file for the themes folder.
-const THEMES_GUIDE_URL: &str = "https://spotifast.rocks/settings-and-files/#custom-themes";
+const THEMES_GUIDE_URL: &str =
+    "https://nizarcan.github.io/navifast/settings-and-files/#custom-themes";
 
 fn section_matches(needle: &str, title: &str, rows: &[RowText<'_>]) -> bool {
     let needle = needle.trim().to_lowercase();
@@ -337,72 +338,78 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 ui.add_space(10.0);
             }
             let mut client_id = app.settings.web_client_id.clone().unwrap_or_default();
-            filtered_row(ui, &palette, &needle, &account, &account_rows[0], |ui| {
-                let response = Frame::new()
-                    .fill(palette.surface)
-                    .corner_radius(CornerRadius::same(6))
-                    .inner_margin(Margin::symmetric(10, 6))
-                    .show(ui, |ui| {
-                        widgets::text_edit(
-                            ui,
-                            app.locale,
-                            egui::TextEdit::singleline(&mut client_id)
-                                .id(egui::Id::new("personal-web-client-id"))
-                                .hint_text(
-                                    egui::RichText::new(gettext(locale, "Client ID"))
-                                        .color(palette.dim),
-                                )
-                                .font(theme::regular(13.0))
-                                .frame(egui::Frame::NONE)
-                                .desired_width(200.0),
-                        )
-                    })
-                    .inner;
-                if ui
-                    .data_mut(|data| data.remove_temp::<bool>(egui::Id::new(PERSONAL_APP_FOCUS_ID)))
-                    .unwrap_or(false)
-                {
-                    response.scroll_to_me(Some(Align::Center));
-                    response.request_focus();
-                }
-                if response.changed() {
-                    let trimmed = client_id.trim().to_string();
-                    app.settings.web_client_id = (!trimmed.is_empty()).then_some(trimmed);
-                    changed = true;
-                }
-            });
-            filtered_row(ui, &palette, &needle, &account, &account_rows[1], |ui| {
-                if theme::pill_button(ui, &palette, &gettext(locale, "Setup guide"), false)
-                    .clicked()
-                {
-                    app.actions.push(Action::OpenUrl(
-                        "https://spotifast.rocks/make-it-even-faster/#make-a-spotify-app".into(),
-                    ));
-                }
-            });
-            if in_use {
-                filtered_row(ui, &palette, &needle, &account, &account_rows[2], |ui| {
-                    if theme::pill_button(ui, &palette, &gettext(locale, "Remove"), false).clicked()
+            if !app.navidrome_mode {
+                filtered_row(ui, &palette, &needle, &account, &account_rows[0], |ui| {
+                    let response = Frame::new()
+                        .fill(palette.surface)
+                        .corner_radius(CornerRadius::same(6))
+                        .inner_margin(Margin::symmetric(10, 6))
+                        .show(ui, |ui| {
+                            widgets::text_edit(
+                                ui,
+                                app.locale,
+                                egui::TextEdit::singleline(&mut client_id)
+                                    .id(egui::Id::new("personal-web-client-id"))
+                                    .hint_text(
+                                        egui::RichText::new(gettext(locale, "Client ID"))
+                                            .color(palette.dim),
+                                    )
+                                    .font(theme::regular(13.0))
+                                    .frame(egui::Frame::NONE)
+                                    .desired_width(200.0),
+                            )
+                        })
+                        .inner;
+                    if ui
+                        .data_mut(|data| {
+                            data.remove_temp::<bool>(egui::Id::new(PERSONAL_APP_FOCUS_ID))
+                        })
+                        .unwrap_or(false)
                     {
-                        app.settings.web_client_id = None;
-                        app.actions.push(Action::ConfigurePersonalWebApp);
+                        response.scroll_to_me(Some(Align::Center));
+                        response.request_focus();
+                    }
+                    if response.changed() {
+                        let trimmed = client_id.trim().to_string();
+                        app.settings.web_client_id = (!trimmed.is_empty()).then_some(trimmed);
+                        changed = true;
                     }
                 });
-            } else if wanted.is_some() {
-                filtered_row(ui, &palette, &needle, &account, &account_rows[3], |ui| {
-                    if theme::pill_button(ui, &palette, &gettext(locale, "Authorize"), true)
+                filtered_row(ui, &palette, &needle, &account, &account_rows[1], |ui| {
+                    if theme::pill_button(ui, &palette, &gettext(locale, "Setup guide"), false)
                         .clicked()
                     {
-                        app.actions.push(Action::ConfigurePersonalWebApp);
+                        app.actions.push(Action::OpenUrl(
+                        "https://nizarcan.github.io/navifast/make-it-even-faster/#make-a-spotify-app".into(),
+                    ));
                     }
                 });
-            } else if app.web_app.is_some() {
-                filtered_row(ui, &palette, &needle, &account, &account_rows[4], |ui| {
-                    if theme::pill_button(ui, &palette, &gettext(locale, "Remove"), false).clicked()
-                    {
-                        app.actions.push(Action::ConfigurePersonalWebApp);
-                    }
-                });
+                if in_use {
+                    filtered_row(ui, &palette, &needle, &account, &account_rows[2], |ui| {
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Remove"), false)
+                            .clicked()
+                        {
+                            app.settings.web_client_id = None;
+                            app.actions.push(Action::ConfigurePersonalWebApp);
+                        }
+                    });
+                } else if wanted.is_some() {
+                    filtered_row(ui, &palette, &needle, &account, &account_rows[3], |ui| {
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Authorize"), true)
+                            .clicked()
+                        {
+                            app.actions.push(Action::ConfigurePersonalWebApp);
+                        }
+                    });
+                } else if app.web_app.is_some() {
+                    filtered_row(ui, &palette, &needle, &account, &account_rows[4], |ui| {
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Remove"), false)
+                            .clicked()
+                        {
+                            app.actions.push(Action::ConfigurePersonalWebApp);
+                        }
+                    });
+                }
             }
         });
     }
@@ -478,11 +485,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             super::keys::platform_shortcut(
                 &gettext(
                     locale,
-                    "Spotifast hides to the system tray. Quit from the tray menu or with Ctrl+Q.",
+                    "Navifast hides to the system tray. Quit from the tray menu or with Ctrl+Q.",
                 ),
                 &gettext(
                     locale,
-                    "Spotifast hides to the system tray. Quit from the tray menu or with Cmd+Q.",
+                    "Navifast hides to the system tray. Quit from the tray menu or with Cmd+Q.",
                 ),
             )
             .to_owned(),
@@ -521,7 +528,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ),
         ),
     ];
-    if section_matches(&needle, &playback, &playback_rows) {
+    if !app.navidrome_mode && section_matches(&needle, &playback, &playback_rows) {
         any_visible = true;
         section(ui, &palette, &playback, |ui| {
             filtered_row(ui, &palette, &needle, &playback, &playback_rows[0], |ui| {
@@ -850,10 +857,10 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             custom_titlebar.clone(),
             gettext(
                 locale,
-                "Draw Spotifast's own title bar and window buttons instead of the standard Windows ones.",
+                "Draw Navifast's own title bar and window buttons instead of the standard Windows ones.",
             ),
         )
-        .when(app.windows_controls_visible()),
+        .when(!app.navidrome_mode && app.windows_controls_visible()),
         RowText::new(
             player_bar_vis.clone(),
             gettext(
@@ -1134,7 +1141,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     },
                 );
             }
-            if app.windows_controls_visible() {
+            if !app.navidrome_mode && app.windows_controls_visible() {
                 filtered_row(
                     ui,
                     &palette,
@@ -1160,7 +1167,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             "Off, System, HTTP or SOCKS5 proxy for network requests.",
         ),
     )];
-    if section_matches(&needle, &proxy, &proxy_rows) {
+    if !app.navidrome_mode && section_matches(&needle, &proxy, &proxy_rows) {
         any_visible = true;
         ui.push_id("proxy-settings", |ui| {
     section(ui, &palette, &proxy, |ui| {
@@ -1303,7 +1310,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 .join(" "),
         ),
     ];
-    if section_matches(&needle, &skins, &skins_rows) {
+    if !app.navidrome_mode && section_matches(&needle, &skins, &skins_rows) {
         any_visible = true;
         section(ui, &palette, &skins, |ui| {
             filtered_row(ui, &palette, &needle, &skins, &skins_rows[0], |ui| {
@@ -1347,7 +1354,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 // the mini player opens.
                 const RANDOM: usize = usize::MAX;
                 let random = gettext(locale, "Random");
-                let mut options: Vec<(usize, &str)> = vec![(RANDOM, &random), (0, "Spotifast")];
+                let mut options: Vec<(usize, &str)> = vec![(RANDOM, &random), (0, "Navifast")];
                 options.extend(
                     choices
                         .iter()
@@ -1381,7 +1388,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     let label = options
                         .iter()
                         .find(|(value, _)| *value == showing)
-                        .map_or("Spotifast", |(_, label)| label);
+                        .map_or("Navifast", |(_, label)| label);
                     theme::subtle(
                         ui,
                         &palette,
@@ -1462,20 +1469,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 0 => gettext(
                     locale,
                     // Translators: {folder} is the path of the MilkDrop presets folder.
-                    "None yet in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "None yet in {folder}. Add .milk files here. Navifast downloads presets when MilkDrop first opens with an empty folder.",
                 )
                 .replace("{folder}", &folder),
                 1 => gettext(
                     locale,
                     // Translators: {folder} is the path of the MilkDrop presets folder.
-                    "One preset in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "One preset in {folder}. Add .milk files here. Navifast downloads presets when MilkDrop first opens with an empty folder.",
                 )
                 .replace("{folder}", &folder),
                 n => ngettext(
                     locale,
                     // Translators: {count} is the number of presets, {folder} the path of the MilkDrop presets folder.
-                    "{count} preset in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
-                    "{count} presets in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "{count} preset in {folder}. Add .milk files here. Navifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "{count} presets in {folder}. Add .milk files here. Navifast downloads presets when MilkDrop first opens with an empty folder.",
                     u32::try_from(n).unwrap_or(u32::MAX),
                 )
                 .replace("{count}", &n.to_string())
@@ -1526,7 +1533,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 .join(" "),
         ),
     ];
-    if section_matches(&needle, "MilkDrop", &milkdrop_rows) {
+    if !app.navidrome_mode && section_matches(&needle, "MilkDrop", &milkdrop_rows) {
         any_visible = true;
         section(ui, &palette, "MilkDrop", |ui| {
             filtered_row(ui, &palette, &needle, "MilkDrop", &milkdrop_rows[0], |ui| {
@@ -1791,7 +1798,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ),
         ),
     ];
-    if section_matches(&needle, &storage, &storage_rows) {
+    if !app.navidrome_mode && section_matches(&needle, &storage, &storage_rows) {
         any_visible = true;
         section(ui, &palette, &storage, |ui| {
             filtered_row(ui, &palette, &needle, &storage, &storage_rows[0], |ui| {
@@ -1826,17 +1833,23 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     }
 
     let about = gettext(locale, "About");
-    let built_with = gettext(
-        locale,
-        "Built with Rust, egui, and librespot. Not affiliated with Spotify.",
-    );
+    let built_with = if app.navidrome_mode {
+        std::borrow::Cow::Borrowed(
+            "Built with Rust and egui. Playback from your Navidrome library.",
+        )
+    } else {
+        gettext(
+            locale,
+            "Built with Rust, egui, and librespot. Not affiliated with Spotify.",
+        )
+    };
     let check_for_updates = gettext(locale, "Check for updates");
     let checking = gettext(locale, "Checking…");
     let keyboard_shortcuts = gettext(locale, "Keyboard shortcuts");
     let source_code = gettext(locale, "Source code");
     let about_rows = [
         RowText::new(
-            format!("Spotifast {}", env!("CARGO_PKG_VERSION")),
+            format!("Navifast {}", env!("CARGO_PKG_VERSION")),
             built_with.clone(),
         ),
         RowText::new(
@@ -1853,7 +1866,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 ui.vertical(|ui| {
                     theme::text(
                         ui,
-                        format!("Spotifast {}", env!("CARGO_PKG_VERSION")),
+                        format!("Navifast {}", env!("CARGO_PKG_VERSION")),
                         theme::semibold(15.0),
                         palette.text,
                     );
@@ -1873,8 +1886,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 } else {
                     &check_for_updates
                 };
-                if theme::soft_button(ui, &palette, Some(Icon::Refresh), check_label, false)
-                    .clicked()
+                if !app.navidrome_mode
+                    && theme::soft_button(ui, &palette, Some(Icon::Refresh), check_label, false)
+                        .clicked()
                     && !app.update_checking
                 {
                     app.actions.push(Action::CheckForUpdates);

@@ -821,21 +821,34 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
         ui,
         &palette,
         Icon::House,
-        &gettext(locale, "Home"),
-        page == Page::Home,
+        &if app.navidrome_mode {
+            gettext(locale, "Albums")
+        } else {
+            gettext(locale, "Home")
+        },
+        page == if app.navidrome_mode {
+            Page::Albums
+        } else {
+            Page::Home
+        },
     )
     .clicked()
     {
-        app.actions.push(Action::Open(Page::Home));
+        app.actions.push(Action::Open(if app.navidrome_mode {
+            Page::Albums
+        } else {
+            Page::Home
+        }));
     }
-    if nav_row(
-        ui,
-        &palette,
-        Icon::Search,
-        &gettext(locale, "Search"),
-        page == Page::Search,
-    )
-    .clicked()
+    if !app.navidrome_mode
+        && nav_row(
+            ui,
+            &palette,
+            Icon::Search,
+            &gettext(locale, "Search"),
+            page == Page::Search,
+        )
+        .clicked()
     {
         app.actions.push(Action::FocusSearch);
     }
@@ -850,7 +863,14 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     let filter_id = egui::Id::new("sidebar-filter");
     let mut filter = ui
         .data(|data| data.get_temp::<Filter>(filter_id))
-        .unwrap_or_default();
+        .unwrap_or(if app.navidrome_mode {
+            Filter::Albums
+        } else {
+            Filter::default()
+        });
+    if app.navidrome_mode {
+        filter = Filter::Albums;
+    }
     let show_search_id = egui::Id::new("sidebar-show-search");
     let mut show_search = ui
         .data(|data| data.get_temp::<bool>(show_search_id))
@@ -890,15 +910,16 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                 app.actions.push(Action::SetLibraryGrid(!grid));
             }
             // One item never deserved a menu: the plus creates directly.
-            if theme::icon_button(
-                ui,
-                Icon::Plus,
-                16.0,
-                palette.secondary,
-                palette.text,
-                &gettext(locale, "Create a playlist"),
-            )
-            .clicked()
+            if !app.navidrome_mode
+                && theme::icon_button(
+                    ui,
+                    Icon::Plus,
+                    16.0,
+                    palette.secondary,
+                    palette.text,
+                    &gettext(locale, "Create a playlist"),
+                )
+                .clicked()
             {
                 app.actions.push(Action::ShowDialog(Dialog::CreatePlaylist {
                     name: String::new(),
@@ -953,6 +974,9 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             (Filter::Artists, gettext(locale, "Artists")),
             (Filter::Podcasts, gettext(locale, "Podcasts")),
         ] {
+            if app.navidrome_mode && value != Filter::Albums {
+                continue;
+            }
             if theme::soft_button(ui, &palette, None, &label, filter == value).clicked() {
                 filter = value;
             }
@@ -2052,7 +2076,7 @@ mod ordering_tests {
 
     fn app(name: &str) -> App {
         let root =
-            std::env::temp_dir().join(format!("spotifast-order-{name}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("navifast-order-{name}-{}", std::process::id()));
         let mut app = App::new(
             &crate::backend::Waker::default(),
             crate::paths::AppDirs {

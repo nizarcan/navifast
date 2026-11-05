@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const COMMANDS: [(&str, &str); 2] = [
-    ("spotifast", env!("CARGO_BIN_EXE_spotifast")),
+    ("navifast", env!("CARGO_BIN_EXE_navifast")),
     ("fastpotify", env!("CARGO_BIN_EXE_fastpotify")),
 ];
 
@@ -11,7 +11,7 @@ struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
         let path =
-            std::env::temp_dir().join(format!("spotifast-rename-{:016x}", rand::random::<u64>()));
+            std::env::temp_dir().join(format!("navifast-rename-{:016x}", rand::random::<u64>()));
         std::fs::create_dir(&path).unwrap();
         Self(path)
     }
@@ -40,28 +40,28 @@ fn both_commands_report_their_name_and_pass_the_update_version_check() {
                 .contains(&format!("Usage: {name}"))
         );
         // The updater's version probe accepts the slug or a legacy name.
-        let config = spotifast::updates::CONFIG;
+        let config = navifast::updates::CONFIG;
         assert!(name == config.slug || config.legacy_names.contains(&name));
     }
 }
 
 #[cfg(unix)]
 #[test]
-fn the_linux_package_alias_reports_spotifast_without_copying_the_app() {
+fn the_linux_package_alias_reports_navifast_without_copying_the_app() {
     let scratch = Scratch::new();
-    let alias = scratch.0.join("spotifast");
+    let alias = scratch.0.join("navifast");
     std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_fastpotify"), &alias).unwrap();
     let output = Command::new(alias).arg("--version").output().unwrap();
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8(output.stdout).unwrap().trim(),
-        format!("spotifast {}", env!("CARGO_PKG_VERSION"))
+        format!("navifast {}", env!("CARGO_PKG_VERSION"))
     );
 }
 
 #[test]
 fn existing_preferences_and_custom_connect_names_survive_the_rename() {
-    use spotifast::settings::{Settings, ThemeChoice};
+    use navifast::settings::{Settings, ThemeChoice};
 
     let scratch = Scratch::new();
     let path = scratch.0.join("settings.json");
@@ -79,20 +79,20 @@ fn existing_preferences_and_custom_connect_names_survive_the_rename() {
         saved.save(&path);
         let mut expected = saved;
         if expected.device_name == "Fastpotify" {
-            expected.device_name = "Spotifast".into();
+            expected.device_name = "Navifast".into();
         }
-        expected.pinned_contexts[1] = spotifast::settings::LIKED_SONGS_KEY.into();
+        expected.pinned_contexts[1] = navifast::settings::LIKED_SONGS_KEY.into();
         assert_eq!(Settings::load(&path), expected);
     }
-    assert_eq!(Settings::default().device_name, "Spotifast");
+    assert_eq!(Settings::default().device_name, "Navifast");
 }
 
 #[cfg(target_os = "linux")]
 #[test]
 fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
-    use spotifast::single_instance::{ControlCommand, Outcome};
+    use navifast::single_instance::{ControlCommand, Outcome};
 
-    const CHILD: &str = "SPOTIFAST_RENAME_PRIVATE_BUS";
+    const CHILD: &str = "NAVIFAST_RENAME_PRIVATE_BUS";
     if std::env::var_os(CHILD).is_none() {
         // A clean build (including Nix) need not have /etc/dbus-1/session.conf.
         // Own the bus configuration too, without loading desktop services.
@@ -146,8 +146,7 @@ fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
             String::from_utf8_lossy(&result.stderr)
         );
     }
-    let Outcome::Only(guard) = spotifast::single_instance::acquire(&Default::default(), None)
-    else {
+    let Outcome::Only(guard) = navifast::single_instance::acquire(&Default::default(), None) else {
         panic!("the private bus must start without another instance");
     };
     let commands = guard.commands();

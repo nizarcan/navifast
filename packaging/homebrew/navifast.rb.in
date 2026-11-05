@@ -1,0 +1,22 @@
+cask "navifast" do
+  version "@VERSION@"
+  sha256 "@MACOS_SHA256@"
+
+  url "https://github.com/nizarcan/navifast/releases/download/v#{version}/navifast-v#{version}-macos-universal.dmg"
+  name "Navifast"
+  desc "Native Navidrome client"
+  homepage "https://github.com/nizarcan/navifast"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  app "Navifast.app"
+
+  zap trash: [
+    "~/Library/Application Support/io.github.nizarcan.navifast",
+    "~/Library/Caches/io.github.nizarcan.navifast",
+  ]
+
+end

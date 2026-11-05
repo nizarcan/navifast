@@ -4,6 +4,23 @@ description: What the queue shows, what Add to queue does, and what the app prom
 nav_order: 2
 ---
 
+## Current Navidrome transport
+
+Stage 1 plays an album's ordered song list locally. Queue position is an index,
+so duplicate song IDs remain distinct occurrences. A new selection or seek
+increments the generation, updates the view immediately and rejects old player
+events. Next advances to the next occurrence, previous restarts after three
+seconds, and natural completion stops after the final song. Paused skips and
+seeks preserve the paused intention. Queue editing, shuffle/repeat and saved
+server queues are not yet exposed. Tests live in `src/app/navidrome.rs`.
+
+## Inherited queue contract
+
+> **Inherited migration reference.** This page describes the upstream Spotify
+> client. It does not describe the current Navidrome build. See
+> [Getting started](/getting-started/) for implemented Navifast behavior.
+
+
 The queue is the list of what plays next. It has two parts. On top,
 under **Playing next**, are the songs you queued yourself. Below them,
 under **Next up**, are the songs that come next in whatever playlist or
@@ -81,7 +98,7 @@ not consume a queue row or restore an older queue saved on this computer.
    changing playback devices asks you to add it again on the new device.
 
    On another device, a rate limit delays additions instead of dropping them.
-   Spotifast retries automatically after Spotify's requested wait and keeps
+   Navifast retries automatically after Spotify's requested wait and keeps
    later songs behind the album. Pending rows retain their known titles and
    durations. If Spotify permanently rejects an addition, only the rejected
    song and any unsent remainder of its album disappear; accepted songs stay.
@@ -110,16 +127,16 @@ not consume a queue row or restore an older queue saved on this computer.
    below stay. It only shows while this computer is the player, because
    that is the only queue the app can actually clear.
 
-8. **Changes appear immediately.** Spotifast updates the queue before Spotify
+8. **Changes appear immediately.** Navifast updates the queue before Spotify
    confirms the change. For local playback, it updates its own player directly.
    Toggling shuffle rechecks the queue so the new playback order appears
    promptly without waiting for the song to finish.
 
-9. **Closing the app keeps the queue.** Spotifast saves it locally. When you
+9. **Closing the app keeps the queue.** Navifast saves it locally. When you
    resume the last song, it restores your queued songs and playlist position.
 
 10. **Old answers from Spotify are ignored.** Queue responses can be a few
-    seconds late. Spotifast ignores stale responses and asks again. Your
+    seconds late. Navifast ignores stale responses and asks again. Your
     changes stay visible while it waits for confirmation.
 
 Since 0.8.0, selecting several playlist rows and choosing
@@ -136,6 +153,6 @@ counts once, and the notification reports only the rows actually added.
     *Playing next* elsewhere in the same section moves it, only while this
     computer is the active player. Otherwise every drop still just adds to
     the end, exactly like **Add to queue**. *Next up* is never a drop
-    target: it plays from the current context, not from a list Spotifast
+    target: it plays from the current context, not from a list Navifast
     can rewrite. While *Playing next* is empty, drop the song on the player
     bar's Queue button instead.

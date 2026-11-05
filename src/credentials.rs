@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{auth::StoredToken, paths::AppDirs};
 
-const SERVICE: &str = "rocks.spotifast.Spotifast";
+const SERVICE: &str = "io.github.nizarcan.Navifast";
 const LEGACY_SERVICE: &str = "rocks.fastpotify.Fastpotify";
 const TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -738,7 +738,7 @@ mod tests {
         fn new() -> Self {
             static NEXT: AtomicU64 = AtomicU64::new(0);
             let root = std::env::temp_dir().join(format!(
-                "spotifast-credential-tests-{}-{}",
+                "navifast-credential-tests-{}-{}",
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             ));

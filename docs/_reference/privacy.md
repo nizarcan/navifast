@@ -1,64 +1,34 @@
 ---
 title: Privacy
-description: What Spotifast stores on your computer, what it sends and to whom, and what it never collects.
+description: What the current Navidrome client stores and sends.
 nav_order: 4
 ---
 
-Spotifast is a desktop app that runs entirely on your computer. It has no
-account of its own, no server, no telemetry, no analytics, and no advertising.
-Its author receives nothing about you or how you use it.
+Navifast has no analytics, telemetry, advertising or hosted service. In normal
+use it contacts only the Navidrome server you configure, using your system
+HTTP proxy settings. The initial client uses `ping`, `getAlbumList2`,
+`getAlbum`, `getCoverArt` and `stream`. It does not contact Spotify, download
+web fonts, fetch external emoji or check for updates.
 
-This page covers the Spotifast app, version 0.8.0 and later. Earlier versions,
-released as Fastpotify, kept sign-ins in files instead of the system credential
-store; update to a current release.
+Subsonic authentication sends your username, a new random salt and a token
+derived from your password for each request. HTTPS protects requests in
+transit. Authenticated URLs are never stored in metadata, desktop media
+metadata or ordinary preferences. App errors omit request URLs and untrusted
+server error text. HTTP redirects are not followed. Server and proxy access
+logs are controlled by the server administrator and may record request URLs.
 
-## What stays on your computer
+Passwords are held in memory only for the current session. Preferences contain
+the server base URL, username, theme, volume and equalizer settings. Sign-out
+stops playback and clears the active account, library and artwork from memory.
+Canceled in-flight audio reads may take up to their 15-second request deadline
+to release their session reference. No new keyring entries are created in this
+stage, and upstream Spotify profiles and credentials are not migrated.
 
-- **Spotify sign-ins.** The grants Spotify issues when you sign in, and the
-  reusable playback credential, are kept in the system credential store:
-  Credential Manager on Windows, Keychain on macOS, and Secret Service on
-  Linux. Your Spotify password never passes through Spotifast; you sign in
-  on Spotify's own pages. A proxy password, if you set one, uses the same
-  store.
-- **Settings and history.** Settings, window positions, recent plays, the
-  last session, skins, themes and MilkDrop presets live in the config
-  directory.
-- **Caches.** Downloaded audio, artwork, lyrics and library metadata live in
-  the cache directory and can be deleted at any time.
-- **Log.** `spotifast.log` records errors and diagnostics. It stays on your
-  computer and never contains credentials; share it only if you choose to
-  attach it to a bug report.
-
-[Settings & Files](/settings-and-files/) lists every location and what is safe
-to delete. **Sign out** in Settings removes the stored credentials.
-
-## What is sent, and to whom
-
-Spotifast connects only to the services below.
-
-- **Spotify.** Sign-in, your library, search, playlists, playback and Spotify
-  Connect all go to Spotify, under your account. Spotify's own
-  [privacy policy](https://www.spotify.com/legal/privacy-policy/) applies to
-  that data.
-- **LRCLIB.** When the lyrics panel is open and Spotify has no lyrics for the
-  song, Spotifast sends its artist, title, album and length to
-  [lrclib.net](https://lrclib.net). Nothing identifying you is included.
-- **GitHub.** Once a day, Spotifast asks GitHub for the latest release. You
-  can turn automatic checks off in Settings. Downloading an update, and the
-  first opening of MilkDrop, also fetch files from GitHub. No Spotify data is
-  sent.
-- **Your local network.** Spotifast looks for Spotify Connect speakers over
-  mDNS and talks to the ones you choose.
-
-Links you open from the app, such as the Winamp Skin Museum or this website,
-open in your browser.
-
-## This website
-
-spotifast.rocks counts page visits with [Plausible](https://plausible.io/data-policy),
-which uses no cookies and collects no personal data. The app itself contains
-no analytics.
-
-## Questions
-
-Ask on [GitHub](https://github.com/crmne/spotifast/issues).
+Artwork is bounded in memory; stream input downloads up to 4 MiB ahead in
+256 KiB byte ranges, plus the current block and one in-flight request. Pausing
+allows that bounded reserve to fill; stopping or signing out cancels further
+downloads and discards buffered audio. An in-flight request retains its existing
+15-second deadline.
+There is no offline audio cache. The local log records startup diagnostics,
+not passwords or authentication responses. The private migration plan and
+local QA artifacts are ignored and are not part of the distributed app.

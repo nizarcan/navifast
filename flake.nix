@@ -1,5 +1,5 @@
 {
-  description = "Spotify, native and fast";
+  description = "Navidrome, native and fast";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -88,7 +88,7 @@
       packages = forAllSystems (
         pkgs:
         let
-          spotifast =
+          navifast =
             let
               toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
               rustPlatform = pkgs.makeRustPlatform {
@@ -110,17 +110,17 @@
               );
             in
             rustPlatform.buildRustPackage rec {
-              pname = "spotifast";
+              pname = "navifast";
               version = (pkgs.lib.importTOML ./Cargo.toml).package.version;
               src = self;
 
               # The lock file contains git dependencies. fetchCargoVendor includes
               # them in the fixed-output dependency tree, unlike cargoLock alone.
               cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-                pname = "spotifast";
+                pname = "navifast";
                 version = (pkgs.lib.importTOML ./Cargo.toml).package.version;
                 src = self;
-                hash = "sha256-gR2c84kqkje6+DswrKm1rSAFLoH+4F1EqPi1TUfMaz4=";
+                hash = "sha256-LVkyBgR4lSOgNzYZDLCY7+oqzRU+KzXfm9Ld97JM+Cw=";
               };
               # projectm-sys only searches lib, while CMake may otherwise install to lib64.
               postPatch = ''
@@ -172,37 +172,34 @@
               # The GUI dlopens its Wayland, X11 and GL libraries at run time.
               postFixup =
                 pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
-                  wrapProgram $out/bin/fastpotify \
-                    --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath runtimeLibs}
-                  wrapProgram $out/bin/spotifast \
+                  wrapProgram $out/bin/navifast \
                     --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath runtimeLibs}
                 ''
                 + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-                  rcodesign sign "$out/Applications/Spotifast.app"
+                  rcodesign sign "$out/Applications/Navifast.app"
                 '';
 
-              postInstall =
-                pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
-                  install -Dm644 packaging/applications/spotifast.desktop \
-                    $out/share/applications/spotifast.desktop
-                  install -Dm644 packaging/icons/spotifast.svg \
-                    $out/share/icons/hicolor/scalable/apps/spotifast.svg
-                  install -Dm644 contrib/omarchy/spotifast.json.tpl \
-                    $out/share/spotifast/omarchy/spotifast.json.tpl
-                  install -Dm755 contrib/omarchy/spotifast-theme \
-                    $out/share/spotifast/omarchy/spotifast-theme
+              postInstall = ''
+                # The compatibility binary is a migration reference, not a
+                # command owned by this client. Keep upstream installs intact.
+                rm -f "$out/bin/fastpotify"
+              '' + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+                  install -Dm644 packaging/applications/navifast.desktop \
+                    $out/share/applications/navifast.desktop
+                  install -Dm644 packaging/icons/navifast.svg \
+                    $out/share/icons/hicolor/scalable/apps/navifast.svg
+                  install -Dm644 contrib/omarchy/navifast.json.tpl \
+                    $out/share/navifast/omarchy/navifast.json.tpl
+                  install -Dm755 contrib/omarchy/navifast-theme \
+                    $out/share/navifast/omarchy/navifast-theme
                 ''
                 + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-                  app="$out/Applications/Spotifast.app/Contents"
+                  app="$out/Applications/Navifast.app/Contents"
                   mkdir -p "$app/MacOS" "$app/Resources"
-                  executable=Spotifast
-                  identifier=rocks.spotifast.Spotifast
-                  if [ "${version}" = "0.9.1" ]; then
-                    executable=fastpotify
-                    identifier=me.paolino.fastpotify
-                  fi
-                  cp "$out/bin/spotifast" "$app/MacOS/$executable"
-                  icnsify packaging/macos/icon-1024.png -o "$app/Resources/spotifast.icns"
+                  executable=Navifast
+                  identifier=io.github.nizarcan.Navifast
+                  cp "$out/bin/navifast" "$app/MacOS/$executable"
+                  icnsify packaging/macos/icon-1024.png -o "$app/Resources/navifast.icns"
                   substitute packaging/macos/Info.plist "$app/Info.plist" \
                     --replace-fail __VERSION__ "${version}" \
                     --replace-fail __BUILD__ "${pkgs.lib.head (pkgs.lib.splitString "-" version)}" \
@@ -211,22 +208,20 @@
                 '';
 
               meta = {
-                description = "Fast native Spotify client with local playback and Spotify Connect";
-                homepage = "https://spotifast.rocks";
+                description = "Native Navidrome client with local playback and equalizer";
+                homepage = "https://nizarcan.github.io/navifast";
                 license = pkgs.lib.licenses.mit;
-                mainProgram = "spotifast";
+                mainProgram = "navifast";
               };
             };
 
         in
         {
-          default = spotifast;
-          inherit spotifast;
-          fastpotify = spotifast;
+          default = navifast;
+          inherit navifast;
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
-          fastpotify-app = spotifast;
-          spotifast-app = spotifast;
+          navifast-app = navifast;
         }
       );
 

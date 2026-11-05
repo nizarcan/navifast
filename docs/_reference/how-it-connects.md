@@ -1,12 +1,55 @@
 ---
 title: How It Connects
-description: Independent Spotify grants, what is stored, and how API traffic is routed.
+description: How Navidrome requests, local playback and the inherited interface connect.
 nav_order: 1
 ---
 
+## Current Navidrome path
+
+The default launch creates `app::navidrome::App`. Its presentation adapter feeds
+Navidrome albums and transport state into the original `ui/` views and routes
+their actions after drawing. `ui::navidrome` supplies the server sign-in form.
+The inherited Spotify backend stays offline and does not restore credentials.
+Artwork uses opaque, session-scoped image-loader keys rather than authenticated
+URLs, with bounded CPU/GPU caching. `navidrome::backend`
+executes API requests on a dedicated Tokio runtime with cancellation and
+session/request generations. IDs are opaque strings. Album pages use
+`getAlbumList2` and `getAlbum`; artwork is fetched and decoded off the UI.
+
+`navidrome::api::Client` uses salted Subsonic authentication and supports
+server base paths. It does not follow redirects or persist request URLs.
+Preferences are atomically written outside drawing. Passwords are session-only.
+
+`navidrome::player` owns local transport. Output and decoding have separate
+workers. A download worker reads original audio using 256 KiB HTTP byte ranges
+and queues up to 4 MiB ahead independently of decoding. Including the current
+block and an in-flight request, audio input holds at most 4.5 MiB. Downloads stop
+at that bound even when playback is paused; audio is not cached to disk.
+The decoder
+converts mono/stereo input to stereo 44.1 kHz, then uses the existing EQ and
+limiter. It emits 20 ms PCM blocks into a 500 ms channel. Output gathers a 200 ms
+reserve at startup and after an underrun, so high sample rates or small codec
+packets do not shrink the playback buffer. A short end-of-file tail drains
+without filling the reserve. Buffering silence does not advance the position.
+Consumed PCM feeds the visualization tap before output volume; preparing the
+reserve does not advance the visualizer. Generation checks discard stale
+selections and canceled reads; seeks also retire queued and in-flight byte
+ranges from the old position. Cancellation wakes a waiting decoder without
+waiting for the HTTP request's deadline.
+
+See [Privacy](/privacy/) for endpoints and storage and
+[Getting started](/getting-started/) for user-facing limitations.
+
+## Inherited Spotify architecture
+
+> **Inherited migration reference.** This page describes the upstream Spotify
+> client. It does not describe the current Navidrome build. See
+> [Getting started](/getting-started/) for implemented Navifast behavior.
+
+
 ## Independent grants, once each
 
-Spotifast uses separate credentials for Web API access, a personal app, and
+Navifast uses separate credentials for Web API access, a personal app, and
 local playback:
 
 1. **The shared Web API app** keeps full catalogue and playlist coverage.
@@ -45,11 +88,11 @@ cannot be recalled. Seeking adds no Web API request or full-track download.
 Since 0.8.0, requests that need a grant still being
 verified wait for it instead of showing "not signed in". Sign-out cancels
 pending requests, and their late results cannot undo a new sign-in. If Spotify
-rejects a saved refresh grant, Spotifast removes that grant and asks for a new
+rejects a saved refresh grant, Navifast removes that grant and asks for a new
 browser approval. Upgrading to protected storage does not itself require
 signing in again.
 
-By default, Spotifast uses the public app shared with spotify-player, ncspot,
+By default, Navifast uses the public app shared with spotify-player, ncspot,
 and Omarchy Spotify. Spotify divides its quota among all users. A personal app
 adds a separate Development Mode quota. See
 [Use a Personal Spotify App](/make-it-even-faster/).
@@ -98,7 +141,7 @@ current-track pickup.
 - Since 0.8.0, shared and personal Web API grants
   and the reusable playback credential use the platform credential store:
   Secret Service on Linux, Keychain on macOS, and Credential Manager on
-  Windows. Librespot retains its reusable credential in memory; Spotifast
+  Windows. Librespot retains its reusable credential in memory; Navifast
   owns persistence. Flatpak can talk to `org.freedesktop.secrets` for this.
   Version 0.7.1 still uses the older unencrypted files.
   See [migration, sign-out, and storage protection](/settings-and-files/).
@@ -119,7 +162,7 @@ current-track pickup.
   prefixes refresh through the existing Web API grant, one page at a time,
   while the saved rows remain visible. Manual refresh starts immediately.
   Like and Unlike are kept over lagging reads until Spotify confirms them.
-- Spotifast has no telemetry, analytics, or hosted service. When the lyrics
+- Navifast has no telemetry, analytics, or hosted service. When the lyrics
   panel is open and Spotify has no lyrics, it sends the track's artist, title,
   album, and length to [lrclib.net](https://lrclib.net). It also checks
   api.github.com once a day for updates. You can turn off automatic checks in
@@ -128,7 +171,7 @@ current-track pickup.
 
   On Windows, macOS, and Linux, downloading an update fetches release metadata and
   `checksums.txt` from the project's GitHub release, then the matching binary
-  archive, Windows installer, or universal macOS DMG. Spotifast checks the published SHA-256 digest
+  archive, Windows installer, or universal macOS DMG. Navifast checks the published SHA-256 digest
   and the portable executable's reported version before offering a restart.
   Automatic downloads are optional; installation always waits for your click.
   Checks and downloads do not open the update popup. The green update pill opens
@@ -136,7 +179,7 @@ current-track pickup.
   No Spotify credential is sent. These are GitHub-hosted checksums, not a
   separate publisher signature.
 
-  Updates stage their files in a private `.spotifast-update-*` directory beside
+  Updates stage their files in a private `.navifast-update-*` directory beside
   the application so replacement stays on the same filesystem. The directory
   retains the previous executable or Mac app bundle and `result.txt` for recovery and diagnosis.
   Helper startup errors are retained in `helper.log`. On macOS the helper runs
@@ -152,7 +195,7 @@ current-track pickup.
 ## Collection loading and artwork
 
 Since 0.9.0, opening a playlist, album, artist, or podcast keeps any
-title, summary, and cover Spotifast already knows while the complete page is
+title, summary, and cover Navifast already knows while the complete page is
 requested. Controls that need unfinished details stay disabled, and a loading
 indicator marks the unfinished content. If the request fails, the known header
 stays above **Retry**. A direct link with no known details shows only the normal
@@ -180,7 +223,7 @@ rows are placeholders until their page arrives; scrolling never starts playback.
 ## When Spotify pushes back
 
 Each Web API session has separate concurrency and rate limits. A `Retry-After`
-response pauses only that session. Spotifast routes each request once and
+response pauses only that session. Navifast routes each request once and
 does not retry it through the other app. A playlist read the librespot session
 refuses outright, because the playlist is gone or private, is shown as such. A
 dropped connection, a read that takes longer than 30 seconds, or a page whose
@@ -189,11 +232,11 @@ instead of caching rows without songs. A song Spotify no longer has, or
 withholds for legal reasons, is an empty row, as the Web API shows it.
 
 Spotify can also explicitly refuse the key needed to decrypt a track. When
-that happens, Spotifast stops local playback and leaves the rest of the queue
+that happens, Navifast stops local playback and leaves the rest of the queue
 alone instead of treating every following track as unavailable. This refusal
 comes from Spotify; trying again later may work.
 
-Before adding songs to an existing playlist, Spotifast checks the rows it
+Before adding songs to an existing playlist, Navifast checks the rows it
 already holds. A known duplicate produces an immediate confirmation naming the
 song. Only a playlist that has not been fully loaded needs a background scan to
 rule out duplicates. Once confirmed, the new rows appear locally at once.
@@ -203,7 +246,7 @@ through the same Web API grant. Duplicate checks and confirmation retain that
 position; partial loaded pages keep the correct continuation offset. A
 successful write advances the cached playlist to Spotify's returned snapshot
 instead of downloading the playlist again. If Spotify cannot answer the scan,
-Spotifast preserves the requested edit and lets the write report its result.
+Navifast preserves the requested edit and lets the write report its result.
 
 Since 0.8.0, manually reloading an edited playlist waits for all
 pending writes and confirmation of the returned Spotify revision before
@@ -248,7 +291,7 @@ append might already have succeeded.
 ## Playlist cover uploads
 
 Since 0.9.0, **Edit details → Change cover** opens the native file
-picker. Spotifast reads only the selected JPEG or PNG, preserves its aspect ratio, flattens transparent
+picker. Navifast reads only the selected JPEG or PNG, preserves its aspect ratio, flattens transparent
 pixels onto white, and encodes a JPEG preview. Files must be smaller than 20 MB
 and no larger than 8192 pixels per side, within a 128 MB decoding budget.
 Encoding reduces the image to fit
@@ -258,7 +301,7 @@ Spotify; **Save** separately saves the name, description, and visibility.
 Uploads use the same shared or personal app routing as playlist edits. Requests
 are not retried through another app. The uploaded image stays visible while
 Spotify propagates its artwork. A changed URL can still contain an earlier
-upload, so Spotifast checks the largest returned image through its normal
+upload, so Navifast checks the largest returned image through its normal
 artwork cache, off the UI thread. Only matching image bytes or decoded pixels
 replace the temporary preview. It makes at most three immediate metadata
 rechecks; if Spotify is still catching up or the check fails, the preview stays
@@ -266,7 +309,7 @@ and a later page refresh can check again. Once confirmed, later cover changes
 from other clients can appear. The selected source file is not copied to the
 cache or settings.
 
-Image uploads require renewed Web API consent. If Spotifast asks you to sign
+Image uploads require renewed Web API consent. If Navifast asks you to sign
 in again after updating, approve the image upload permission. Reconnect your
 personal app in Settings too, if you use one. Local playback authorization is
 unchanged. Spotify can refuse changes to playlists you do not own.
@@ -287,12 +330,12 @@ seconds overall after discovery. Only responding receivers with a name and
 ID are offered. Matching IDs are combined; separate devices can have the
 same name. These reads send no account credential.
 
-When a receiver is selected, Spotifast encrypts the stored librespot credential
+When a receiver is selected, Navifast encrypts the stored librespot credential
 with a receiver-specific key and a key from a Diffie-Hellman exchange. The
-encrypted value only works for that receiver and exchange. Spotifast does not
+encrypted value only works for that receiver and exchange. Navifast does not
 save another copy of the credential.
 
-The receiver then signs in and appears in Spotify's device list. Spotifast
+The receiver then signs in and appears in Spotify's device list. Navifast
 uses the Web API for subsequent control requests.
 
 ## The engine
@@ -309,12 +352,12 @@ no additional authorization. An old or unavailable Web API playback snapshot
 does not cause the previous local song to restart or replace the remote queue.
 
 When the PulseAudio backend is selected on Linux, its PulseAudio or PipeWire
-stream is named **Spotifast**, with **Spotify playback** as its description, so
+stream is named **Navifast**, with **Spotify playback** as its description, so
 system mixers and audio processors can identify and route it. Explicit
 `PULSE_PROP_application.name` and `PULSE_PROP_stream.description` environment
 values take precedence.
 The same session checks releases that the Web API calls `single`, so confirmed
-EPs can carry their precise label. Spotifast deduplicates these checks while
+EPs can carry their precise label. Navifast deduplicates these checks while
 the app session is active. If the engine reconnects, an interrupted check may
 be tried again; if metadata is unavailable, its label stays `Single`.
 
@@ -325,7 +368,7 @@ inbound ports have to be open.
 
 Each socket setup and handshake shares a five-second deadline. The pinned
 librespot version can try up to six access points and retry each connection
-once. Spotifast allows 75 seconds for the whole engine connection, giving
+once. Navifast allows 75 seconds for the whole engine connection, giving
 stalled endpoints more time to fall back. Resolving access points,
 authentication, and other setup also use that outer deadline, so reaching
 every fallback endpoint is not guaranteed.
@@ -354,7 +397,7 @@ Since 0.9.0, Settings → Proxy has four modes:
   Spotify hostnames are resolved by that proxy.
 
 The mode selects the protocol. Host and port are separate fields.
-These settings apply to Spotifast's requests. The external browser used
+These settings apply to Navifast's requests. The external browser used
 for Spotify approval keeps its own network and proxy settings.
 
 The Web API, artwork, lyrics, update checks and downloads, and MilkDrop preset

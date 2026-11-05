@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Spotifast
+Name=Navifast
 GenericName=Music Player
-Comment=A native Spotify client
-Exec=spotifast %u
+Comment=A native Navidrome client
+Exec=navifast %u
 Terminal=false
 Categories=AudioVideo;Audio;Player;Music;
 Keywords=spotify;music;player;streaming;fastpotify;

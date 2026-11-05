@@ -1,10 +1,10 @@
-// Shared by the Spotifast command and its Fastpotify compatibility command.
+// Shared by the Navifast command and its Fastpotify compatibility command.
 
-use spotifast::{app, backend, paths, settings, single_instance, util};
+use navifast::{app, backend, paths, settings, single_instance, util};
 
 use clap::{CommandFactory, FromArgMatches, Parser};
 
-/// A fast, native Spotify client.
+/// A native Navidrome client.
 #[derive(Debug, Parser)]
 #[command(name = env!("CARGO_BIN_NAME"), version, about)]
 struct Cli {
@@ -13,23 +13,28 @@ struct Cli {
     control: Option<Control>,
 
     /// A Spotify link to open: spotify:track:…, or an open.spotify.com
-    /// address. The running Spotifast opens it when there is one, which
+    /// address. The running Navifast opens it when there is one, which
     /// is how the desktop hands links over.
-    #[arg(value_name = "LINK")]
+    #[arg(value_name = "LINK", hide = true)]
     link: Option<String>,
 
     /// Spotify Connect device name for this session.
-    #[arg(long)]
+    #[arg(long, hide = true)]
     device_name: Option<String>,
 
-    /// Log more from librespot and the Web API client.
+    /// Log additional application diagnostics.
     #[arg(short, long)]
     verbose: bool,
 
-    /// Start with sample data and no Spotify connection (for screenshots).
+    /// Start the inherited sample interface for migration comparisons.
     #[cfg(feature = "demo")]
     #[arg(long)]
     demo: bool,
+
+    /// Use the Navidrome screens with deterministic sample albums.
+    #[cfg(feature = "demo")]
+    #[arg(long, requires = "demo")]
+    demo_navidrome: bool,
 
     #[cfg(feature = "demo")]
     #[arg(long, requires = "demo")]
@@ -58,7 +63,7 @@ struct Cli {
     /// Requires demo mode.
     #[cfg(feature = "demo")]
     #[arg(long, value_enum)]
-    demo_language: Option<spotifast::i18n::Locale>,
+    demo_language: Option<navifast::i18n::Locale>,
 
     /// Write a PNG of the demo window to this path and exit. Implies
     /// `--demo`. Without `--demo-size`, the shot is the window's own frame
@@ -124,20 +129,26 @@ enum Control {
     /// Toggle mute
     Mute,
     /// Toggle shuffle, or set it outright
+    #[command(hide = true)]
     Shuffle { state: Option<OnOff> },
     /// Cycle the repeat mode, or set it outright
+    #[command(hide = true)]
     Repeat { mode: Option<Repeat> },
     /// Save the playing track to your library, or take it back out
+    #[command(hide = true)]
     Like,
     /// Play a Spotify URI: a track, album, playlist, artist, or show
+    #[command(hide = true)]
     PlayUri { uri: String },
     /// List the Spotify Connect devices
+    #[command(hide = true)]
     Devices {
         /// Print the JSON the running instance sent instead.
         #[arg(long)]
         raw: bool,
     },
     /// Move playback to a device, by the id `devices` prints
+    #[command(hide = true)]
     Transfer { device_id: String },
     /// Print the playing track
     NowPlaying {
@@ -150,6 +161,7 @@ enum Control {
     /// Bring the window of the running instance forward
     Show,
     /// Reload local palette files without starting the app or interrupting playback
+    #[command(hide = true)]
     ReloadThemes,
 }
 
@@ -233,7 +245,7 @@ fn run_control(control: Control) -> i32 {
             0
         }
         Err(error) => {
-            eprintln!("Spotifast is not running or does not support remote control: {error}");
+            eprintln!("Navifast is not running or does not support remote control: {error}");
             1
         }
     }
@@ -247,7 +259,7 @@ fn run_control(control: Control) -> i32 {
         _ => {
             eprintln!(
                 "On Linux the running instance speaks MPRIS instead; use e.g. \
-                 `playerctl --player=spotifast play-pause`."
+                 `playerctl --player=navifast play-pause`."
             );
             return 2;
         }
@@ -255,7 +267,7 @@ fn run_control(control: Control) -> i32 {
     match result {
         Ok(()) => 0,
         Err(error) => {
-            eprintln!("Spotifast is not running or does not support remote control: {error}");
+            eprintln!("Navifast is not running or does not support remote control: {error}");
             1
         }
     }
@@ -263,8 +275,8 @@ fn run_control(control: Control) -> i32 {
 
 #[cfg(target_os = "linux")]
 const PULSEAUDIO_PROPERTIES: [(&str, &str); 2] = [
-    ("PULSE_PROP_application.name", "Spotifast"),
-    ("PULSE_PROP_stream.description", "Spotify playback"),
+    ("PULSE_PROP_application.name", "Navifast"),
+    ("PULSE_PROP_stream.description", "Navidrome playback"),
 ];
 
 #[cfg(target_os = "linux")]
@@ -314,7 +326,7 @@ fn format_now_playing(snapshot: &str) -> String {
 }
 
 /// The `devices` snapshot as one line per device, the active one marked.
-/// The id comes first because `spotifast transfer` is what it is for.
+/// The id comes first because `navifast transfer` is what it is for.
 #[cfg(not(target_os = "linux"))]
 fn format_devices(snapshot: &str) -> String {
     let Ok(devices) = serde_json::from_str::<Vec<serde_json::Value>>(snapshot) else {
@@ -346,17 +358,17 @@ pub(crate) fn run() -> eframe::Result<()> {
     // First of all: `--apply-update <job>` makes this process the update
     // helper, which installs and exits; otherwise the receipt and error an
     // update relaunch carries are taken out of the arguments.
-    let launch = fastframe_update::intercept(&spotifast::updates::CONFIG);
+    let launch = fastframe_update::intercept(&navifast::updates::CONFIG);
     // A MilkDrop child launch is a bare visualiser window, not the app: it has
     // its own event loop and OpenGL context, reads the sound from a shared
     // buffer, and never touches the app's state. Handle it before anything
     // else, including the argument parser, which does not know its flags.
     #[cfg(feature = "milkdrop")]
-    if let Some(args) = spotifast::milkdrop::child::Args::parse() {
-        std::process::exit(spotifast::milkdrop::child::run(args));
+    if let Some(args) = navifast::milkdrop::child::Args::parse() {
+        std::process::exit(navifast::milkdrop::child::run(args));
     }
 
-    // Follow the invoked command, including the Linux package's spotifast
+    // Follow the invoked command, including the Linux package's navifast
     // symlink. Old updaters execute a file named fastpotify and require its
     // original --version output; both commands otherwise start the same app.
     let name = match launch
@@ -366,7 +378,7 @@ pub(crate) fn run() -> eframe::Result<()> {
         .and_then(|arg| arg.to_str())
     {
         Some(name) if name.eq_ignore_ascii_case("fastpotify") => "fastpotify",
-        _ => "spotifast",
+        _ => "navifast",
     };
     let cli = Cli::from_arg_matches(
         &Cli::command()
@@ -382,7 +394,7 @@ pub(crate) fn run() -> eframe::Result<()> {
     let cli = if (cli.demo || cli.demo_shot.is_some()) && cli.demo_data.is_none() {
         Cli {
             demo_data: Some(
-                std::env::temp_dir().join(format!("spotifast-demo-{}", std::process::id())),
+                std::env::temp_dir().join(format!("navifast-demo-{}", std::process::id())),
             ),
             ..cli
         }
@@ -399,7 +411,7 @@ pub(crate) fn run() -> eframe::Result<()> {
     let link = cli
         .link
         .as_deref()
-        .map(|text| match spotifast::link::parse(text) {
+        .map(|text| match navifast::link::parse(text) {
             Some(uri) => uri,
             None => {
                 eprintln!("not a Spotify link: {text}");
@@ -424,13 +436,81 @@ pub(crate) fn run() -> eframe::Result<()> {
         match single_instance::acquire(&waker, link.as_deref()) {
             single_instance::Outcome::Only(guard) => Some(guard),
             single_instance::Outcome::Surfaced => {
-                log::info!("Spotifast is already running; asked it to show its window");
+                log::info!("Navifast is already running; asked it to show its window");
                 return Ok(());
             }
         }
     } else {
         None
     };
+    // The normal launch is Navidrome-only. The inherited demo remains
+    // available for before/after evidence while the remaining views migrate.
+    #[cfg(feature = "demo")]
+    let navidrome = !demo || cli.demo_navidrome;
+    #[cfg(not(feature = "demo"))]
+    let navidrome = true;
+    if navidrome {
+        let dirs = paths::AppDirs::discover();
+        #[cfg(feature = "demo")]
+        let dirs = cli
+            .demo_data
+            .as_ref()
+            .map(|base| paths::AppDirs {
+                config: base.join("config"),
+                state: base.join("state"),
+                cache: base.join("cache"),
+            })
+            .unwrap_or(dirs);
+        let _ = dirs.ensure();
+        let _ = fastframe_log::Logging::new("navifast", env!("CARGO_PKG_VERSION"))
+            .filter(if cli.verbose {
+                "warn,navifast=debug"
+            } else {
+                "warn,navifast=info"
+            })
+            .file(dirs.log_file())
+            .init();
+        navifast::emoji::install(false);
+        #[cfg(feature = "demo")]
+        let size = cli.demo_size;
+        #[cfg(not(feature = "demo"))]
+        let size = None;
+        let mut options = profile_options(native_options(false, None, size), "navifast");
+        #[cfg(feature = "demo")]
+        if demo {
+            options = demo_native_options(options, dirs.cache.join("navidrome-demo.ron"));
+        }
+        // Main-window geometry uses the same native shell policy as before.
+        options.viewport = options.viewport.with_title("Navifast");
+        return eframe::run_native(
+            "Navifast",
+            options,
+            Box::new(move |cc| {
+                #[cfg(not(feature = "demo"))]
+                let demo = false;
+                #[allow(unused_mut, reason = "Only the demo feature populates sample state")]
+                let mut app = app::navidrome::App::new(cc, dirs, instance, demo);
+                waker.attach(&cc.egui_ctx);
+                #[cfg(feature = "demo")]
+                if demo {
+                    app.populate_demo(
+                        cli.demo_page.as_deref(),
+                        cli.demo_show.as_deref(),
+                        &cc.egui_ctx,
+                    );
+                    app.shot = cli.demo_shot.map(|path| {
+                        (
+                            path,
+                            std::time::Instant::now()
+                                + std::time::Duration::from_millis(cli.demo_shot_delay),
+                            false,
+                        )
+                    });
+                }
+                Ok(Box::new(app))
+            }),
+        );
+    }
     #[cfg(feature = "demo")]
     let migrate = guarded && cli.demo_data.is_none() && launch.receipt.is_none();
     #[cfg(not(feature = "demo"))]
@@ -441,18 +521,18 @@ pub(crate) fn run() -> eframe::Result<()> {
             .map_err(|error| eframe::Error::AppCreation(Box::new(error)))?;
         if let (Some(old), Some(new)) = (
             eframe::storage_dir("fastpotify"),
-            eframe::storage_dir("spotifast"),
+            eframe::storage_dir("navifast"),
         ) {
             paths::migrate_directory(&old, &new)
                 .map_err(|error| eframe::Error::AppCreation(Box::new(error)))?;
         }
     }
     let default_filter = if cli.verbose {
-        "info,librespot=info,spotifast=debug"
+        "info,librespot=info,navifast=debug"
     } else {
         // Which system face draws each script the interface font lacks,
         // one line per script at startup, for reports of odd-looking text.
-        "warn,spotifast=info,fastframe_fonts=info"
+        "warn,navifast=info,fastframe_fonts=info"
     };
     let dirs = paths::AppDirs::for_launch(launch.receipt.is_some());
     #[cfg(feature = "demo")]
@@ -469,7 +549,7 @@ pub(crate) fn run() -> eframe::Result<()> {
     // Launched from a desktop, stderr goes nowhere; keep the run's log where
     // a bug report can find it, and a line per panic in the panic log (with
     // any link in its message removed: a URL can carry a token).
-    if let Err(error) = fastframe_log::Logging::new("spotifast", env!("CARGO_PKG_VERSION"))
+    if let Err(error) = fastframe_log::Logging::new("navifast", env!("CARGO_PKG_VERSION"))
         .filter(default_filter)
         .file(dirs.log_file())
         .panic_log(dirs.panic_log())
@@ -487,17 +567,17 @@ pub(crate) fn run() -> eframe::Result<()> {
     if let Some(name) = cli.device_name {
         settings.device_name = name;
     }
-    spotifast::window::set_custom_titlebar(settings.custom_titlebar);
+    navifast::window::set_custom_titlebar(settings.custom_titlebar);
     // Colour emoji: the fonts are found off this thread. A demo capture
     // draws every picture in the frame that shows it.
     #[cfg(feature = "demo")]
-    spotifast::emoji::install(demo);
+    navifast::emoji::install(demo);
     #[cfg(not(feature = "demo"))]
-    spotifast::emoji::install(false);
+    navifast::emoji::install(false);
     // macOS delivers links as Apple Events; install before the event loop.
     #[cfg(target_os = "macos")]
     if let Some(guard) = &instance {
-        spotifast::mac_links::install(guard.commands(), waker.clone());
+        navifast::mac_links::install(guard.commands(), waker.clone());
     }
 
     // A capture run is a throwaway process next to the real one: no tray
@@ -542,8 +622,8 @@ pub(crate) fn run() -> eframe::Result<()> {
     }
     #[cfg(feature = "demo")]
     if demo {
-        spotifast::demo::populate(&mut app);
-        spotifast::demo::apply_flags(&mut app, cli.demo_page.as_deref(), cli.demo_show.as_deref());
+        navifast::demo::populate(&mut app);
+        navifast::demo::apply_flags(&mut app, cli.demo_page.as_deref(), cli.demo_show.as_deref());
         if let Some(feed) = &cli.demo_update_feed {
             match fastframe_update::Source::local(feed) {
                 Ok(source) => app.update_source = source,
@@ -558,10 +638,10 @@ pub(crate) fn run() -> eframe::Result<()> {
                 app.update_restart_arguments
                     .extend(["--demo-data".into(), base.to_string_lossy().into_owned()]);
             }
-            app.actions.push(spotifast::model::Action::CheckForUpdates);
+            app.actions.push(navifast::model::Action::CheckForUpdates);
         }
         if let Some(locale) = cli.demo_language {
-            app.settings.language = spotifast::settings::LanguageChoice::Locale(locale);
+            app.settings.language = navifast::settings::LanguageChoice::Locale(locale);
             app.locale = locale;
         }
     }
@@ -578,7 +658,7 @@ pub(crate) fn run() -> eframe::Result<()> {
     #[cfg(feature = "demo")]
     let demo_inner = cli.demo_size;
     #[cfg(feature = "demo")]
-    spotifast::window::set_fixed_size(demo_inner.is_some());
+    navifast::window::set_fixed_size(demo_inner.is_some());
     #[cfg(feature = "demo")]
     let demo_storage = app.dirs.cache.join("demo-window.ron");
     let window_profile = app.dirs.window_profile();
@@ -612,7 +692,7 @@ pub(crate) fn run() -> eframe::Result<()> {
             #[cfg(target_os = "linux")]
             let hide_from_taskbar = options.viewport.taskbar == Some(false);
             eframe::run_native(
-                "Spotifast",
+                "Navifast",
                 options,
                 Box::new(move |cc| {
                     if let Some(gl) = &cc.gl {
@@ -636,18 +716,18 @@ pub(crate) fn run() -> eframe::Result<()> {
                     // the next repaint.
                     #[cfg(target_os = "macos")]
                     {
-                        spotifast::mac_touchbar_crash_guard::install();
-                        spotifast::mac_menu::init();
+                        navifast::mac_touchbar_crash_guard::install();
+                        navifast::mac_menu::init();
                         let ctx = cc.egui_ctx.clone();
-                        spotifast::mac_menu::set_waker(move || ctx.request_repaint());
+                        navifast::mac_menu::set_waker(move || ctx.request_repaint());
                     }
                     {
                         use raw_window_handle::HasDisplayHandle;
                         if let Ok(display) = cc.display_handle() {
                             app.window_level_supported =
-                                spotifast::window::supports_window_level(display.as_raw());
+                                navifast::window::supports_window_level(display.as_raw());
                             app.taskbar_hiding_supported =
-                                spotifast::window::supports_hiding_from_taskbar(display.as_raw());
+                                navifast::window::supports_hiding_from_taskbar(display.as_raw());
                         }
                     }
                     // winit hides a taskbar button on Windows only; X11 is
@@ -656,14 +736,14 @@ pub(crate) fn run() -> eframe::Result<()> {
                     if hide_from_taskbar {
                         use raw_window_handle::HasWindowHandle;
                         if let Ok(handle) = cc.window_handle() {
-                            spotifast::window::skip_x11_taskbar(handle.as_raw());
+                            navifast::window::skip_x11_taskbar(handle.as_raw());
                         }
                     }
                     app.attach(&cc.egui_ctx);
                     #[cfg(windows)]
                     let thumbbar = {
                         use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-                        let mut toolbar = spotifast::thumbbar::ThumbBar::new();
+                        let mut toolbar = navifast::thumbbar::ThumbBar::new();
                         if thumbbar_enabled
                             && let Ok(handle) = cc.window_handle()
                             && let RawWindowHandle::Win32(window) = handle.as_raw()
@@ -705,7 +785,7 @@ struct MiniWindow {
 impl MiniWindow {
     fn wanted(app: &app::App) -> Option<Self> {
         app.settings.winamp_window.then(|| Self {
-            size: spotifast::ui::winamp::initial_size(&app.settings),
+            size: navifast::ui::winamp::initial_size(&app.settings),
             position: app.winamp.restore_pos,
             on_top: app.settings.winamp_on_top,
             taskbar: app.settings.winamp_show_taskbar,
@@ -781,12 +861,12 @@ fn native_options(
     #[cfg(target_os = "linux")]
     let persistence_path = persistence_path.or_else(|| {
         // Keep the native profile path even when Flatpak supplies its app ID.
-        eframe::storage_dir("spotifast").map(|dir| dir.join("app.ron"))
+        eframe::storage_dir("navifast").map(|dir| dir.join("app.ron"))
     });
     #[cfg(target_os = "linux")]
-    let app_id = spotifast::media_controls::desktop_entry();
+    let app_id = navifast::media_controls::desktop_entry();
     #[cfg(not(target_os = "linux"))]
-    let app_id = "spotifast";
+    let app_id = "navifast";
     let icon = if cfg!(target_os = "macos") {
         // macOS takes the dock icon from the bundle's .icns, which is the
         // 1024px drawing with the platform's rounding. Setting a window
@@ -796,7 +876,7 @@ fn native_options(
         app_icon()
     };
     let viewport = egui::ViewportBuilder::default()
-        .with_title("Spotifast")
+        .with_title("Navifast")
         .with_app_id(app_id)
         .with_taskbar(true)
         .with_icon(icon);
@@ -835,9 +915,9 @@ fn native_options(
                 .with_title_shown(false)
                 // Windows has no equivalent to macOS's floating traffic lights.
                 // Removing its decorations lets the app surface fill the window.
-                .with_decorations(main_window_decorated(spotifast::window::custom_titlebar()))
+                .with_decorations(main_window_decorated(navifast::window::custom_titlebar()))
                 .with_inner_size(size)
-                .with_min_inner_size(inner_size.unwrap_or(spotifast::window::MAIN_MIN_SIZE))
+                .with_min_inner_size(inner_size.unwrap_or(navifast::window::MAIN_MIN_SIZE))
                 .with_fullscreen(fullscreen);
             if inner_size.is_some() {
                 viewport = viewport.with_max_inner_size(size);
@@ -878,7 +958,7 @@ mod native_window_tests {
 
     #[test]
     fn updater_trial_keeps_previous_geometry_without_touching_demo_storage() {
-        for profile in ["fastpotify", "spotifast"] {
+        for profile in ["fastpotify", "navifast"] {
             let main = profile_options(native_options(false, None, None), profile);
             assert_eq!(
                 main.persistence_path,
@@ -910,17 +990,17 @@ mod native_window_tests {
         );
         #[cfg(target_os = "linux")]
         {
-            let id = spotifast::media_controls::desktop_entry();
+            let id = navifast::media_controls::desktop_entry();
             assert_eq!(main.viewport.app_id.as_deref(), Some(id.as_str()));
             assert_eq!(mini.viewport.app_id, main.viewport.app_id);
             assert_eq!(
                 main.persistence_path,
-                eframe::storage_dir("spotifast").map(|dir| dir.join("app.ron"))
+                eframe::storage_dir("navifast").map(|dir| dir.join("app.ron"))
             );
         }
         #[cfg(not(target_os = "linux"))]
         {
-            assert_eq!(main.viewport.app_id.as_deref(), Some("spotifast"));
+            assert_eq!(main.viewport.app_id.as_deref(), Some("navifast"));
             assert_eq!(mini.viewport.app_id, main.viewport.app_id);
             assert_eq!(main.persistence_path, None);
         }
@@ -946,7 +1026,7 @@ mod native_window_tests {
                 skin_scale: Some(2),
                 ..Default::default()
             };
-            let size = spotifast::ui::winamp::initial_size(&settings);
+            let size = navifast::ui::winamp::initial_size(&settings);
             let options = native_options(
                 false,
                 Some(MiniWindow {
@@ -976,7 +1056,7 @@ mod native_window_tests {
         let options = native_options(false, None, None);
         assert_eq!(
             options.viewport.decorations,
-            Some(!spotifast::window::custom_titlebar())
+            Some(!navifast::window::custom_titlebar())
         );
         assert_eq!(options.viewport.fullsize_content_view, Some(true));
         assert_eq!(options.viewport.titlebar_shown, Some(false));
@@ -1115,7 +1195,7 @@ struct Shell {
     /// after on_exit has returned the App to the event loop.
     persist_memory: bool,
     #[cfg(windows)]
-    thumbbar: spotifast::thumbbar::ThumbBar,
+    thumbbar: navifast::thumbbar::ThumbBar,
     /// A pending `--demo-shot` capture, if this is a screenshot run.
     #[cfg(feature = "demo")]
     shot: Option<Shot>,
@@ -1245,9 +1325,9 @@ impl eframe::App for Shell {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let app = &mut *self.app;
         #[cfg(target_os = "macos")]
-        for command in spotifast::mac_menu::drain_commands() {
-            use spotifast::mac_menu::MenuCommand;
-            use spotifast::model::{Action, Dialog, Page};
+        for command in navifast::mac_menu::drain_commands() {
+            use navifast::mac_menu::MenuCommand;
+            use navifast::model::{Action, Dialog, Page};
             let action = match command {
                 MenuCommand::PlayPause => Action::TogglePlay,
                 MenuCommand::Next => Action::Next,
@@ -1270,7 +1350,9 @@ impl eframe::App for Shell {
                 MenuCommand::Back => Action::Back,
                 MenuCommand::Forward => Action::Forward,
                 MenuCommand::OpenRepo => {
-                    ctx.open_url(egui::OpenUrl::new_tab("https://github.com/crmne/spotifast"));
+                    ctx.open_url(egui::OpenUrl::new_tab(
+                        "https://github.com/nizarcan/navifast",
+                    ));
                     continue;
                 }
                 // Editing goes through egui, which owns the text field
@@ -1380,7 +1462,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             defaults,
-            [("PULSE_PROP_stream.description", "Spotify playback")]
+            [("PULSE_PROP_stream.description", "Navidrome playback")]
         );
 
         assert_eq!(missing_pulseaudio_properties(|_| true).count(), 0);

@@ -1,7 +1,9 @@
-# Contributing to Spotifast
+# Contributing to Navifast
 
-Spotifast is a native Spotify client. Changes should improve the
-desktop app without adding a browser, fallback services, or another backend.
+Navifast is a native Navidrome client. Reuse the inherited native UI and DSP
+where practical, replacing Spotify-specific services with OpenSubsonic. Keep
+network and decoding work off the UI thread. Do not add a browser engine,
+telemetry or a hosted backend.
 
 ## Before opening an issue
 
@@ -13,21 +15,10 @@ For a feature, explain the user problem. Discuss large changes in an issue
 before writing code. Existing code does not guarantee that a feature fits the
 project.
 
-Some boundaries come from Spotify or from upstream libraries:
-
-- Local playback requires Spotify Premium because librespot requires it.
-- Spotify Lossless is not available through librespot. Spotifast will
-  reconsider it if librespot gains lawful upstream support; proposals that
-  depend on bypassing Spotify's DRM are out of scope.
-- Spotify tracks must come from Spotify. Substituting audio from YouTube,
-  Piped, `yt-dlp`, or another catalogue is out of scope.
-- Spotifast will not embed a browser engine, add telemetry, or introduce a
-  Spotifast-operated service.
-
-[What Spotify Lets a Client Do](docs/_reference/what-spotify-allows.md)
-lists what each of the three surfaces offers and the requests none of them
-can serve, with the reason for each; a request in its last section is
-answered from there and closed.
+Use Navidrome's public Subsonic/OpenSubsonic API. Discover extensions before
+using optional capabilities. Do not assume Spotify catalogue, Connect or
+playlist semantics apply to a self-hosted library. Keep unsupported inherited
+features out of the active interface. See the README for the current scope.
 
 Duplicate, out-of-scope, or incomplete issues may be closed with a short
 explanation.
@@ -69,8 +60,7 @@ implementation and regression tests live in the Copilot Triage repository.
    are product features. Keep the UI thread free of network and disk waits.
 2. **Focused.** Prefer a complete, coherent workflow over a collection of
    settings, modes, and speculative features.
-3. **Honest integrations.** Use Spotify's Web API and librespot for what they
-   support. Do not scrape, impersonate capabilities, bypass technical
+3. **Honest integrations.** Use Navidrome's public API for supported operations. Do not scrape, impersonate capabilities, bypass technical
    protections, or silently replace one service with another.
 4. **Cross-platform by default.** Linux, macOS, and Windows are supported
    products. Platform-specific code must be isolated and the other targets
@@ -84,7 +74,7 @@ implementation and regression tests live in the Copilot Triage repository.
 
 ## Pull requests
 
-Keep each pull request to one change. Explain why it belongs in Spotifast,
+Keep each pull request to one change. Explain why it belongs in Navifast,
 what changed, and how you tested it. Avoid unrelated formatting, refactors,
 generated prose, and large mechanical rewrites.
 
@@ -168,7 +158,7 @@ Translation changes also need `.github/scripts/update-translations.sh --check`,
 using GNU gettext tools with Rust support. Run the script without `--check` when
 translatable source strings change, and review any fuzzy or missing entries in
 the updated PO files. Normal Cargo builds compile the catalogs without gettext
-tools. See [Translating Spotifast](docs/_reference/translating.md) for the pilot
+tools. See [Translating Navifast](docs/_reference/translating.md) for the pilot
 scope and contributor workflow.
 
 Documentation deployments take their canonical URL from the domain configured

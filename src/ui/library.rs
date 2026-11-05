@@ -15,8 +15,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, page: Page) {
     let (title, empty_title, empty_body) = match page {
         Page::Albums => (
             gettext(locale, "Albums"),
-            gettext(locale, "No saved albums"),
-            gettext(locale, "Saved albums appear here."),
+            if app.navidrome_mode {
+                gettext(locale, "No albums")
+            } else {
+                gettext(locale, "No saved albums")
+            },
+            if app.navidrome_mode {
+                gettext(locale, "Albums in your Navidrome library appear here.")
+            } else {
+                gettext(locale, "Saved albums appear here.")
+            },
         ),
         Page::Artists => (
             gettext(locale, "Artists"),

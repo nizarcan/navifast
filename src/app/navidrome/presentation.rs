@@ -1,0 +1,852 @@
+//! Adapts service data to the existing native interface. No Spotify requests.
+
+use super::*;
+use crate::api::models as view;
+use crate::model::{Action as UiAction, Loadable, Page, RowContext};
+use egui::load::{ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint};
+
+#[derive(Default)]
+pub(super) struct Artwork {
+    images: Mutex<HashMap<String, (Arc<egui::ColorImage>, Instant)>>,
+    requests: Mutex<HashSet<String>>,
+}
+
+impl Artwork {
+    pub fn insert(&self, uri: String, image: egui::ColorImage) {
+        self.images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert(uri, (Arc::new(image), Instant::now()));
+    }
+    pub fn evict(&self, ctx: &egui::Context) -> Vec<String> {
+        let mut images = self.images.lock().unwrap_or_else(|p| p.into_inner());
+        let mut bytes: usize = images
+            .values()
+            .map(|(image, _)| image.pixels.len() * 4)
+            .sum();
+        let mut forgotten = Vec::new();
+        while images.len() > 120 || bytes > 32 * 1024 * 1024 {
+            let Some(uri) = images
+                .iter()
+                .min_by_key(|(_, (_, used))| *used)
+                .map(|(uri, _)| uri.clone())
+            else {
+                break;
+            };
+            if let Some((image, _)) = images.remove(&uri) {
+                bytes -= image.pixels.len() * 4;
+            }
+            forgotten.push(uri);
+        }
+        drop(images);
+        // Forget GPU textures too, without calling loaders while holding our lock.
+        for uri in &forgotten {
+            ctx.forget_image(uri);
+        }
+        forgotten
+    }
+    pub fn clear(&self, ctx: &egui::Context) {
+        let uris: Vec<_> = self
+            .images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .keys()
+            .cloned()
+            .collect();
+        self.forget_all();
+        for uri in uris {
+            ctx.forget_image(&uri);
+        }
+    }
+    pub fn drain(&self) -> Vec<String> {
+        self.requests
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .drain()
+            .collect()
+    }
+}
+impl ImageLoader for Artwork {
+    fn id(&self) -> &str {
+        concat!(module_path!(), "::Artwork")
+    }
+    fn load(&self, _: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
+        if !uri.starts_with("navifast-art:") {
+            return Err(LoadError::NotSupported);
+        }
+        if let Some(image) = self
+            .images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get_mut(uri)
+        {
+            image.1 = Instant::now();
+            return Ok(ImagePoll::Ready {
+                image: image.0.clone(),
+            });
+        }
+        self.requests
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert(uri.into());
+        Ok(ImagePoll::Pending { size: None })
+    }
+    fn forget(&self, uri: &str) {
+        self.images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .remove(uri);
+    }
+    fn forget_all(&self) {
+        self.images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+        self.requests
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clear();
+    }
+    fn byte_size(&self) -> usize {
+        self.images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .values()
+            .map(|(image, _)| image.pixels.len() * 4)
+            .sum()
+    }
+}
+
+pub(super) fn encode(id: &str) -> String {
+    use std::fmt::Write;
+    let mut encoded = String::new();
+    for byte in id.bytes() {
+        let _ = write!(encoded, "{byte:02x}");
+    }
+    encoded
+}
+fn decode(id: &str) -> Option<String> {
+    let (pairs, tail) = id.as_bytes().as_chunks::<2>();
+    if !tail.is_empty() {
+        return None;
+    }
+    String::from_utf8(
+        pairs
+            .iter()
+            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok())
+            .collect::<Option<Vec<_>>>()?,
+    )
+    .ok()
+}
+fn raw_uri(uri: &str, kind: &str) -> Option<String> {
+    decode(uri.strip_prefix(&format!("navidrome:{kind}:"))?)
+}
+fn artist(name: &str) -> view::ArtistRef {
+    view::ArtistRef {
+        name: name.into(),
+        ..Default::default()
+    }
+}
+impl App {
+    pub(super) fn draw(&mut self, ui: &mut egui::Ui) {
+        if self
+            .presentation_revision
+            .as_ref()
+            .is_some_and(|old| old.0 != self.session)
+        {
+            self.artwork.clear(ui.ctx());
+        }
+        self.sync_presentation();
+        if self.connected {
+            self.presentation.frame_ui(ui);
+            let actions = std::mem::take(&mut self.presentation.actions);
+            for action in actions {
+                self.ui_action(action, ui.ctx());
+            }
+        } else {
+            self.presentation.apply_theme(ui.ctx());
+            self.palette = self.presentation.palette;
+            for action in crate::ui::navidrome::login(self, ui) {
+                self.apply(action);
+            }
+        }
+        for uri in self.artwork.drain() {
+            if let Some(id) = uri
+                .strip_prefix(&format!("navifast-art:{}:", self.session))
+                .and_then(decode)
+            {
+                self.apply(Action::Cover(id));
+            }
+        }
+        for uri in self.artwork.evict(ui.ctx()) {
+            if let Some(id) = uri
+                .strip_prefix(&format!("navifast-art:{}:", self.session))
+                .and_then(decode)
+            {
+                self.requested_covers.remove(&id);
+                self.presentation.accents.remove(&uri);
+            }
+        }
+        self.sync_presentation();
+    }
+    pub(super) fn cover_uri(&self, id: &str) -> String {
+        format!("navifast-art:{}:{}", self.session, encode(id))
+    }
+    fn view_album(&self, album: &Album) -> view::Album {
+        let id = encode(&album.id);
+        view::Album {
+            uri: format!("navidrome:album:{id}"),
+            id,
+            name: album.name.clone(),
+            artists: vec![artist(&album.artist)],
+            album_type: Some("album".into()),
+            total_tracks: Some(album.song_count),
+            release_date: (album.year > 0).then(|| album.year.to_string()),
+            images: album
+                .cover_art
+                .as_ref()
+                .map(|id| view::Image {
+                    url: self.cover_uri(id),
+                    width: Some(256),
+                    height: Some(256),
+                })
+                .into_iter()
+                .collect(),
+            ..Default::default()
+        }
+    }
+    fn view_track(&self, song: &Song, album: Option<&Album>) -> view::Track {
+        let id = encode(&song.id);
+        view::Track {
+            uri: format!("navidrome:track:{id}"),
+            id: Some(id),
+            name: song.title.clone(),
+            artists: vec![artist(&song.artist)],
+            duration_ms: (song.duration * 1000.0) as u32,
+            track_number: Some(song.track),
+            disc_number: Some(song.disc_number),
+            album: album.map(|album| self.view_album(album)),
+            is_playable: Some(true),
+            ..Default::default()
+        }
+    }
+    pub(super) fn sync_presentation(&mut self) {
+        let signature = (
+            self.session,
+            self.list_request,
+            self.album_request,
+            self.albums.len(),
+            self.list_loading,
+            self.album_loading,
+            self.connected,
+            self.error.clone(),
+        );
+        if self.presentation_revision.as_ref() != Some(&signature) {
+            let albums: Vec<_> = self
+                .albums
+                .iter()
+                .map(|album| view::SavedAlbum {
+                    added_at: None,
+                    album: self.view_album(album),
+                })
+                .collect();
+            let album_page = self.album.as_ref().map(|album| {
+                let tracks: Vec<_> = album
+                    .song
+                    .iter()
+                    .map(|song| self.view_track(song, Some(album)))
+                    .collect();
+                let mut page = crate::model::AlbumPage {
+                    generation: self.album_request,
+                    album: Loadable::Loaded(self.view_album(album)),
+                    ..Default::default()
+                };
+                page.tracks.absorb(
+                    0,
+                    view::Page {
+                        total: tracks.len() as u32,
+                        limit: tracks.len() as u32,
+                        offset: 0,
+                        next: None,
+                        items: tracks,
+                    },
+                );
+                (encode(&album.id), page)
+            });
+            let ui = &mut self.presentation;
+            if self
+                .presentation_revision
+                .as_ref()
+                .is_some_and(|old| old.0 != self.session)
+            {
+                ui.album_pages.clear();
+                ui.track_cache.clear();
+                ui.table_rows.clear();
+                ui.accents.clear();
+                self.artwork.forget_all();
+            }
+            ui.auth = if self.connected {
+                crate::backend::AuthStatus::Connected {
+                    username: self.preferences.username.clone(),
+                }
+            } else {
+                crate::backend::AuthStatus::SignedOut
+            };
+            ui.user = self.connected.then(|| view::User {
+                id: self.preferences.username.clone(),
+                display_name: Some(self.preferences.username.clone()),
+                product: Some("Navidrome".into()),
+                ..Default::default()
+            });
+            ui.library.albums.items = albums;
+            ui.library.albums.loaded_once = !self.list_loading || !self.albums.is_empty();
+            ui.library.albums.loading = self.list_loading;
+            ui.library.albums.error = self.error.clone();
+            ui.library.albums.next_offset = self.has_more.then_some(self.albums.len() as u32);
+            ui.library.albums.total = Some(self.albums.len() as u32 + u32::from(self.has_more));
+            ui.library.albums.revision = ui.library.albums.revision.wrapping_add(1);
+            if let Some((id, mut page)) = album_page {
+                if self.album_loading {
+                    page.album = Loadable::Loading;
+                } else if let Some(error) = &self.error {
+                    page.album = Loadable::Failed(error.clone());
+                }
+                for track in &page.tracks.items {
+                    if let Some(id) = &track.id {
+                        ui.track_cache.insert(id.clone(), track.clone());
+                    }
+                }
+                ui.album_pages.insert(id, page);
+            } else if let Page::Album(id) = ui.page().clone() {
+                ui.album_pages.insert(
+                    id,
+                    crate::model::AlbumPage {
+                        generation: self.album_request,
+                        album: if let Some(error) = &self.error {
+                            Loadable::Failed(error.clone())
+                        } else {
+                            Loadable::Loading
+                        },
+                        ..Default::default()
+                    },
+                );
+            }
+            self.presentation_revision = Some(signature);
+        }
+        let track = self
+            .transport
+            .song()
+            .map(|song| self.view_track(song, self.playing_album.as_ref()));
+        let local = &mut self.presentation.local;
+        local.connected = self.connected;
+        local.username = self.preferences.username.clone();
+        local.volume = (self.preferences.volume * f32::from(u16::MAX)).round() as u16;
+        local.position_ms = (self.transport.position * 1000.0) as u32;
+        local.position_at = None;
+        local.track_sequence = self.transport.generation;
+        local.seek_sequence = self.transport.generation;
+        local.playback = if track.is_none() {
+            crate::player::Playback::Stopped
+        } else if self.transport.paused {
+            crate::player::Playback::Paused
+        } else if self.transport.loading {
+            crate::player::Playback::Loading
+        } else {
+            crate::player::Playback::Playing
+        };
+        local.track = track.map(|track| crate::player::LocalTrack {
+            uri: track.uri,
+            title: track.name,
+            artists: track.artists,
+            album: track
+                .album
+                .as_ref()
+                .map(|album| album.name.clone())
+                .unwrap_or_default(),
+            art_url: track
+                .album
+                .as_ref()
+                .and_then(|album| album.images.first().map(|image| image.url.clone())),
+            duration_ms: track.duration_ms,
+            ..Default::default()
+        });
+        local.error = self.transport.error.clone();
+        self.presentation.assumed_context =
+            self.playing_album
+                .as_ref()
+                .map(|album| super::super::AssumedContext {
+                    uri: format!("navidrome:album:{}", encode(&album.id)),
+                    shuffle: Some(false),
+                    at: Instant::now(),
+                });
+        self.presentation.local_ready = self.connected;
+        self.presentation.local_playback = crate::backend::LocalPlayback::Ready {
+            device_id: "navidrome-local".into(),
+        };
+        self.presentation.settings.volume =
+            (self.preferences.volume * f32::from(u16::MAX)).round() as u16;
+    }
+    fn play_view(&mut self, uris: &[String], index: usize) {
+        let ids: Option<Vec<_>> = uris.iter().map(|uri| raw_uri(uri, "track")).collect();
+        let Some(ids) = ids else {
+            return;
+        };
+        let source = self
+            .album
+            .as_ref()
+            .map(|album| &album.song)
+            .unwrap_or(&self.transport.songs);
+        let songs: Option<Vec<_>> = ids
+            .iter()
+            .map(|id| source.iter().find(|song| &song.id == id).cloned())
+            .collect();
+        if let Some(songs) = songs {
+            self.transport.songs = songs;
+            self.pending_play = None;
+            self.load(index, 0.0, false);
+        }
+    }
+    pub(super) fn ui_action(&mut self, action: UiAction, ctx: &egui::Context) {
+        match action {
+            UiAction::Open(Page::Album(id)) => {
+                if let Some(id) = decode(&id) {
+                    self.apply(Action::Open(id));
+                }
+                self.presentation.open(Page::Album(id));
+            }
+            UiAction::Open(Page::Albums | Page::Home) => {
+                self.presentation.open(Page::Albums);
+            }
+            UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
+            UiAction::Back | UiAction::Forward => {
+                self.presentation.apply(action, ctx);
+                if let Page::Album(id) = self.presentation.page()
+                    && let Some(id) = decode(id)
+                {
+                    self.apply(Action::Open(id));
+                }
+            }
+            UiAction::OpenUri(uri) => {
+                if let Some(id) = raw_uri(&uri, "album") {
+                    self.ui_action(UiAction::Open(Page::Album(encode(&id))), ctx);
+                }
+            }
+            UiAction::PlayContext {
+                uri,
+                offset_index,
+                offset_uri,
+            } => {
+                if let Some(id) = raw_uri(&uri, "album") {
+                    let index = offset_index
+                        .map(|i| i as usize)
+                        .or_else(|| {
+                            offset_uri
+                                .and_then(|uri| raw_uri(&uri, "track"))
+                                .and_then(|id| {
+                                    self.album
+                                        .as_ref()?
+                                        .song
+                                        .iter()
+                                        .position(|song| song.id == id)
+                                })
+                        })
+                        .unwrap_or(0);
+                    if self.album.as_ref().is_some_and(|album| album.id == id)
+                        && !self.album_loading
+                    {
+                        self.transport.songs = self.album.as_ref().unwrap().song.clone();
+                        self.load(index, 0.0, false);
+                    } else {
+                        self.apply(Action::Open(id.clone()));
+                        self.pending_play = Some((id, index));
+                    }
+                }
+            }
+            UiAction::PlayFromRow {
+                context,
+                uri,
+                index,
+            } => match context {
+                RowContext::Uris(uris) | RowContext::View { uris, .. } => {
+                    self.play_view(&uris, index as usize)
+                }
+                RowContext::Context { uri: album, .. } => self.ui_action(
+                    UiAction::PlayContext {
+                        uri: album,
+                        offset_uri: Some(uri),
+                        offset_index: Some(index),
+                    },
+                    ctx,
+                ),
+                RowContext::Queue => {}
+            },
+            UiAction::PlayUris { uris, index } => self.play_view(&uris, index as usize),
+            UiAction::TogglePlay => self.apply(Action::Toggle),
+            UiAction::Next => self.apply(Action::Next),
+            UiAction::Previous => self.apply(Action::Previous),
+            UiAction::Seek(ms) => self.apply(Action::Seek(f64::from(ms) / 1000.0)),
+            UiAction::SeekBy(ms) => {
+                self.apply(Action::Seek(self.transport.position + ms as f64 / 1000.0))
+            }
+            UiAction::SetVolume(value) | UiAction::PreviewVolume(value) => {
+                self.apply(Action::Volume(f32::from(value) / 100.0))
+            }
+            UiAction::VolumeBy(value) => self.apply(Action::Volume(
+                self.preferences.volume + f32::from(value) / 100.0,
+            )),
+            UiAction::ToggleMute => self.apply(Action::Volume(if self.preferences.volume == 0.0 {
+                0.7
+            } else {
+                0.0
+            })),
+            UiAction::SignOut => {
+                self.pending_play = None;
+                self.apply(Action::SignOut);
+            }
+            UiAction::LoadMore(Page::Albums) => {
+                if !self.list_loading && self.has_more {
+                    self.apply(Action::More);
+                }
+            }
+            UiAction::Reload(Page::Albums) => self.apply(Action::Browse(self.newest)),
+            UiAction::Reload(Page::Album(id)) => {
+                if let Some(id) = decode(&id) {
+                    self.apply(Action::Open(id));
+                }
+            }
+            UiAction::SetLibrarySort {
+                shelf: crate::settings::LibraryShelf::Albums,
+                sort,
+            } => {
+                self.presentation
+                    .settings
+                    .library_sort
+                    .insert(crate::settings::LibraryShelf::Albums, sort);
+                self.mark_dirty();
+                if matches!(
+                    sort,
+                    crate::settings::LibrarySort::RecentlyAdded
+                        | crate::settings::LibrarySort::Name
+                ) {
+                    self.apply(Action::Browse(
+                        sort == crate::settings::LibrarySort::RecentlyAdded,
+                    ));
+                }
+            }
+            // Local interface/settings actions can keep their existing implementation.
+            action @ (UiAction::SetTheme(_)
+            | UiAction::SetCustomTheme(_)
+            | UiAction::ReloadThemes
+            | UiAction::SetLanguage(_)
+            | UiAction::OpenUrl(_)
+            | UiAction::SettingsChanged
+            | UiAction::ToggleSidebar
+            | UiAction::SetLibraryGrid(_)
+            | UiAction::ArrangeLibrary { .. }
+            | UiAction::CyclePlayerBarVis
+            | UiAction::ToggleEq
+            | UiAction::SetEqBand(..)
+            | UiAction::SetEqPreamp(_)
+            | UiAction::ApplyEqPreset(_)
+            | UiAction::ShowDialog(crate::model::Dialog::Shortcuts)
+            | UiAction::CloseDialog
+            | UiAction::ShowWindow
+            | UiAction::CloseWindow
+            | UiAction::Quit) => {
+                self.presentation.apply(action, ctx);
+                self.preferences.eq_on = self.presentation.settings.eq_on;
+                self.preferences.bands = self.presentation.settings.eq_bands_db;
+                self.preferences.preamp = self.presentation.settings.eq_preamp_db;
+                self.mark_dirty();
+            }
+            UiAction::OpenThemesFolder => {
+                self.backend
+                    .send(Request::OpenThemesFolder(self.dirs.config.join("themes")));
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn with_app(test: impl FnOnce(&mut App, &egui::Context)) {
+        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
+        let root = std::env::temp_dir().join(format!(
+            "navifast-presentation-{:016x}",
+            rand::random::<u64>()
+        ));
+        let mut app = App::new(
+            &cc,
+            crate::paths::AppDirs {
+                config: root.join("config"),
+                state: root.join("state"),
+                cache: root.join("cache"),
+            },
+            None,
+            true,
+        );
+        app.connected = true;
+        app.preferences.username = "listener".into();
+        let album = Album {
+            id: "library:/🌍/album".into(),
+            name: "Original album".into(),
+            artist: "Artist".into(),
+            cover_art: Some("art:/🌍".into()),
+            song_count: 3,
+            song: vec![
+                Song {
+                    id: "song:/α".into(),
+                    title: "First".into(),
+                    duration: 120.0,
+                    ..Default::default()
+                },
+                Song {
+                    id: "song:/β".into(),
+                    title: "Second".into(),
+                    duration: 180.0,
+                    ..Default::default()
+                },
+                Song {
+                    id: "song:/α".into(),
+                    title: "First".into(),
+                    duration: 120.0,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        app.albums.push(album.clone());
+        app.album = Some(album);
+        test(&mut app, &cc.egui_ctx);
+        drop(app);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn native_rows_play_the_displayed_order_and_keep_duplicate_occurrences() {
+        with_app(|app, ctx| {
+            let tracks = app.album.as_ref().unwrap().song.clone();
+            let uris: Vec<_> = [2, 1, 0]
+                .map(|i| app.view_track(&tracks[i], app.album.as_ref()).uri)
+                .into();
+            app.ui_action(
+                UiAction::PlayFromRow {
+                    context: RowContext::View {
+                        uris: uris.into(),
+                        context_uri: String::new(),
+                        editable_playlist: None,
+                    },
+                    uri: String::new(),
+                    index: 0,
+                },
+                ctx,
+            );
+            app.sync_presentation();
+            assert_eq!(app.presentation.now_playing().unwrap().title, "First");
+            app.ui_action(UiAction::Next, ctx);
+            app.sync_presentation();
+            assert_eq!(app.presentation.now_playing().unwrap().title, "Second");
+            app.ui_action(UiAction::Next, ctx);
+            app.sync_presentation();
+            assert_eq!(app.presentation.now_playing().unwrap().title, "First");
+            assert_eq!(app.transport.index, Some(2));
+        });
+    }
+
+    #[test]
+    fn browsing_another_album_does_not_replace_the_playing_album_or_artwork() {
+        with_app(|app, ctx| {
+            let album_uri = app.view_album(app.album.as_ref().unwrap()).uri;
+            app.ui_action(
+                UiAction::PlayContext {
+                    uri: album_uri.clone(),
+                    offset_index: Some(1),
+                    offset_uri: None,
+                },
+                ctx,
+            );
+            let cover = app.cover_uri("art:/🌍");
+            app.album = Some(Album {
+                id: "other".into(),
+                name: "Browsing".into(),
+                cover_art: Some("other-art".into()),
+                ..Default::default()
+            });
+            app.album_request += 1;
+            app.sync_presentation();
+            let now = app.presentation.now_playing().unwrap();
+            assert_eq!(now.title, "Second");
+            assert_eq!(now.album_name, "Original album");
+            assert_eq!(now.art_url.as_deref(), Some(cover.as_str()));
+            assert_eq!(
+                app.presentation.playing_context_uri().as_deref(),
+                Some(album_uri.as_str())
+            );
+        });
+    }
+
+    #[test]
+    fn existing_settings_control_the_active_theme_and_player_equalizer() {
+        with_app(|app, ctx| {
+            app.ui_action(UiAction::SetTheme(crate::settings::ThemeChoice::Light), ctx);
+            assert_eq!(
+                app.presentation.palette.window,
+                crate::theme::Palette::light().window
+            );
+            app.ui_action(UiAction::ToggleEq, ctx);
+            app.ui_action(UiAction::SetEqBand(3, 6.0), ctx);
+            let eq = *app.eq.lock().unwrap();
+            assert!(eq.on);
+            assert_eq!(eq.bands_db[3], 6.0);
+            let restored: crate::settings::Settings =
+                serde_json::from_str(&serde_json::to_string(&app.presentation.settings).unwrap())
+                    .unwrap();
+            assert_eq!(restored.theme, crate::settings::ThemeChoice::Light);
+            assert_eq!(restored.eq_bands_db[3], eq.bands_db[3]);
+            assert_eq!(app.preferences.bands[3], eq.bands_db[3]);
+        });
+    }
+
+    #[test]
+    fn album_header_pauses_without_restarting_and_unsupported_shuffle_is_disabled() {
+        with_app(|app, ctx| {
+            ctx.enable_accesskit();
+            let id = encode(&app.album.as_ref().unwrap().id);
+            app.presentation.history = vec![Page::Album(id)];
+            app.apply(Action::Play(1));
+            app.apply(Action::Seek(45.0));
+            let generation = app.transport.generation;
+            let mut controls = None;
+            for _ in 0..3 {
+                let mut output = ctx.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(1280.0, 800.0),
+                        )),
+                        ..Default::default()
+                    },
+                    |ui| app.draw(ui),
+                );
+                output.textures_delta.clear();
+                controls = output.platform_output.accesskit_update;
+            }
+            let controls = controls.unwrap();
+            let pause = controls
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.label() == Some("Pause"))
+                .filter_map(|(_, node)| node.bounds())
+                .max_by(|a, b| a.height().total_cmp(&b.height()))
+                .unwrap();
+            let shuffle = controls
+                .nodes
+                .iter()
+                .find(|(_, node)| node.label() == Some("Shuffle"))
+                .unwrap();
+            assert!(shuffle.1.is_disabled());
+            let pos = egui::pos2(
+                (pause.x0 + pause.x1) as f32 / 2.0,
+                (pause.y0 + pause.y1) as f32 / 2.0,
+            );
+            for pressed in [true, false] {
+                let mut output = ctx.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(1280.0, 800.0),
+                        )),
+                        events: vec![
+                            egui::Event::PointerMoved(pos),
+                            egui::Event::PointerButton {
+                                pos,
+                                button: egui::PointerButton::Primary,
+                                pressed,
+                                modifiers: Default::default(),
+                            },
+                        ],
+                        ..Default::default()
+                    },
+                    |ui| app.draw(ui),
+                );
+                output.textures_delta.clear();
+            }
+            assert!(app.transport.paused);
+            assert_eq!(app.transport.position, 45.0);
+            assert_eq!(app.transport.generation, generation);
+        });
+    }
+
+    #[test]
+    fn opaque_ids_round_trip_and_artwork_does_not_contain_authenticated_urls() {
+        with_app(|app, _| {
+            let album = app.view_album(app.album.as_ref().unwrap());
+            assert_eq!(
+                raw_uri(&album.uri, "album").as_deref(),
+                Some("library:/🌍/album")
+            );
+            assert_eq!(decode(&album.id).as_deref(), Some("library:/🌍/album"));
+            assert!(album.images[0].url.starts_with("navifast-art:0:"));
+            assert!(!album.images[0].url.contains("http"));
+            assert!(raw_uri("spotify:album:123", "album").is_none());
+            assert!(decode("abc").is_none());
+            assert!(decode("zz").is_none());
+        });
+    }
+
+    #[test]
+    fn library_sort_keeps_existing_rows_and_the_open_album_visible() {
+        with_app(|app, ctx| {
+            let id = encode(&app.album.as_ref().unwrap().id);
+            app.presentation.history = vec![Page::Album(id.clone())];
+            app.sync_presentation();
+            let old_request = app.album_request;
+            app.ui_action(
+                UiAction::SetLibrarySort {
+                    shelf: crate::settings::LibraryShelf::Albums,
+                    sort: crate::settings::LibrarySort::Name,
+                },
+                ctx,
+            );
+            app.sync_presentation();
+            assert_eq!(app.presentation.library.albums.items.len(), 1);
+            assert_eq!(app.album_request, old_request);
+            assert_eq!(app.album.as_ref().unwrap().name, "Original album");
+            assert!(matches!(
+                app.presentation.album_pages[&id].album,
+                Loadable::Loaded(_)
+            ));
+            assert!(!app.newest);
+        });
+    }
+
+    #[test]
+    fn artwork_eviction_keeps_recently_visible_covers_and_allows_reloading() {
+        let ctx = egui::Context::default();
+        let artwork = Arc::new(Artwork::default());
+        ctx.add_image_loader(artwork.clone());
+        for index in 0..121 {
+            artwork.insert(
+                format!("navifast-art:1:{index}"),
+                egui::ColorImage::filled([1, 1], egui::Color32::WHITE),
+            );
+        }
+        let visible = "navifast-art:1:0";
+        artwork.load(&ctx, visible, Default::default()).unwrap();
+        let forgotten = artwork.evict(&ctx);
+        assert_eq!(forgotten.len(), 1);
+        assert_ne!(forgotten[0], visible);
+        assert!(matches!(
+            artwork
+                .load(&ctx, &forgotten[0], Default::default())
+                .unwrap(),
+            ImagePoll::Pending { .. }
+        ));
+        assert_eq!(artwork.drain(), forgotten);
+        artwork.clear(&ctx);
+        assert_eq!(artwork.byte_size(), 0);
+    }
+}

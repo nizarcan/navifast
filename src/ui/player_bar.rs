@@ -563,6 +563,9 @@ fn now_playing_block(app: &mut App, ui: &mut egui::Ui, region: Rect, now: Option
                 .max_rect(heart_rect)
                 .layout(Layout::centered_and_justified(egui::Direction::LeftToRight)),
         );
+        if app.navidrome_mode {
+            heart_ui.disable();
+        }
         if theme::icon_button(&mut heart_ui, icon, 17.0, color, palette.text, &tooltip).clicked() {
             app.actions.push(Action::ToggleSaved(now.uri.clone()));
         }
@@ -612,6 +615,9 @@ fn transport(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>, region:
 
     let shuffle_color = if shuffle { palette.accent } else { dim };
     let mut cell = centered(ui, slot(widths[0]));
+    if app.navidrome_mode {
+        cell.disable();
+    }
     let shuffle_button = theme::icon_button(
         &mut cell,
         Icon::Shuffle,
@@ -715,6 +721,9 @@ fn transport(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>, region:
         ),
     };
     let mut cell = centered(ui, slot(widths[4]));
+    if app.navidrome_mode {
+        cell.disable();
+    }
     if theme::icon_button(
         &mut cell,
         repeat_icon,
@@ -866,23 +875,27 @@ fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>) {
         )
         .on_hover_text(gettext(
             app.locale,
-            "This device's volume can't be changed from Spotifast",
+            "This device's volume can't be changed from Navifast",
         ));
     }
     ui.add_space(4.0);
     let remote = now.is_some_and(|now| !now.local);
-    let devices = theme::icon_button(
-        ui,
-        Icon::Speaker,
-        18.0,
-        if remote {
-            palette.accent
-        } else {
-            palette.secondary
-        },
-        palette.text,
-        &gettext(app.locale, "Connect to a device"),
-    );
+    let devices = ui
+        .add_enabled_ui(!app.navidrome_mode, |ui| {
+            theme::icon_button(
+                ui,
+                Icon::Speaker,
+                18.0,
+                if remote {
+                    palette.accent
+                } else {
+                    palette.secondary
+                },
+                palette.text,
+                &gettext(app.locale, "Connect to a device"),
+            )
+        })
+        .inner;
     ui.ctx().data_mut(|data| {
         data.insert_temp(egui::Id::new(super::devices::BUTTON_RECT_ID), devices.rect)
     });
@@ -890,18 +903,22 @@ fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>) {
         app.actions.push(Action::ToggleDevicesPopup);
     }
     let queue_open = app.show_queue_panel || matches!(app.page(), Page::Queue);
-    let queue_button = theme::icon_button(
-        ui,
-        Icon::ListVideo,
-        18.0,
-        if queue_open {
-            palette.accent
-        } else {
-            palette.secondary
-        },
-        palette.text,
-        &gettext(app.locale, "Queue"),
-    );
+    let queue_button = ui
+        .add_enabled_ui(!app.navidrome_mode, |ui| {
+            theme::icon_button(
+                ui,
+                Icon::ListVideo,
+                18.0,
+                if queue_open {
+                    palette.accent
+                } else {
+                    palette.secondary
+                },
+                palette.text,
+                &gettext(app.locale, "Queue"),
+            )
+        })
+        .inner;
     if queue_button.clicked() {
         app.actions.push(Action::ToggleQueuePanel);
     }
@@ -916,19 +933,23 @@ fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>) {
                 .collect(),
         });
     }
-    if theme::icon_button(
-        ui,
-        Icon::Mic,
-        18.0,
-        if app.show_lyrics_panel {
-            palette.accent
-        } else {
-            palette.secondary
-        },
-        palette.text,
-        &gettext(app.locale, "Lyrics"),
-    )
-    .clicked()
+    if ui
+        .add_enabled_ui(!app.navidrome_mode, |ui| {
+            theme::icon_button(
+                ui,
+                Icon::Mic,
+                18.0,
+                if app.show_lyrics_panel {
+                    palette.accent
+                } else {
+                    palette.secondary
+                },
+                palette.text,
+                &gettext(app.locale, "Lyrics"),
+            )
+        })
+        .inner
+        .clicked()
     {
         app.actions.push(Action::ToggleLyricsPanel);
     }

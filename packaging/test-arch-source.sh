@@ -4,7 +4,7 @@ set -euo pipefail
 
 archive=$(realpath "${1:?usage: test-arch-source.sh SOURCE_ARCHIVE VERSION}")
 version=${2:?release version is required}
-recipe=$(dirname "$(realpath "$0")")/arch/spotifast/PKGBUILD.in
+recipe=$(dirname "$(realpath "$0")")/arch/navifast/PKGBUILD.in
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir "$work/src"
@@ -13,8 +13,8 @@ sed -e "s/@VERSION@/$version/g" -e 's/@PKGREL@/1/g' \
   -e 's/@SOURCE_SHA256@/unused/g' "$recipe" > "$work/PKGBUILD"
 
 srcdir="$work/src"
-if [[ -d "$srcdir/spotifast-$version" ]]; then
-  expected="$srcdir/spotifast-$version"
+if [[ -d "$srcdir/navifast-$version" ]]; then
+  expected="$srcdir/navifast-$version"
 else
   expected="$srcdir/fastpotify-$version"
 fi

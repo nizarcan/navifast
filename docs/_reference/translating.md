@@ -1,17 +1,22 @@
 ---
-title: Translating Spotifast
-description: Help translate Spotifast and preview the work so far.
+title: Translating Navifast
+description: Help translate Navifast and preview the work so far.
 nav_order: 6
 ---
 
-Spotifast follows your computer's language when it has a translation for it,
+> **Inherited migration reference.** This page describes the upstream Spotify
+> client. It does not describe the current Navidrome build. See
+> [Getting started](/getting-started/) for implemented Navifast behavior.
+
+
+Navifast follows your computer's language when it has a translation for it,
 and uses English otherwise. **Settings → Appearance → Language** picks another
 language, listed under its own name, and applies it at once; **System** follows
 the computer again. This arrived in 0.10.0. Corrections from
 fluent speakers are welcome.
 
 Translations are stored in `.po` files, a common format supported by editors
-such as Poedit and Weblate. They are included with Spotifast, so the app does
+such as Poedit and Weblate. They are included with Navifast, so the app does
 not contact an online translation service.
 
 ## Languages and coverage
@@ -56,7 +61,7 @@ or the date in `YYYY-MM-DD` form.
 
 ## Edit and preview
 
-The repository's `assets/i18n/spotifast.pot` is the English source template.
+The repository's `assets/i18n/navifast.pot` is the English source template.
 Open the PO for your language, such as `assets/i18n/es.po`, in your translation editor. Edit `msgstr` values;
 keep `msgid`, `msgid_plural`, `msgctxt`, and placeholders such as `{count}`, `{date}`,
 `{track}` and `{error}` unchanged.
@@ -128,7 +133,7 @@ A maintainer must also register the locale in the app, including how system
 language tags map to it, and preview it before it becomes available. Adding a
 PO alone does not add a language to the Settings list.
 
-Use the [translation problem form](https://github.com/crmne/spotifast/issues/new?template=translation.yml)
+Use the [translation problem form](https://github.com/nizarcan/navifast/issues/new?template=translation.yml)
 for incorrect wording, missing translations or text that does not fit. Each
 report gets its own issue. Include the language, version, affected control, and
 the text you see; a suggested correction is welcome. The catalog headers link

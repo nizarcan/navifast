@@ -38,7 +38,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     theme::text(ui, gettext(locale, "Spend less time waiting for Spotify"), theme::bold(20.0), palette.text);
                     ui.add_space(12.0);
                     for text in [
-                        gettext(locale, "Spotifast's default connection shares Spotify's request limit with other listeners. When it gets busy, loading music and using playback controls can take longer."),
+                        gettext(locale, "Navifast's default connection shares Spotify's request limit with other listeners. When it gets busy, loading music and using playback controls can take longer."),
                         gettext(locale, "Your Premium account lets you create a free personal Spotify app. Connect it here to give supported requests your own allowance. Some pages still use the shared connection."),
                         gettext(locale, "Setup takes a few minutes. You can also find it later in Settings under Personal Spotify app."),
                     ] {
@@ -178,7 +178,8 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                                 .num_columns(2)
                                 .spacing([24.0, 8.0])
                                 .show(ui, |ui| {
-                                    for (keys, description) in super::keys::shortcuts(locale) {
+                                    let shortcuts = if app.navidrome_mode { super::keys::navidrome_shortcuts(locale) } else { super::keys::shortcuts(locale) };
+                                    for (keys, description) in shortcuts {
                                         cell(ui, &keys, theme::semibold(13.0), palette.text);
                                         cell(
                                             ui,
@@ -210,7 +211,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         egui::Label::new(
                             egui::RichText::new(gettext(
                                 locale,
-                                "Playback needs Spotify Premium. Free accounts can browse and search, but cannot play music through Spotifast.",
+                                "Playback needs Spotify Premium. Free accounts can browse and search, but cannot play music through Navifast.",
                             ))
                             .font(theme::regular(14.0))
                             .color(palette.secondary),

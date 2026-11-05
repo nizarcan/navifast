@@ -16,27 +16,27 @@ pub const CONFIG: UpdateConfig = UpdateConfig {
     // Fastpotify, the name before the rename: its marker files, `fastpotify
     // <version>` answers, and its Windows setup program's location.
     legacy_names: &["fastpotify"],
-    legacy_windows_installs: &["Programs/Fastpotify/fastpotify.exe"],
+    legacy_windows_installs: &[],
     macos: MacConfig {
-        bundle_ids: &["rocks.spotifast.Spotifast", "me.paolino.fastpotify"],
+        bundle_ids: &["io.github.nizarcan.Navifast"],
         // 0.9.1 kept "fastpotify" for older clients' validation; later
-        // releases may rename it to "Spotifast" (#538).
-        executable_names: &["fastpotify", "Spotifast"],
-        legacy_bundle_names: &["Fastpotify.app"],
+        // releases may rename it to "Navifast" (#538).
+        executable_names: &["fastpotify", "Navifast"],
+        legacy_bundle_names: &[],
     },
     // Releases are verified against checksums.txt alone until they are
     // signed. Only a version shipped after the first signed release may
     // carry the key: from then on an unsigned release is refused.
     publisher_key: None,
     ..UpdateConfig::new(
-        "crmne/spotifast",
-        "Spotifast",
-        "spotifast",
+        "nizarcan/navifast",
+        "Navifast",
+        "navifast",
         env!("CARGO_PKG_VERSION"),
     )
 };
 
-/// An updater on Spotifast's HTTP client, through the configured proxy.
+/// An updater on Navifast's HTTP client, through the configured proxy.
 pub fn updater(proxy: &crate::settings::ProxyConfig) -> anyhow::Result<Updater> {
     let builder = crate::http::blocking_builder(proxy).map_err(anyhow::Error::msg)?;
     Ok(Updater::new(CONFIG, ReqwestTransport::new(builder)?))
