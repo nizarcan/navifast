@@ -3,6 +3,13 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Retry the existing tag if GitHub does not deliver its push event. Running
+  # this on a branch fails the tag/version check before any builds start.
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write

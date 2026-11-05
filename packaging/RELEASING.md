@@ -85,6 +85,10 @@ screenshots and unit tests do not replace playback against a real server.
    git push origin v0.1.0-rc.1
    ```
 
+   If GitHub does not start the tag workflow, run it on that existing tag:
+   `gh workflow run release.yml --repo nizarcan/navifast --ref v0.1.0-rc.1`.
+   Do not move or recreate the published tag to retry a build.
+
 4. Review the build results and approve `release-signing`. The release
    preflight refuses a tag/version mismatch or a commit without successful CI.
 5. Check the published notes, screenshot, Mac/Windows/Linux downloads,
