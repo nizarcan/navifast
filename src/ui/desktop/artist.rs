@@ -163,7 +163,7 @@ fn hero(
     if let Page::Artist(id) = v.s.app.presentation.page()
         && let Some(id) = navidrome::decode(id)
     {
-        meta = meta.child(library::star(v, FavoriteKind::Artist, &id));
+        meta = meta.child(library::star(v, FavoriteKind::Artist, &id, 18.));
     }
     hero.child(
         col()

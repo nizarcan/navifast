@@ -776,6 +776,30 @@ pub(super) fn credits(v: &Paint<'_>, name: &str, by: &crate::navidrome::api::Art
     }
     names
 }
+fn card_play(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
+    let action = if kind == FavoriteKind::Song {
+        Action::PlayFavorite(id.to_owned())
+    } else {
+        Action::PlayContext {
+            uri: kind.uri(id),
+            offset_index: None,
+            offset_uri: None,
+        }
+    };
+    el().key(format!("card-play-{}", kind.uri(id)))
+        .size(44., 44.)
+        .pin(None, None, Some(4.), Some(4.))
+        .radius(22.)
+        .center()
+        .role("button")
+        .focusable(true)
+        .label(v.tr("Play"))
+        .fill(color(v.p.accent))
+        .hover(color(v.p.accent_hover))
+        .child(v.icon(Icon::PlayFilled, 22., v.p.on_accent))
+        .group_opacity(0., 1.)
+        .on_press_tx(move |s: &mut State, tx| s.dispatch(action.clone(), tx))
+}
 fn album_card(v: &Paint<'_>, a: &Album) -> El {
     let page = Page::Album(navidrome::encode(&a.id));
     let tile = col()
@@ -788,7 +812,12 @@ fn album_card(v: &Paint<'_>, a: &Album) -> El {
         .role("button")
         .focusable(true)
         .label(format!("{}, {}", a.name, a.artist))
-        .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, 148., 6.))
+        .hover_group()
+        .child(
+            el().size(148., 148.)
+                .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, 148., 6.))
+                .child(card_play(v, FavoriteKind::Album, &a.id)),
+        )
         .child(label(&a.name, 14., 600., v.p.text).mt(8.).truncate())
         .child(label(&a.artist, 12.5, 400., v.p.secondary).wrap())
         .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx));
@@ -916,11 +945,12 @@ fn album(v: &Paint<'_>) -> El {
         .child(
             row()
                 .mt(14.)
-                .mb(10.)
+                .mb(20.)
                 .items_center()
-                .gap(12.)
+                .gap(18.)
                 .child(
                     el().size(56., 56.)
+                        .key("album-play")
                         .center()
                         .radius(28.)
                         .fill(color(v.p.accent))
@@ -937,23 +967,26 @@ fn album(v: &Paint<'_>) -> El {
                             28.,
                             v.p.on_accent,
                         ))
+                        .disabled(!active && a.song.is_empty())
                         .on_press(move |s: &mut State| {
-                            s.app.apply(if active {
-                                Service::Toggle
+                            if active {
+                                s.app.apply(Service::Toggle);
                             } else {
-                                Service::Play(0)
-                            })
+                                s.play_album_row(0);
+                            }
                         }),
                 )
                 .child(
-                    v.icon_button(&v.tr("Shuffle"), Icon::Shuffle, 24., |_, _| {})
+                    v.icon_button(&v.tr("Shuffle"), Icon::Shuffle, 26., |_, _| {})
+                        .size(38., 38.)
                         .disabled(true),
                 )
-                .child(star(v, FavoriteKind::Album, &a.id))
+                .child(star(v, FavoriteKind::Album, &a.id, 26.))
                 .child(
-                    v.icon_button(&v.tr("More"), Icon::Ellipsis, 22., |s, _| {
+                    v.icon_button(&v.tr("More"), Icon::Ellipsis, 26., |s, _| {
                         s.menu = Some("album")
                     })
+                    .size(38., 38.)
                     .key("album-more"),
                 ),
         );
@@ -975,7 +1008,7 @@ pub(super) fn credit(v: &Paint<'_>, name: &str, id: Option<&str>) -> El {
         title
     }
 }
-pub(super) fn star(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
+pub(super) fn star(v: &Paint<'_>, kind: FavoriteKind, id: &str, size: f32) -> El {
     let uri = kind.uri(id);
     let saved = v.s.app.presentation.navidrome_favorites.contains(&uri);
     v.tinted_button(
@@ -989,7 +1022,7 @@ pub(super) fn star(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
         } else {
             Icon::Star
         },
-        18.,
+        size,
         if saved == Some(true) {
             v.p.accent
         } else {
@@ -997,6 +1030,7 @@ pub(super) fn star(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
         },
         move |s, tx| s.dispatch(Action::ToggleSaved(uri.clone()), tx),
     )
+    .size(size + 12., size + 12.)
     .disabled(saved.is_none())
 }
 fn list_songs(s: &State) -> &[Song] {
@@ -1057,6 +1091,7 @@ fn album_columns(v: &Paint<'_>) -> El {
     };
     col()
         .w_full()
+        .pb(12.)
         .child(
             row()
                 .w_full()
@@ -1084,7 +1119,7 @@ fn album_columns(v: &Paint<'_>) -> El {
                     "",
                 )),
         )
-        .child(el().w_full().h(1.).fill(color(v.p.outline)))
+        .child(el().mx(8.).h(1.).fill(color(v.p.outline)))
 }
 fn songs(v: &Paint<'_>) -> El {
     let p = v.p;
@@ -1260,7 +1295,7 @@ fn songs(v: &Paint<'_>) -> El {
                 .child(
                     el().w(36.)
                         .center()
-                        .child(star(&v, FavoriteKind::Song, &song.id))
+                        .child(star(&v, FavoriteKind::Song, &song.id, 16.))
                         .group_opacity(if saved { 1. } else { 0. }, 1.),
                 )
                 .child(row().w(56.).pr(6.).justify_end().child(label(
@@ -1460,7 +1495,7 @@ fn playlist(v: &Paint<'_>) -> El {
                     .items_center()
                     .gap(6.)
                     .child(button)
-                    .child(star(&v, FavoriteKind::Song, &song.id))
+                    .child(star(&v, FavoriteKind::Song, &song.id, 16.))
             },
         )
 }
@@ -1538,7 +1573,7 @@ fn search(v: &Paint<'_>) -> El {
             Hit::Artist(i) => Some((FavoriteKind::Artist, &c.artist[i].id)),
             Hit::Playlist(_) => None,
         }) {
-            line = line.child(star(v, kind, id));
+            line = line.child(star(v, kind, id, 18.));
         }
         list = list.child(line);
     }
@@ -1783,13 +1818,16 @@ fn favorite_row(v: &Paint<'_>, kind: FavoriteKind, start: usize, cols: usize, li
                 6.
             },
         );
-        let art = el().size(148., 148.).child(cover).child(
-            star(v, kind, id)
+        let mut art = el().size(148., 148.).child(cover).child(
+            star(v, kind, id, 18.)
                 .size(26., 26.)
                 .absolute(118., 4.)
                 .radius(13.)
                 .fill(color(v.p.panel)),
         );
+        if kind != FavoriteKind::Artist {
+            art = art.child(card_play(v, kind, id));
+        }
         let subtitle = by.map_or_else(
             || label(v.tr("Artist"), 12.5, 400., v.p.secondary),
             |(name, by)| credits(v, name, by),
@@ -1803,6 +1841,7 @@ fn favorite_row(v: &Paint<'_>, kind: FavoriteKind, start: usize, cols: usize, li
             .role("button")
             .focusable(true)
             .label(name)
+            .hover_group()
             .hover(color(v.p.surface_hover))
             .child(art)
             .child(label(name, 14., 600., v.p.text).mt(10.).truncate())

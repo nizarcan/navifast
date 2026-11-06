@@ -82,6 +82,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 v,
                 crate::navidrome::api::FavoriteKind::Song,
                 &t.id,
+                18.,
             ));
     }
     let play = a.transport.paused || song.is_none();

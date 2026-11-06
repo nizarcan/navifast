@@ -775,6 +775,26 @@ mod tests {
     }
 
     #[test]
+    fn library_card_play_starts_the_album_from_its_cover() {
+        let mut rt = runtime("albums", "");
+        let kind = crate::navidrome::api::FavoriteKind::Album;
+        let key = format!("card-play-{}", kind.uri("alb1"));
+        let [x, y, w, h] = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.key.as_ref() == Some(&key))
+            .unwrap()
+            .rect;
+        rt.pointer_move(x + w / 2., y + h / 2.);
+        rt.frame(0.);
+        rt.pointer_down(x + w / 2., y + h / 2.);
+        rt.pointer_up(x + w / 2., y + h / 2.);
+        rt.frame(0.);
+        assert_eq!(rt.state.app.pending_play, Some(("alb1".to_owned(), 0)));
+        assert_eq!(rt.state.app.presentation.page(), &Page::Albums);
+    }
+
+    #[test]
     fn sorting_preserves_the_selected_occurrence_and_plays_in_display_order() {
         let mut rt = runtime("album:alb0", "");
         rt.update(|s, _| {
@@ -790,7 +810,10 @@ mod tests {
         rt.frame(0.);
         assert_eq!(rt.state.table.cursor, Some(0));
         assert_eq!(rt.state.table.key(0), key);
-        rt.update(|s, _| s.play_album_row(0));
+        rt.update(|s, _| s.app.transport.paused = true);
+        rt.frame(0.);
+        assert!(rt.accessibility_action("album-play", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
         assert_eq!(rt.state.playing_row(), Some(key.clone()));
         rt.update(|s, _| s.app.apply(super::super::Action::Next));
         assert_eq!(
