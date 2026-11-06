@@ -70,9 +70,10 @@ press **Play**, or double-click a song. Space toggles playback when a text
 field is not focused. Use the transport bar to seek and adjust volume.
 
 Navifast remembers a successful login in the system credential store and signs
-you in automatically on launch. **Sign out** forgets it. If the store is locked
-or unavailable, playback still works and a message explains why the login could
-not be saved. Passwords are never written to the settings files.
+you in automatically on launch. The main window opens while the saved login
+connects, without flashing the login form. **Sign out** forgets it. If the store
+is locked or unavailable, playback still works and a message explains why the
+login could not be saved. Passwords are never written to the settings files.
 The server URL, username and playback preferences are saved in `navidrome.json`;
 the existing interface and theme preferences use `settings.json`, both under
 Navifast's config directory. Spotify profiles and
@@ -89,7 +90,8 @@ cargo run --locked --features demo --bin navifast -- --demo --demo-navidrome
 ```
 
 Add `--demo-page album:alb0`, `--demo-page settings`, `--demo-show about`,
-`--demo-show light,equalizer`, or `--demo-show signed-out`.
+`--demo-show light,equalizer`, `--demo-show signed-out`, or
+`--demo-show restoring` for the startup loading state.
 `--demo-shot PATH --demo-size 1100x760` captures a PNG.
 The inherited `--demo` without `--demo-navidrome` is available for migration
 comparisons and does not connect to Spotify. Legacy modules and their tests

@@ -6,4 +6,4 @@ pub mod player;
 pub mod stream;
 
 #[cfg(test)]
-mod test_server;
+pub(crate) mod test_server;

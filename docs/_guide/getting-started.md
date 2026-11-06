@@ -13,9 +13,12 @@ Enter your Navidrome server's final base URL (for example
 `https://music.example.com` or `https://example.com/music`), username and password.
 Use the base URL without `/app`, `/rest`, a query string or credentials.
 After a successful connection, Navifast saves the login in your system
-credential store and connects automatically on the next launch. Unlock the
-store if Navifast reports that it cannot remember the login. A temporary server
-or network failure keeps the saved login, so you can press **Connect** to retry.
+credential store and connects automatically on the next launch. The main window
+appears immediately with a loading indicator while the saved login is restored
+and checked. The login form appears if there is no saved login or the connection
+cannot be completed. Unlock the store if Navifast reports that it cannot remember
+the login. A temporary server or network failure keeps the saved login, so you
+can press **Connect** to retry.
 
 Use **Albums** or the sidebar library list, open an album, then **Play** or
 double-click a song. The sidebar retains its list/grid switch, filtering,

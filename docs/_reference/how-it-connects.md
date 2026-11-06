@@ -27,7 +27,10 @@ server base paths. It does not follow redirects or persist request URLs.
 Preferences are atomically written outside drawing. After a successful `ping`,
 the login is saved in the platform credential store. Startup restores the
 server, account and password together, then checks `ping` before loading the
-library. Credential-store operations run on a dedicated worker; a locked store
+library. The main window shows its loading state during both steps; the login
+form appears only if restoration or connection cannot complete. The loading
+window does not mark the session authenticated or enable playback.
+Credential-store operations run on a dedicated worker; a locked store
 does not delay playback or shutdown. Sign-out revokes restoration before
 deleting the secret. Demo mode never restores or saves a login.
 

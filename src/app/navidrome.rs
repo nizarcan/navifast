@@ -11,7 +11,7 @@ mod presentation;
 use egui::load::ImageLoader;
 use presentation::Artwork;
 
-type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, Option<String>);
+type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, bool, Option<String>);
 
 use crate::navidrome::{
     api::{Album, Client, PAGE_SIZE, Song},
@@ -157,6 +157,9 @@ pub struct App {
     pub login: Login,
     pub connecting: bool,
     pub connected: bool,
+    // Keep the main window visible through both credential lookup and ping.
+    // This is presentation state, not permission to send authenticated requests.
+    restoring_login: bool,
     pub preferences: Preferences,
     pub albums: Vec<Album>,
     pub album: Option<Album>,
@@ -288,6 +291,7 @@ impl App {
             },
             connecting: !demo,
             connected: false,
+            restoring_login: !demo,
             preferences,
             albums: Vec::new(),
             album: None,
@@ -337,10 +341,13 @@ impl App {
             }
             Action::Login => {
                 if self.demo {
+                    self.restoring_login = false;
+                    self.connecting = false;
                     self.connected = true;
                     return;
                 }
                 if let Err(message) = crate::navidrome::api::server_url(&self.login.server) {
+                    self.restoring_login = false;
                     self.error = Some(message);
                     return;
                 }
@@ -360,6 +367,7 @@ impl App {
                 self.session = self.session.wrapping_add(1);
                 self.backend.send(Request::Cancel);
                 self.connecting = false;
+                self.restoring_login = false;
             }
             Action::SignOut => {
                 self.session = self.session.wrapping_add(1);
@@ -373,6 +381,7 @@ impl App {
                 self.client = None;
                 self.connected = false;
                 self.connecting = false;
+                self.restoring_login = false;
                 self.login.password.clear();
                 self.albums.clear();
                 self.album = None;
@@ -620,8 +629,11 @@ impl App {
                 };
                 self.apply(Action::Login);
             }
-            Ok(None) => {}
-            Err(error) => self.error = Some(error),
+            Ok(None) => self.restoring_login = false,
+            Err(error) => {
+                self.restoring_login = false;
+                self.error = Some(error);
+            }
         }
     }
 
@@ -638,6 +650,7 @@ impl App {
                 }
                 Event::Login { session, result } if session == self.session => {
                     self.connecting = false;
+                    self.restoring_login = false;
                     match result {
                         Ok(client) => {
                             self.preferences.server = client.base_url().into();
@@ -910,6 +923,11 @@ impl App {
         self.login.username = "listener".into();
         self.connected = !flags.contains(&"signed-out") && !flags.contains(&"connecting");
         self.connecting = flags.contains(&"connecting");
+        self.restoring_login = flags.contains(&"restoring");
+        if self.restoring_login {
+            self.connected = false;
+            self.connecting = true;
+        }
         // Share catalogue fixtures with the inherited demo so UI comparisons
         // show the same album names, rows and playback state.
         for index in 0..crate::demo::ALBUMS.len() {
@@ -1030,6 +1048,17 @@ impl App {
             ctx.data_mut(|data| {
                 data.insert_temp(egui::Id::new("settings-filter"), "About".to_string())
             });
+        }
+        if self.restoring_login {
+            self.presentation.history = vec![crate::model::Page::Albums];
+            self.presentation.history_index = 0;
+            self.albums.clear();
+            self.album = None;
+            self.playing_album = None;
+            self.transport = Transport {
+                paused: true,
+                ..Default::default()
+            };
         }
     }
 

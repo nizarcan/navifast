@@ -241,7 +241,7 @@ impl App {
             self.artwork.clear(ui.ctx());
         }
         self.sync_presentation();
-        if self.connected {
+        if self.connected || self.restoring_login {
             self.presentation.frame_ui(ui);
             let actions = std::mem::take(&mut self.presentation.actions);
             for action in actions {
@@ -323,6 +323,7 @@ impl App {
             self.list_loading,
             self.album_loading,
             self.connected,
+            self.restoring_login,
             self.error.clone(),
         );
         if self.presentation_revision.as_ref() != Some(&signature) {
@@ -373,6 +374,8 @@ impl App {
                 crate::backend::AuthStatus::Connected {
                     username: self.preferences.username.clone(),
                 }
+            } else if self.restoring_login {
+                crate::backend::AuthStatus::Starting
             } else {
                 crate::backend::AuthStatus::SignedOut
             };
@@ -383,8 +386,9 @@ impl App {
                 ..Default::default()
             });
             ui.library.albums.items = albums;
-            ui.library.albums.loaded_once = !self.list_loading || !self.albums.is_empty();
-            ui.library.albums.loading = self.list_loading;
+            ui.library.albums.loaded_once =
+                !(self.list_loading || self.restoring_login) || !self.albums.is_empty();
+            ui.library.albums.loading = self.list_loading || self.restoring_login;
             ui.library.albums.error = self.error.clone();
             ui.library.albums.next_offset = self.has_more.then_some(self.albums.len() as u32);
             ui.library.albums.total = Some(self.albums.len() as u32 + u32::from(self.has_more));
@@ -737,6 +741,157 @@ mod tests {
             app.sync_presentation();
             assert_eq!(app.presentation.now_playing().unwrap().title, "First");
             assert_eq!(app.transport.index, Some(2));
+        });
+    }
+
+    fn drawn_text(app: &mut App, ctx: &egui::Context, width: f32) -> Vec<String> {
+        fn collect(shape: &egui::epaint::Shape, text: &mut Vec<String>) {
+            match shape {
+                egui::epaint::Shape::Text(value) => text.push(value.galley.job.text.clone()),
+                egui::epaint::Shape::Vec(shapes) => {
+                    for shape in shapes {
+                        collect(shape, text);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(width, 800.0),
+                )),
+                ..Default::default()
+            },
+            |ui| app.draw(ui),
+        );
+        output.textures_delta.clear();
+        let mut text = Vec::new();
+        for shape in output.shapes {
+            collect(&shape.shape, &mut text);
+        }
+        text
+    }
+
+    #[test]
+    fn startup_shows_the_main_window_through_lookup_and_ping_then_requires_login_only_on_failure() {
+        for accepted in [true, false] {
+            with_app(|app, ctx| {
+                let server = crate::navidrome::test_server::Server::spawn(move |request| {
+                    let body = if !accepted {
+                        br#"{"subsonic-response":{"status":"failed","error":{"code":40}}}"#
+                            .as_slice()
+                    } else if request.starts_with("GET /rest/ping.view?") {
+                        br#"{"subsonic-response":{"status":"ok"}}"#.as_slice()
+                    } else {
+                        assert!(request.starts_with("GET /rest/getAlbumList2.view?"));
+                        br#"{"subsonic-response":{"status":"ok","albumList2":{"album":[]}}}"#
+                            .as_slice()
+                    };
+                    crate::navidrome::test_server::response("200 OK", "", body)
+                });
+                app.connected = false;
+                app.connecting = true;
+                app.restoring_login = true;
+                app.albums.clear();
+                app.album = None;
+                app.proxy = crate::settings::ProxyConfig::Off;
+                app.demo = false;
+                for phase in ["lookup", "ping"] {
+                    for theme in [
+                        crate::settings::ThemeChoice::Light,
+                        crate::settings::ThemeChoice::Dark,
+                    ] {
+                        app.presentation.settings.theme = theme;
+                        for width in [760.0, 1280.0] {
+                            let text = drawn_text(app, ctx, width);
+                            assert!(
+                                text.iter().any(|value| value == "Albums"),
+                                "{phase}: main page is visible"
+                            );
+                            assert!(
+                                !text.iter().any(|value| value == "Password"
+                                    || value == "Server URL"
+                                    || value == "No albums"),
+                                "{phase}: no login or empty-state flash"
+                            );
+                        }
+                    }
+                    assert!(app.presentation.library.albums.loading);
+                    assert!(!app.presentation.library.albums.loaded_once);
+                    assert!(!app.presentation.is_connected());
+                    assert!(app.presentation.user.is_none());
+                    assert!(!app.presentation.local_ready);
+                    if phase == "lookup" {
+                        app.restore_login(
+                            app.session,
+                            Ok(Some(crate::credentials::NavidromePassword {
+                                server: server.url.clone(),
+                                username: "listener".into(),
+                                password: "dummy-password".into(),
+                            })),
+                        );
+                        assert!(app.restoring_login);
+                        assert!(app.connecting);
+                    }
+                }
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+                while app.connecting {
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "login request timed out"
+                    );
+                    app.poll(ctx);
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                assert!(!app.restoring_login);
+                assert_eq!(app.connected, accepted);
+                let text = drawn_text(app, ctx, 1280.0);
+                assert_eq!(text.iter().any(|value| value == "Password"), !accepted);
+                let completed_session = app.session;
+                app.apply(Action::SignOut);
+                app.restore_login(completed_session, Ok(None));
+                assert!(!app.restoring_login);
+                assert!(
+                    drawn_text(app, ctx, 760.0)
+                        .iter()
+                        .any(|value| value == "Password")
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn missing_or_unreadable_saved_login_returns_to_the_form_and_cancel_stays_signed_out() {
+        with_app(|app, ctx| {
+            for result in [Ok(None), Err("Unlock the credential store.".into())] {
+                app.connected = false;
+                app.connecting = true;
+                app.restoring_login = true;
+                app.restore_login(app.session, result);
+                assert!(!app.connecting);
+                assert!(!app.restoring_login);
+                assert!(
+                    drawn_text(app, ctx, 760.0)
+                        .iter()
+                        .any(|value| value == "Password")
+                );
+            }
+            app.connecting = true;
+            app.restoring_login = true;
+            let old_session = app.session;
+            app.apply(Action::Cancel);
+            app.restore_login(
+                old_session,
+                Ok(Some(crate::credentials::NavidromePassword {
+                    server: "https://music.example.com".into(),
+                    username: "listener".into(),
+                    password: "dummy-password".into(),
+                })),
+            );
+            assert!(!app.connected);
+            assert!(!app.restoring_login);
         });
     }
 

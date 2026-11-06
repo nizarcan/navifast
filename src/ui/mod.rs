@@ -42,7 +42,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let signed_in = app.is_connected() && app.user.is_some();
     let connecting = matches!(app.auth, AuthStatus::Connecting | AuthStatus::Starting)
         || (app.is_connected() && app.user.is_none());
-    if !signed_in {
+    // Navidrome owns its login form and can draw the shell while restoring a
+    // session. Its presentation must not fall through to the Spotify login.
+    if !signed_in && !app.navidrome_mode {
         player_bar::end_tint_session(ctx);
         login::show(app, ui, connecting);
         update::show(app, ctx);
