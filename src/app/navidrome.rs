@@ -207,6 +207,10 @@ pub struct App {
 }
 
 impl App {
+    pub(crate) fn playback_loading(&self) -> bool {
+        self.transport.loading || self.pending_play.is_some()
+    }
+
     /// The playing album supplies its sleeve even when a song omits its own art.
     pub(crate) fn playing_cover(&self) -> Option<&str> {
         let song = self.transport.song()?;

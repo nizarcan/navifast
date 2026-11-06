@@ -25,7 +25,8 @@ The first migration stage supports:
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,
-  next and automatic progression through an album.
+  next and automatic progression through an album. Scroll over the volume slider
+  to adjust it in 5% steps. Expand the playing cover into the sidebar with its arrow.
 - The existing ten-band equalizer and a spectrum visualizer that follows the
   equalizer even when playback volume is zero.
 - The original sidebar lists and grids, album pages, player bar and settings,

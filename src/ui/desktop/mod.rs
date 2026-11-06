@@ -55,11 +55,12 @@ impl Paint<'_> {
     fn tr(&self, value: &'static str) -> String {
         gettext(self.s.app.presentation.locale, value).into_owned()
     }
-    fn spinner(&self) -> El {
-        let points = crate::theme::spinner_points(18., 0.).map(|[x, y]| [9. + x, 9. + y]);
-        let arc = rune::Shape::new().stroke(points, 2., color(self.p.accent));
+    fn spinner(&self, size: f32, ink: Color32) -> El {
+        let points =
+            crate::theme::spinner_points(size, 0.).map(|[x, y]| [size / 2. + x, size / 2. + y]);
+        let arc = rune::Shape::new().stroke(points, 2., color(ink));
         rune::canvas(arc)
-            .size(18., 18.)
+            .size(size, size)
             .looping(rune::LoopSpec::rotation(
                 1. / crate::theme::SPINNER_TURNS_PER_SECOND,
             ))
@@ -71,7 +72,7 @@ impl Paint<'_> {
             .gap(8.)
             .items_center()
             .role("status")
-            .child(self.spinner())
+            .child(self.spinner(18., self.p.accent))
             .child(label(self.tr("Loading…"), 13., 400., self.p.secondary))
     }
     fn empty(&self, icon: Icon, title: &str, detail: &str) -> El {
@@ -307,7 +308,7 @@ impl Paint<'_> {
             row()
                 .items_center()
                 .gap(10.)
-                .child(self.spinner())
+                .child(self.spinner(18., self.p.accent))
                 .child(label("Connecting…", 14., 400., self.p.text))
                 .child(self.button("Cancel", false, |s, _| {
                     s.app.apply(navidrome::Action::Cancel)

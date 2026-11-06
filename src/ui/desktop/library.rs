@@ -735,7 +735,29 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
     } else {
         list
     };
-    side.child(list)
+    let mut side = side.child(list);
+    if app.presentation.settings.art_expanded && app.playing_cover().is_some() {
+        let edge = (width - 20.)
+            .min((v.height - crate::theme::PLAYER_BAR_HEIGHT - v.s.titlebar_inset() - 12.) * 0.45)
+            .max(80.);
+        let art = transport::artwork(v, edge, true).shadow(
+            0.,
+            28.,
+            color(Color32::from_black_alpha(if v.p.dark { 120 } else { 40 })),
+        );
+        side = if grid {
+            side.child(
+                col()
+                    .pin(Some(12.), None, None, Some(0.))
+                    .pb(10.)
+                    .fill(color(v.p.panel))
+                    .child(art),
+            )
+        } else {
+            side.child(art.mb(10.))
+        };
+    }
+    side
 }
 fn heading(v: &Paint<'_>, text: &str) -> El {
     label(text, 28., 700., v.p.text).pb(18.)

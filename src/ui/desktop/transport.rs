@@ -7,6 +7,7 @@ fn slider(
     value: f64,
     range: [f64; 2],
     step: f64,
+    width: f32,
     apply: impl Fn(&mut State, f64, Option<rune::Phase>) + Copy + 'static,
 ) -> El {
     let [low, high] = range;
@@ -15,8 +16,9 @@ fn slider(
         .label(name)
         .role("slider")
         .focusable(true)
-        .h(22.)
-        .grow(1.)
+        .h(16.)
+        .w(width)
+        .hover_group()
         .min_w(0.)
         .center()
         .range_value(value, low, high)
@@ -43,22 +45,98 @@ fn slider(
             apply(s, position, (!d.cancelled()).then_some(d.phase));
         })
         .child(
-            el().w_full().h(4.).radius(2.).fill(color(v.p.dim)).child(
-                el().h(4.)
-                    .radius(2.)
-                    .w_frac(((value - low) / extent).clamp(0., 1.) as f32)
-                    .fill(color(v.p.text)),
-            ),
+            el().w_full()
+                .h(4.)
+                .radius(2.)
+                .fill(color(if v.p.dark {
+                    Color32::from_white_alpha(50)
+                } else {
+                    Color32::from_black_alpha(40)
+                }))
+                .child(
+                    el().h(4.)
+                        .radius(2.)
+                        .w_frac(((value - low) / extent).clamp(0., 1.) as f32)
+                        .fill(color(v.p.text))
+                        .child(
+                            el().w_full()
+                                .h_full()
+                                .radius(2.)
+                                .fill(color(v.p.accent))
+                                .group_opacity(0., 1.),
+                        )
+                        .child(
+                            el().size(12., 12.)
+                                .pin(None, Some(-4.), Some(-6.), None)
+                                .radius(6.)
+                                .fill(color(v.p.text))
+                                .group_opacity(0., 1.),
+                        ),
+                ),
         )
+}
+pub(super) fn artwork(v: &Paint<'_>, edge: f32, expanded: bool) -> El {
+    let a = &v.s.app;
+    let mut sleeve = v.cover(
+        a.playing_cover(),
+        CoverSize::Sleeve,
+        edge,
+        if expanded { 8. } else { 6. },
+    );
+    if let Some(album) = &a.playing_album {
+        let page = Page::Album(navidrome::encode(&album.id));
+        sleeve = sleeve
+            .role("button")
+            .label(&album.name)
+            .focusable(true)
+            .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx));
+    }
+    let mut art = el().size(edge, edge).hover_group().child(sleeve);
+    if a.playing_cover().is_some()
+        && a.presentation.settings.sidebar_visible
+        && (expanded || !a.presentation.settings.art_expanded)
+    {
+        let (diameter, inset, icon, name) = if expanded {
+            (20., 6., Icon::ChevronDown, "Collapse artwork")
+        } else {
+            (18., 1., Icon::ChevronUp, "Expand artwork")
+        };
+        art = art.child(
+            el().key(if expanded {
+                "collapse-art"
+            } else {
+                "expand-art"
+            })
+            .size(diameter, diameter)
+            .radius(diameter / 2.)
+            .center()
+            .pin(None, Some(inset), Some(inset), None)
+            .fill(color(v.p.panel.gamma_multiply(0.9)))
+            .role("button")
+            .label(v.tr(name))
+            .focusable(true)
+            .group_opacity(0., 1.)
+            .child(v.icon(icon, diameter - 6., v.p.text))
+            .on_press_tx(move |s: &mut State, tx| {
+                s.app.presentation.settings.art_expanded = !expanded;
+                s.dispatch(Action::SettingsChanged, tx);
+            }),
+        );
+    }
+    art
 }
 pub(super) fn player(v: &Paint<'_>) -> El {
     let a = &v.s.app;
     let song = a.transport.song();
+    let inner_width = (v.width - 32.).max(0.);
+    let side = (inner_width * 0.30).clamp(200., 420.);
+    let seek_width = (inner_width - side * 2. - 120.).clamp(120., 620.);
     let mut meta = row()
-        .w(v.width * 0.30)
+        .w(side)
         .min_w(0.)
         .h_full()
         .items_center()
+        .pl(4.)
         .gap(12.);
     if let Some(t) = song {
         let mut title = label(&t.title, 14., 550., v.p.text).truncate();
@@ -66,13 +144,14 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             let id = navidrome::encode(&album.id);
             title = title
                 .role("button")
+                .focusable(true)
                 .label(&t.title)
                 .on_press_tx(move |s: &mut State, tx| {
                     s.dispatch(Action::Open(Page::Album(id.clone())), tx)
                 });
         }
         meta = meta
-            .child(v.cover(a.playing_cover(), CoverSize::Sleeve, 56., 6.))
+            .child(artwork(v, 56., false))
             .child(col().min_w(0.).gap(2.).child(title).child(library::credit(
                 v,
                 &t.artist,
@@ -84,19 +163,31 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 &t.id,
                 18.,
             ));
+    } else {
+        meta = meta.child(v.cover(None, CoverSize::Sleeve, 56., 6.)).child(
+            col()
+                .min_w(0.)
+                .gap(2.)
+                .child(label(v.tr("Nothing playing"), 14., 500., v.p.secondary))
+                .child(
+                    label(v.tr("Pick a song, album, or playlist"), 12., 400., v.p.dim).truncate(),
+                ),
+        );
     }
     let play = a.transport.paused || song.is_none();
     let controls = row()
-        .gap(6.)
+        .gap(10.)
         .items_center()
         .child(
-            v.icon_button(&v.tr("Shuffle"), Icon::Shuffle, 16., |_, _| {})
+            v.icon_button(&v.tr("Shuffle"), Icon::Shuffle, 17., |_, _| {})
+                .size(29., 36.)
                 .disabled(true),
         )
         .child(
-            v.icon_button(&v.tr("Previous"), Icon::SkipBackFilled, 20., |s, _| {
+            v.icon_button(&v.tr("Previous"), Icon::SkipBackFilled, 18., |s, _| {
                 s.app.apply(Service::Previous)
             })
+            .size(30., 36.)
             .disabled(song.is_none()),
         )
         .child(
@@ -108,26 +199,32 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 .center()
                 .radius(18.)
                 .fill(color(v.p.text))
-                .child(v.icon(
-                    if play {
+                .hover(color(if v.p.dark { Color32::WHITE } else { v.p.text }))
+                .child(if a.playback_loading() {
+                    v.spinner(22., v.p.window)
+                } else {
+                    let glyph = if play {
                         Icon::PlayFilled
                     } else {
                         Icon::PauseFilled
-                    },
-                    18.,
-                    v.p.window,
-                ))
+                    };
+                    let size = 36. * 0.46;
+                    let offset = crate::theme::play_glyph_offset(glyph, size);
+                    v.icon(glyph, size, v.p.window).offset(offset.x, offset.y)
+                })
                 .disabled(song.is_none())
                 .on_press(|s: &mut State| s.app.apply(Service::Toggle)),
         )
         .child(
-            v.icon_button(&v.tr("Next"), Icon::SkipForwardFilled, 20., |s, _| {
+            v.icon_button(&v.tr("Next"), Icon::SkipForwardFilled, 18., |s, _| {
                 s.app.apply(Service::Next)
             })
+            .size(30., 36.)
             .disabled(a.transport.next_index().is_none()),
         )
         .child(
-            v.icon_button(&v.tr("Repeat"), Icon::Repeat, 16., |_, _| {})
+            v.icon_button(&v.tr("Repeat"), Icon::Repeat, 17., |_, _| {})
+                .size(29., 36.)
                 .disabled(true),
         );
     let duration = song.map_or(0., |s| s.duration);
@@ -139,15 +236,22 @@ pub(super) fn player(v: &Paint<'_>) -> El {
     let center = col()
         .grow(1.)
         .min_w(0.)
-        .center()
-        .gap(3.)
+        .h(88.)
+        .items_center()
+        .pt(18.)
+        .gap(5.)
         .child(controls)
         .child(
             row()
                 .w_full()
+                .justify_center()
                 .items_center()
                 .gap(8.)
-                .child(label(elapsed(position), 11., 400., v.p.secondary))
+                .child(
+                    label(elapsed(position), 11.5, 400., v.p.secondary)
+                        .w(42.)
+                        .align(rune::Align::End),
+                )
                 .child(
                     slider(
                         v,
@@ -159,6 +263,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                         },
                         [0., 100.],
                         1.,
+                        seek_width,
                         move |s, p, phase| {
                             let t = p * duration / 100.;
                             let generation = s.app.transport.generation;
@@ -180,13 +285,13 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                     )
                     .disabled(duration <= 0.),
                 )
-                .child(label(elapsed(duration), 11., 400., v.p.secondary)),
+                .child(label(elapsed(duration), 11.5, 400., v.p.secondary).w(42.)),
         );
     let volume = row()
-        .w(v.width * 0.30)
+        .w(side)
         .items_center()
         .justify_end()
-        .gap(4.)
+        .gap(6.)
         .children(
             [
                 ("Lyrics", Icon::Mic),
@@ -214,14 +319,40 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             18.,
             |s, tx| s.dispatch(Action::ToggleMute, tx),
         ))
-        .child(row().w(92.).child(slider(
-            v,
-            &v.tr("Volume"),
-            f64::from(a.preferences.volume) * 100.,
-            [0., 100.],
-            5.,
-            |s, x, _| s.app.apply(Service::Volume((x / 100.) as f32)),
-        )));
+        .child(
+            row().w(92.).child(
+                slider(
+                    v,
+                    &v.tr("Volume (%)"),
+                    f64::from(a.preferences.volume) * 100.,
+                    [0., 100.],
+                    5.,
+                    92.,
+                    |s, x, _| s.app.apply(Service::Volume((x / 100.) as f32)),
+                )
+                .on_wheel(|s: &mut State, e, tx| {
+                    if e.dy == 0. {
+                        return false;
+                    }
+                    let steps = if e.precise {
+                        s.volume_wheel_points += e.dy;
+                        let whole = (s.volume_wheel_points / 50.).trunc();
+                        s.volume_wheel_points -= whole * 50.;
+                        whole
+                    } else {
+                        e.dy.signum()
+                    };
+                    if steps != 0. {
+                        s.app.apply(Service::Volume(
+                            (s.app.preferences.volume + 0.05 * steps).clamp(0., 1.),
+                        ));
+                    } else {
+                        tx.live_only();
+                    }
+                    true
+                }),
+            ),
+        );
     let height = crate::theme::PLAYER_BAR_HEIGHT;
     let tint = v.s.playing_tint(v.p);
     let fill = tint.map_or(v.p.panel, |t| crate::ui::blend(v.p.panel, t, 0.12));
@@ -240,6 +371,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .h(height)
         .role("button")
         .label(v.tr("Player bar visualizer"))
+        .help(v.tr("Click to change the visualizer"))
         .on_press_tx(|s: &mut State, tx| s.dispatch(Action::CyclePlayerBarVis, tx))
         .on_layout(|s: &mut State, r| s.plot_width = r[2]);
     match a.presentation.settings.player_bar_vis {

@@ -29,6 +29,11 @@ current song after three seconds; otherwise it selects the previous song.
 Next and natural completion advance through the selected album. Seeking while
 paused keeps playback paused. Space toggles play/pause outside text fields.
 
+In the player bar, select the sleeve to open its album. Hover over the sleeve
+and select the up arrow to expand it at the bottom of the sidebar. The down
+arrow on the expanded sleeve collapses it. Scrolling over the volume slider
+adjusts the level in five-percent steps.
+
 Use the star in search results, an album or artist header, a song row, or
 the player bar to add or remove a favorite. For a library album or an
 artist-page cover, open its context menu. Choose **Favorites** in the sidebar

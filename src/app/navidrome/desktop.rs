@@ -136,6 +136,7 @@ pub(crate) struct State {
     next_visual_frame: Option<(crate::settings::PlayerBarVis, std::time::Instant)>,
     pub(crate) trace: Vec<f32>,
     pub(crate) plot_width: f32,
+    pub(crate) volume_wheel_points: f32,
     pub(crate) seek_preview: Option<(u64, f64)>,
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
@@ -223,6 +224,7 @@ impl State {
             next_visual_frame: None,
             trace: Vec::new(),
             plot_width: 0.,
+            volume_wheel_points: 0.,
             seek_preview: None,
             artist_views: Default::default(),
             favorite_menu: None,
@@ -824,6 +826,52 @@ mod tests {
         rt.frame(0.);
         assert_eq!(rt.state.app.list_request, request + 1);
         assert!(rt.state.app.list_loading);
+    }
+
+    #[test]
+    fn playing_art_expands_into_the_sidebar_and_collapses_again() {
+        let mut rt = runtime("albums", "");
+        for (key, expanded) in [("expand-art", true), ("collapse-art", false)] {
+            assert!(rt.accessibility_action(key, rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            assert_eq!(rt.state.app.presentation.settings.art_expanded, expanded);
+            assert_eq!(rt.state.app.presentation.page(), &Page::Albums);
+        }
+        rt.update(|s, _| s.app.transport = Default::default());
+        rt.frame(0.);
+        assert!(
+            rt.accessibility_json()
+                .to_string()
+                .contains("Nothing playing")
+        );
+        assert!(
+            !rt.elements()
+                .iter()
+                .any(|e| e.key.as_deref() == Some("expand-art"))
+        );
+    }
+
+    #[test]
+    fn volume_wheel_accumulates_trackpad_motion_and_steps_once_per_mouse_detent() {
+        let mut rt = runtime("albums", "");
+        rt.update(|s, _| s.app.preferences.volume = 0.5);
+        rt.frame(0.);
+        let [x, y, w, h] = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.role == "slider" && e.label.as_deref() == Some("Volume (%)"))
+            .unwrap()
+            .rect;
+        for (delta, precise, expected) in [(20., true, 0.5), (30., true, 0.55), (-120., false, 0.5)]
+        {
+            rt.wheel_event(
+                rune::WheelEvent::new(0., delta)
+                    .at(x + w / 2., y + h / 2.)
+                    .precise(precise),
+            );
+            rt.frame(0.);
+            assert!((rt.state.app.preferences.volume - expected).abs() < 0.001);
+        }
     }
 
     #[test]
