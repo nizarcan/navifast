@@ -120,6 +120,44 @@ To upgrade the tool, change `tool.version` in `native-packages.yaml`, the matchi
 immutable workflow reference, and any release-job gem installation pin together.
 Applications need no packaging Gemfile, lockfile or Ruby wrapper.
 
+## Local macOS installation
+
+From the repository root on a Mac, run:
+
+```sh
+make install
+```
+
+This builds the current checkout with `cargo build --locked --release --bin navifast`,
+packages its host-architecture executable using `packaging/macos/bundle.sh`,
+verifies the signature and version, and installs `/Applications/Navifast.app`.
+It uses the Cargo executable on your PATH, including mise/mbx when configured,
+and honors Cargo's target-directory settings. Install the pinned Rust toolchain,
+Xcode command-line tools, CMake and Python 3 first, as described in the README.
+No administrator command runs automatically.
+
+For a user-owned destination, run:
+
+```sh
+make install APPLICATIONS_DIR="$HOME/Applications"
+```
+
+The equivalent direct command is
+`bash packaging/macos/install.sh "$HOME/Applications"`; omitting the directory
+uses `/Applications`. The existing app stays in place during compilation and
+packaging. Replacement uses a staged bundle on the destination filesystem,
+with the previous app restored if the final move fails. Temporary staging files
+are removed afterward. Preferences and caches are unaffected. Quit and reopen
+Navifast to use the new executable; the installer does not stop playback.
+
+Local bundles use an ad-hoc signature by default. `CODESIGN_IDENTITY` can select
+an installed signing identity through the existing bundler. This command does
+not notarize, publish a release or change the package version.
+
+Run `python3 packaging/macos/test-install.py` for installer failure and replacement
+regressions. These use isolated build and platform-tool fixtures; a real Mac build
+and signature check are still required when changing the bundler.
+
 ## Automatic macOS notarization
 
 The macOS release job builds the app first, then selects

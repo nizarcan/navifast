@@ -123,6 +123,7 @@ Run the same checks CI runs before submitting:
 
 ```sh
 python3 packaging/test-launchers.py
+python3 packaging/macos/test-install.py
 cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo clippy --locked --all-targets --all-features -- -D warnings

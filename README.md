@@ -43,7 +43,7 @@ a connection slower than the original file's bitrate can still pause playback.
 ## Run
 
 Install the Rust toolchain pinned in `rust-toolchain.toml`. On macOS, install
-Xcode command-line tools and CMake. On Debian/Ubuntu, install `build-essential`,
+Xcode command-line tools, CMake and Python 3. On Debian/Ubuntu, install `build-essential`,
 `pkg-config`, `cmake`, `clang`, `libclang-dev`, `libasound2-dev`, `libdbus-1-dev`,
 `libpulse-dev`, `libxkbcommon-dev`, `libwayland-dev` and `libgl1-mesa-dev`.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for platform checks and optional MilkDrop
@@ -52,6 +52,18 @@ dependencies. Then run:
 ```sh
 cargo run --locked --bin navifast
 ```
+
+On macOS, build an optimized app and install it into `/Applications` with:
+
+```sh
+make install
+```
+
+This packages the current checkout with its icon and a local ad-hoc signature,
+then replaces `Navifast.app` only after the build and bundle checks succeed.
+Quit and reopen Navifast to use the new build. To install for your user only,
+run `make install APPLICATIONS_DIR="$HOME/Applications"`. See
+[local Mac installation](PACKAGING.md#local-macos-installation) for details.
 
 Enter your server's final base URL, username and password. Open an album and
 press **Play**, or double-click a song. Space toggles playback when a text
