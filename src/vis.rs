@@ -611,6 +611,10 @@ impl WideAnalyser {
     }
 
     /// Where each band's peak cap hangs, from 0 to 1.
+    pub(crate) fn levels(&self) -> &[f32; WIDE_BANDS] {
+        &self.levels
+    }
+
     pub fn peaks(&self) -> [f32; WIDE_BANDS] {
         self.peaks
     }

@@ -13,7 +13,7 @@ use crate::{
     settings::ThemeChoice,
     theme::Palette,
 };
-use rune::{AppSpec, Cx, Live, TextEdit, Tx, Waker};
+use rune::{AppSpec, Live, TextEdit, Tx, Waker};
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
@@ -120,12 +120,10 @@ pub(crate) struct State {
     pub(crate) table: tracks::Tracks,
     history_tables: HashMap<Page, tracks::Tracks>,
     pub(crate) offsets: HashMap<Page, Live<f32>>,
-    analyser: crate::vis::WideAnalyser,
+    pub(crate) analyser: crate::vis::WideAnalyser,
     samples: Vec<f32>,
     next_visual_frame: Option<(crate::settings::PlayerBarVis, std::time::Instant)>,
     pub(crate) trace: Vec<f32>,
-    pub(crate) caps: [Live<[f32; 4]>; crate::vis::WIDE_BANDS],
-    pub(crate) bars: [Live<[f32; 4]>; crate::vis::WIDE_BANDS],
     pub(crate) plot_width: f32,
     pub(crate) seek_preview: Option<(u64, f64)>,
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
@@ -211,8 +209,6 @@ impl State {
             samples: Vec::new(),
             next_visual_frame: None,
             trace: Vec::new(),
-            caps: std::array::from_fn(|_| Live::new([0.; 4])),
-            bars: std::array::from_fn(|_| Live::new([0.; 4])),
             plot_width: 0.,
             seek_preview: None,
             artist_views: Default::default(),
@@ -223,6 +219,11 @@ impl State {
         state
     }
 
+    pub(crate) fn spectrum_deadline(&self) -> Option<std::time::Instant> {
+        self.next_visual_frame
+            .filter(|(mode, _)| *mode == crate::settings::PlayerBarVis::Spectrum)
+            .map(|(_, t)| t)
+    }
     pub(crate) fn resized(&mut self, width: f32, height: f32) {
         let Some(placement) = &mut self.placement else {
             return;
@@ -287,11 +288,11 @@ impl State {
         tx.instant();
     }
 
-    pub(crate) fn palette(&self, cx: &Cx<Self>) -> Palette {
+    pub(crate) fn palette(&self, system_dark: bool) -> Palette {
         let s = &self.app.presentation.settings;
         s.cached_palette().unwrap_or_else(|| {
             if matches!(s.theme, ThemeChoice::Dark)
-                || (s.theme == ThemeChoice::System && cx.system_dark())
+                || (s.theme == ThemeChoice::System && system_dark)
             {
                 Palette::dark()
             } else {
@@ -405,22 +406,7 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
                         .tap
                         .window_into(vis::WIDE_SAMPLES, vis::LAG, &mut s.samples);
                 }
-                let levels = s.analyser.step(&s.samples, now);
-                let peaks = s.analyser.peaks();
-                let stride = (s.plot_width + 2.) / vis::WIDE_BANDS as f32;
-                let height = crate::theme::PLAYER_BAR_HEIGHT;
-                for (i, level) in levels.iter().enumerate() {
-                    let x = i as f32 * stride;
-                    let band = (height - 5.) * level;
-                    let peak = (height - 5.) * peaks[i];
-                    s.bars[i].set([x, height - band, (stride - 2.).max(0.), band]);
-                    s.caps[i].set([
-                        x,
-                        height - peak - 4.,
-                        (stride - 2.).max(0.),
-                        if peak >= 2. { 2. } else { 0. },
-                    ]);
-                }
+                s.analyser.step(&s.samples, now);
                 s.next_visual_frame = Some((mode, now + crate::ui::player_bar::VIS_FRAME));
                 tx.wake_after(crate::ui::player_bar::VIS_FRAME);
             }
@@ -491,10 +477,12 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
         static DESKTOP_ENTRY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
         rune::set_app_id(DESKTOP_ENTRY.get_or_init(crate::media_controls::desktop_entry));
     }
-    let app = rune::App::new(spec).chrome(rune::Chrome {
-        drag_regions: true,
-        ..rune::Chrome::DEFAULT
-    });
+    let app = rune::App::new(spec)
+        .compositor(views::spectrum::Spectrum::default())
+        .chrome(rune::Chrome {
+            drag_regions: true,
+            ..rune::Chrome::DEFAULT
+        });
     let native_window = std::rc::Rc::new(RefCell::new(None));
     let observe = native_window.clone();
     let app = app

@@ -13,6 +13,7 @@ use rune::{Cx, El, Tx};
 pub(crate) mod artist;
 mod library;
 mod preferences;
+pub(crate) mod spectrum;
 mod transport;
 
 fn color(c: Color32) -> Color {
@@ -298,7 +299,7 @@ pub(crate) fn view(s: &State, cx: &mut Cx<State>) -> El {
     let zoom = s.app.presentation.settings.zoom.clamp(0.5, 2.5);
     let p = Paint {
         s,
-        p: s.palette(cx),
+        p: s.palette(cx.system_dark()),
         scale: cx.env().scale,
         zoom,
         width: width / zoom,

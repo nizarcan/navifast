@@ -241,18 +241,37 @@ fn spectrum(
     (low, high): (Color32, Color32),
     strength: f32,
 ) {
+    let mut mesh = egui::Mesh::default();
+    spectrum_quads(
+        rect,
+        levels,
+        peaks,
+        (low, high),
+        strength,
+        |rect, top, bottom| shaded(&mut mesh, rect, top, bottom),
+    );
+    painter.add(egui::Shape::mesh(mesh));
+}
+
+/// Emit the same logical gradients for the native renderer and the reference painter.
+pub(crate) fn spectrum_quads(
+    rect: Rect,
+    levels: &[f32],
+    peaks: &[f32],
+    (low, high): (Color32, Color32),
+    strength: f32,
+    mut quad: impl FnMut(Rect, Color32, Color32),
+) {
     let bands = levels.len() as f32;
     let width = (rect.width() - SPECTRUM_GAP * (bands - 1.0)) / bands;
     // A full band reaches the top, with room above for its cap.
     let reach = rect.height() - PEAK_GAP - PEAK_HEIGHT - 1.0;
-    let mut mesh = egui::Mesh::default();
 
     // The bass pulse: a glow along the foot, as strong as the low bands.
     let bass = levels.iter().take(levels.len() / 8).copied().sum::<f32>()
         / (levels.len() / 8).max(1) as f32;
     let pulse = Rect::from_min_max(pos2(rect.left(), rect.center().y), rect.right_bottom());
-    shaded(
-        &mut mesh,
+    quad(
         pulse,
         Color32::TRANSPARENT,
         low.gamma_multiply(PULSE_ALPHA * strength * bass * bass),
@@ -268,15 +287,13 @@ fn spectrum(
                 pos2(left + width, rect.bottom()),
             );
             // The glow: the bar again, wider and fainter.
-            shaded(
-                &mut mesh,
+            quad(
                 bar.expand2(vec2(SPECTRUM_GAP, 3.0)),
                 colour.gamma_multiply(GLOW_ALPHA * strength * 0.3),
                 colour.gamma_multiply(GLOW_ALPHA * strength),
             );
             let (foot, top) = (SPECTRUM_ALPHA.0 * strength, SPECTRUM_ALPHA.1 * strength);
-            shaded(
-                &mut mesh,
+            quad(
                 bar,
                 colour.gamma_multiply(foot + (top - foot) * level),
                 colour.gamma_multiply(foot),
@@ -285,15 +302,13 @@ fn spectrum(
         let cap = peak * reach;
         if cap >= 2.0 {
             let y = rect.bottom() - cap - PEAK_GAP;
-            shaded(
-                &mut mesh,
+            quad(
                 Rect::from_min_max(pos2(left, y - PEAK_HEIGHT), pos2(left + width, y)),
                 colour.gamma_multiply(PEAK_ALPHA),
                 colour.gamma_multiply(PEAK_ALPHA),
             );
         }
     }
-    painter.add(egui::Shape::mesh(mesh));
 }
 
 /// The wave as a neon line in layers of glow, swept from the bass colour to

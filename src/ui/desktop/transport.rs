@@ -247,27 +247,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .on_layout(|s: &mut State, r| s.plot_width = r[2]);
     match a.presentation.settings.player_bar_vis {
         PlayerBarVis::Spectrum => {
-            for (i, bar) in v.s.bars.iter().enumerate() {
-                let ink = low.lerp_to_gamma(high, i as f32 / (v.s.bars.len() - 1) as f32);
-                plot = plot
-                    .child(
-                        el().key(format!("band-{i}"))
-                            .absolute(0., 0.)
-                            .size(1., 1.)
-                            .gradient(
-                                color(ink.gamma_multiply(0.08 * strength)),
-                                color(ink.gamma_multiply(0.28 * strength)),
-                            )
-                            .live_rect(bar),
-                    )
-                    .child(
-                        el().key(format!("peak-{i}"))
-                            .absolute(0., 0.)
-                            .size(1., 1.)
-                            .fill(color(ink.gamma_multiply(0.7)))
-                            .live_rect(&v.s.caps[i]),
-                    );
-            }
+            plot = plot.child(rune::effect(super::spectrum::MARK).w_full().h_full());
         }
         PlayerBarVis::Waveform if v.s.trace.len() >= 2 => {
             let trace = &v.s.trace;
