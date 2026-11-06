@@ -116,7 +116,11 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 .a11y_hidden(),
         );
     }
-    let center = center.child(topbar(v)).child(scroller).child(
+    let mut center = center.child(topbar(v));
+    if !s.app.presentation.navidrome_favorites.failures.is_empty() {
+        center = center.child(favorite_write_errors(v));
+    }
+    let center = center.child(scroller).child(
         el().absolute(0., crate::theme::TOP_BAR_HEIGHT + v.s.titlebar_inset())
             .w_full()
             .h(14.)
@@ -133,14 +137,37 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         .fill(color(v.p.window))
         .child(body.child(center))
         .child(transport::player(v));
-    if let Some(msg) = s.app.presentation.toasts.last() {
-        shell = shell.child(
-            label(msg.message.clone(), 14., 500., v.p.text)
-                .padding(12.)
-                .radius(8.)
-                .fill(color(v.p.overlay))
-                .absolute(24., v.height - 145.),
+    if !s.app.presentation.toasts.is_empty() {
+        let mut notices = col().items_end().gap(8.).pin(
+            None,
+            None,
+            Some(20.),
+            Some(crate::theme::PLAYER_BAR_HEIGHT + 16.),
         );
+        for toast in &s.app.presentation.toasts {
+            let (icon, ink) = match toast.kind {
+                crate::model::ToastKind::Info => (Icon::CircleCheck, v.p.accent),
+                crate::model::ToastKind::Error => (Icon::CircleAlert, v.p.danger),
+            };
+            let age = toast.created.elapsed().as_secs_f32();
+            let alpha = (age / 0.15).min((3.2 - age) / 0.4).clamp(0., 1.);
+            notices = notices.child(
+                row()
+                    .px(14.)
+                    .py(10.)
+                    .gap(8.)
+                    .items_center()
+                    .role("status")
+                    .radius(f32::from(crate::theme::RADIUS))
+                    .fill(color(v.p.overlay))
+                    .border(1., color(v.p.outline))
+                    .shadow(4., 16., color(v.p.shadow))
+                    .opacity(alpha)
+                    .child(v.icon(icon, 16., ink))
+                    .child(label(&toast.message, 13.5, 500., v.p.text).max_w(280.)),
+            );
+        }
+        shell = shell.child(notices);
     }
     // Anchors resolve against their trigger anywhere in the tree. Mount menus
     // after the page so later virtual rows cannot cover their pixels or hits.
@@ -738,6 +765,7 @@ fn albums(v: &Paint<'_>, width: f32) -> El {
     let bounds = (v.width, v.height);
     col()
         .w_full()
+        .key("album-library-rows")
         .growth(rune::GrowthSpec::default())
         .virtual_rows(
             rows + 2,
@@ -1504,6 +1532,7 @@ fn favorites(v: &Paint<'_>) -> El {
             // heading as its first row so it scrolls with the complete group.
             return col()
                 .w_full()
+                .key(format!("favorites-{kind:?}-rows"))
                 .growth(rune::GrowthSpec::default())
                 .virtual_rows(
                     1 + count.div_ceil(cols),
@@ -1567,17 +1596,37 @@ fn favorites_header(v: &Paint<'_>, group: Option<FavoriteKind>) -> El {
             |s, tx| s.dispatch(Action::Reload(Page::LikedSongs), tx),
         ));
     }
-    for (uri, fail) in &state.failures {
+    page
+}
+
+fn favorite_write_errors(v: &Paint<'_>) -> El {
+    let mut errors = col()
+        .w_full()
+        .max_h(120.)
+        .px(crate::ui::widgets::PAGE_PADDING)
+        .py(4.)
+        .gap(4.)
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        });
+    for (uri, failure) in &v.s.app.presentation.navidrome_favorites.failures {
         let uri = uri.clone();
-        page = page.child(
+        let message = v
+            .tr("Could not update Favorites for {name}. {error}")
+            .replace("{name}", failure.item.name())
+            .replace("{error}", &failure.message);
+        errors = errors.child(
             row()
-                .child(label(&fail.message, 14., 400., v.p.danger))
+                .w_full()
+                .gap(8.)
+                .items_center()
                 .child(v.button(&v.tr("Retry"), false, move |s, tx| {
                     s.dispatch(Action::RetryFavorite(uri.clone()), tx)
-                })),
+                }))
+                .child(label(message, 13., 400., v.p.text).min_w(0.).grow(1.)),
         );
     }
-    page
+    errors
 }
 
 fn favorite_row(v: &Paint<'_>, kind: FavoriteKind, start: usize, cols: usize, limit: usize) -> El {

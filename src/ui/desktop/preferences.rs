@@ -319,7 +319,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             [
                 ("Off", PlayerBarVis::Off),
                 ("Spectrum", PlayerBarVis::Spectrum),
-                ("Oscilloscope", PlayerBarVis::Waveform),
+                ("Waveform", PlayerBarVis::Waveform),
             ]
             .into_iter()
             .map(|(key, mode)| {
@@ -604,27 +604,47 @@ fn apply_eq(s: &mut State, edit: impl FnOnce(&mut crate::eq::EqSettings)) {
     });
 }
 pub(super) fn shortcuts(v: &Paint<'_>) -> El {
-    let mut d = panel(v)
-        .child(label(v.tr("Keyboard shortcuts"), 18., 700., v.p.text))
-        .w(460.)
+    let mut keys = col().gap(8.);
+    let mut descriptions = col().gap(8.);
+    for (key, description) in crate::ui::keys::navidrome_shortcuts(v.s.app.presentation.locale) {
+        keys = keys.child(label(key.as_ref(), 13., 600., v.p.text).h(28.));
+        descriptions =
+            descriptions.child(label(description.as_ref(), 13.5, 400., v.p.secondary).h(28.));
+    }
+    let list = col()
+        .w_full()
+        .max_h((v.height - 190.).max(120.))
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+        .child(row().gap(24.).child(keys).child(descriptions));
+    let done = v
+        .button(&v.tr("Done"), true, |s, tx| {
+            s.dispatch(Action::CloseDialog, tx)
+        })
+        .px(18.);
+    let d = col()
+        .w(470_f32.min(v.width - 16.))
+        .padding(24.)
+        .radius(12.)
+        .border(1., color(v.p.outline))
+        .fill(color(v.p.overlay))
+        .shadow(10., 40., color(v.p.shadow))
         .modal(true, |s: &mut State| s.app.presentation.dialog = None)
         .role("dialog")
-        .label(v.tr("Keyboard shortcuts"));
-    for (key, name) in crate::ui::keys::navidrome_shortcuts(v.s.app.presentation.locale) {
-        d = d.child(
-            row()
-                .justify_between()
-                .child(label(name.as_ref(), 14., 400., v.p.text))
-                .child(label(key.as_ref(), 14., 600., v.p.secondary)),
-        );
-    }
+        .label(v.tr("Keyboard shortcuts"))
+        .child(label(v.tr("Keyboard shortcuts"), 20., 700., v.p.text).mb(18.))
+        .child(list)
+        .child(row().w_full().justify_end().mt(22.).child(done));
     col()
         .absolute(0., 0.)
         .w_full()
         .h_full()
         .center()
-        .fill(Color::BLACK.alpha(0.45))
-        .child(d.child(v.button(&v.tr("Close"), false, |s, tx| {
-            s.dispatch(Action::CloseDialog, tx)
+        .fill(color(Color32::from_black_alpha(if v.p.dark {
+            150
+        } else {
+            80
         })))
+        .child(d)
 }

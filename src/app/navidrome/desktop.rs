@@ -466,8 +466,15 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     let old = toasts.len();
     toasts.retain(|t| t.created.elapsed() < crate::app::TOAST_LIFETIME);
     changed |= toasts.len() != old;
-    if let Some(t) = toasts.first() {
-        tx.wake_after(crate::app::TOAST_LIFETIME.saturating_sub(t.created.elapsed()));
+    for toast in toasts {
+        let age = toast.created.elapsed();
+        let fade_out = Duration::from_millis(2800);
+        if age < Duration::from_millis(150) || age >= fade_out {
+            tx.wake_after(Duration::from_millis(16));
+            changed = true;
+        } else {
+            tx.wake_after(fade_out - age);
+        }
     }
     // Align widgets with a completed credential restore; sensitive entry belongs
     // only to the login form and is cleared on leaving it.
@@ -787,6 +794,36 @@ mod tests {
                 "{page}"
             );
         }
+    }
+
+    #[test]
+    fn a_failed_favorite_still_offers_retry_on_another_page() {
+        let mut rt = runtime("favorites", "write-error");
+        rt.update(|s, tx| s.dispatch(Action::Open(Page::Settings), tx));
+        rt.frame(0.);
+        let tree = rt.accessibility_json().to_string();
+        assert!(tree.contains("Could not update Favorites for"));
+        assert!(tree.contains("Retry"));
+    }
+
+    #[test]
+    fn opening_search_replaces_the_virtual_album_library() {
+        let mut rt = runtime("albums", "");
+        rt.update(|s, tx| s.dispatch(Action::Open(Page::Search), tx));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(
+            rt.accessibility_json()
+                .to_string()
+                .contains("What do you want to play?")
+        );
+        rt.update(|s, tx| s.dispatch(Action::Back, tx));
+        rt.frame(0.);
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.key.as_deref() == Some("album-library-rows"))
+        );
     }
 
     #[test]
