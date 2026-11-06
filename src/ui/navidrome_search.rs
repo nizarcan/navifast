@@ -6,7 +6,7 @@ use crate::app::{
 };
 use crate::i18n::gettext;
 use crate::model::{Action, Loadable};
-use crate::navidrome::api::{ArtistCredits, Collection, SearchPart, Song};
+use crate::navidrome::api::{ArtistCredits, Collection, FavoriteKind, SearchPart, Song};
 use crate::theme::{self, Icon, Palette};
 
 pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
@@ -61,7 +61,20 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
             previous = Some(icon);
         }
         let selected = state.selected == Some(hit);
-        let response = row(ui, &mut app.actions, &palette, icon, name, by, selected);
+        let uri = state.catalogue.get().and_then(|c| match hit {
+            Hit::Song(i) => Some(FavoriteKind::Song.uri(&c.song[i].id)),
+            Hit::Album(i) => Some(FavoriteKind::Album.uri(&c.album[i].id)),
+            Hit::Artist(i) => Some(FavoriteKind::Artist.uri(&c.artist[i].id)),
+            Hit::Playlist(_) => None,
+        });
+        let response = super::navidrome_favorites::row(
+            ui,
+            &app.navidrome_favorites,
+            &mut app.actions,
+            (&palette, locale),
+            uri.as_deref(),
+            |ui, actions| row(ui, actions, &palette, icon, name, by, selected),
+        );
         if selected && last != Some((app.search.serial, state.selected)) {
             response.scroll_to_me(None);
         }
@@ -112,7 +125,7 @@ pub(super) fn retry(
     .inner
 }
 
-fn row(
+pub(super) fn row(
     ui: &mut egui::Ui,
     actions: &mut Vec<Action>,
     palette: &Palette,
@@ -220,13 +233,21 @@ pub(super) fn collection(app: &mut App, ui: &mut egui::Ui) {
         Loadable::Loaded(Collection::Playlist { name, songs }) => {
             theme::section_title(ui, &palette, name);
             theme::subtle(ui, &palette, &gettext(locale, "Songs"));
-            song_rows(ui, &mut app.actions, &palette, locale, songs);
+            song_rows(
+                ui,
+                &app.navidrome_favorites,
+                &mut app.actions,
+                &palette,
+                locale,
+                songs,
+            );
         }
     }
 }
 
 fn song_rows(
     ui: &mut egui::Ui,
+    favorites: &crate::app::navidrome::favorites::State,
     actions: &mut Vec<Action>,
     palette: &Palette,
     locale: crate::i18n::Locale,
@@ -236,14 +257,23 @@ fn song_rows(
         theme::subtle(ui, palette, &gettext(locale, "Nothing here yet."));
     }
     for (index, song) in songs.iter().enumerate() {
-        if row(
+        if super::navidrome_favorites::row(
             ui,
+            favorites,
             actions,
-            palette,
-            Icon::Music,
-            &song.title,
-            Some((&song.artist, &song.credits)),
-            false,
+            (palette, locale),
+            Some(&FavoriteKind::Song.uri(&song.id)),
+            |ui, actions| {
+                row(
+                    ui,
+                    actions,
+                    palette,
+                    Icon::Music,
+                    &song.title,
+                    Some((&song.artist, &song.credits)),
+                    false,
+                )
+            },
         )
         .clicked()
         {

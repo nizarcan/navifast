@@ -29,6 +29,13 @@ current song after three seconds; otherwise it selects the previous song.
 Next and natural completion advance through the selected album. Seeking while
 paused keeps playback paused. Space toggles play/pause outside text fields.
 
+Use the star in search results, an album or artist header, a song row, or
+the player bar to add or remove a favorite. For a library album or an
+artist-page cover, open its context menu. Choose **Favorites** in the sidebar
+to play a song or open a saved album or artist. Stars update across the app
+as soon as you click. If a change fails, **Retry** repeats it for that item.
+Open Favorites again or select **Refresh** to fetch changes from another client.
+
 Type in the search box above the library, or focus it with Ctrl+F (Cmd+F on
 macOS). Results appear as you type. Use Up and Down to select a result and
 Enter to play a song, open an album, see an artist's albums, or open a playlist
@@ -63,5 +70,5 @@ your server and reverse proxy. A redirect error means the final URL should be
 entered directly. A failed request keeps the app usable and provides a retry.
 
 This first stage has album playback, not the full inherited feature set.
-Playlist management, favorites, shuffle/repeat, saved queues, lyrics, scrobbling,
+Playlist management, shuffle/repeat, saved queues, lyrics, scrobbling,
 transcoding, Winamp/MilkDrop controls and tray operation are still pending.

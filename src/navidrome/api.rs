@@ -133,6 +133,31 @@ pub struct Catalogue {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FavoriteKind {
+    Song,
+    Album,
+    Artist,
+}
+
+impl FavoriteKind {
+    fn parameter(self) -> &'static str {
+        match self {
+            Self::Song => "id",
+            Self::Album => "albumId",
+            Self::Artist => "artistId",
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RequestError {
+    #[error("{0}")]
+    Rejected(String),
+    #[error("{0}")]
+    Unconfirmed(String),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SearchPart {
     Catalogue,
     Playlists,
@@ -265,21 +290,48 @@ impl Client {
         endpoint: &str,
         params: &[(&str, String)],
     ) -> Result<serde_json::Value, String> {
+        self.checked_request(endpoint, params)
+            .await
+            .map_err(|error| error.to_string())
+    }
+
+    async fn checked_request(
+        &self,
+        endpoint: &str,
+        params: &[(&str, String)],
+    ) -> Result<serde_json::Value, RequestError> {
         let mut response = self
             .http
             .get(self.url(endpoint, params))
             .send()
             .await
-            .map_err(network_error)?
+            .map_err(|error| RequestError::Unconfirmed(network_error(error)))?
             .error_for_status()
-            .map_err(network_error)?;
+            .map_err(|error| {
+                if error
+                    .status()
+                    .is_some_and(|status| status.is_client_error())
+                {
+                    RequestError::Rejected(network_error(error))
+                } else {
+                    RequestError::Unconfirmed(network_error(error))
+                }
+            })?;
         if response.status().is_redirection() {
-            return Err("The request was redirected. Use your server's final URL.".into());
+            return Err(RequestError::Unconfirmed(
+                "The request was redirected. Use your server's final URL.".into(),
+            ));
         }
         let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(network_error)? {
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|error| RequestError::Unconfirmed(network_error(error)))?
+        {
             if bytes.len() + chunk.len() > MAX_JSON {
-                return Err("The server response is too large.".into());
+                return Err(RequestError::Unconfirmed(
+                    "The server response is too large.".into(),
+                ));
             }
             bytes.extend_from_slice(&chunk);
         }
@@ -325,6 +377,29 @@ impl Client {
                 .cloned()
                 .ok_or("The server returned no album.")?,
         )
+    }
+
+    pub async fn favorites(&self) -> Result<Catalogue, String> {
+        let body = self.request("getStarred2", &[]).await?;
+        decode(
+            body.get("starred2")
+                .cloned()
+                .ok_or("The server returned no favorites list.")?,
+        )
+    }
+
+    pub async fn set_favorite(
+        &self,
+        kind: FavoriteKind,
+        id: &str,
+        starred: bool,
+    ) -> Result<(), RequestError> {
+        self.checked_request(
+            if starred { "star" } else { "unstar" },
+            &[(kind.parameter(), id.into())],
+        )
+        .await
+        .map(|_| ())
     }
 
     pub async fn search(&self, query: &str) -> Result<Catalogue, String> {
@@ -580,28 +655,91 @@ pub(super) fn network_error(error: reqwest::Error) -> String {
     }
 }
 
-fn envelope(bytes: &[u8]) -> Result<serde_json::Value, String> {
+fn envelope(bytes: &[u8]) -> Result<serde_json::Value, RequestError> {
     let json: serde_json::Value = serde_json::from_slice(bytes)
-        .map_err(|_| "The address did not return a Subsonic response. Check the server URL and reverse proxy.".to_owned())?;
-    let body = json
-        .get("subsonic-response")
-        .ok_or("This server did not return a Subsonic response.")?;
+        .map_err(|_| RequestError::Unconfirmed("The address did not return a Subsonic response. Check the server URL and reverse proxy.".into()))?;
+    let body = json.get("subsonic-response").ok_or_else(|| {
+        RequestError::Unconfirmed("This server did not return a Subsonic response.".into())
+    })?;
     match body.get("status").and_then(|v| v.as_str()) {
         Some("ok") => Ok(body.clone()),
-        Some("failed") => Err(match body.pointer("/error/code").and_then(|v| v.as_u64()) {
-            Some(40..=44) => "Sign-in failed. Check your Navidrome username and password.",
-            Some(50) => "Your account does not have permission for this operation.",
-            Some(70) => "This item is no longer available on the server.",
-            _ => "The server could not complete this request.",
-        }
-        .into()),
-        _ => Err("The server returned an invalid response status.".into()),
+        Some("failed") => Err(RequestError::Rejected(
+            match body.pointer("/error/code").and_then(|v| v.as_u64()) {
+                Some(40..=44) => "Sign-in failed. Check your Navidrome username and password.",
+                Some(50) => "Your account does not have permission for this operation.",
+                Some(70) => "This item is no longer available on the server.",
+                _ => "The server could not complete this request.",
+            }
+            .into(),
+        )),
+        _ => Err(RequestError::Unconfirmed(
+            "The server returned an invalid response status.".into(),
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn favorites_decode_all_groups_and_write_only_the_entity_parameter() {
+        use crate::navidrome::test_server::{Server, response};
+        let server = Server::spawn(|request| {
+            let url = reqwest::Url::parse(&format!(
+                "http://localhost{}",
+                request.split_whitespace().nth(1).unwrap()
+            ))
+            .unwrap();
+            let body = match url.path() {
+                "/rest/getStarred2.view" => serde_json::json!({"status":"ok","starred2":{
+                    "song":[{"id":"s:/α","title":"Song","userRating":1}],
+                    "album":[{"id":"a:/α","name":"Album"}], "artist":[{"id":"r:/α","name":"Artist"}]
+                }}),
+                "/rest/star.view" | "/rest/unstar.view" => {
+                    let params: Vec<_> = url
+                        .query_pairs()
+                        .filter(|(key, _)| {
+                            !matches!(key.as_ref(), "u" | "s" | "t" | "c" | "v" | "f")
+                        })
+                        .collect();
+                    assert_eq!(params.len(), 1);
+                    let (key, id) = &params[0];
+                    assert!(matches!(
+                        (key.as_ref(), id.as_ref()),
+                        ("id", "s:/α") | ("albumId", "a:/α") | ("artistId", "r:/α")
+                    ));
+                    serde_json::json!({"status":"ok"})
+                }
+                other => panic!("Unexpected endpoint {other}"),
+            };
+            response(
+                "200 OK",
+                "",
+                &serde_json::to_vec(&serde_json::json!({"subsonic-response":body})).unwrap(),
+            )
+        });
+        let client = Client::new(
+            &server.url,
+            "test",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        let list = client.favorites().await.unwrap();
+        assert_eq!(list.song[0].title, "Song");
+        assert_eq!(list.album[0].name, "Album");
+        assert_eq!(list.artist[0].name, "Artist");
+        for (kind, id) in [
+            (FavoriteKind::Song, &list.song[0].id),
+            (FavoriteKind::Album, &list.album[0].id),
+            (FavoriteKind::Artist, &list.artist[0].id),
+        ] {
+            for starred in [true, false] {
+                client.set_favorite(kind, id, starred).await.unwrap();
+            }
+        }
+    }
 
     #[test]
     fn base_paths_and_opaque_ids_survive_url_encoding() {
@@ -642,7 +780,7 @@ mod tests {
         let result = envelope(
             br#"{"subsonic-response":{"status":"failed","error":{"code":40,"message":"secret"}}}"#,
         );
-        let error = result.unwrap_err();
+        let error = result.unwrap_err().to_string();
         assert!(error.contains("Sign-in failed"));
         assert!(!error.contains("secret"));
         assert!(envelope(b"<html>login</html>").is_err());

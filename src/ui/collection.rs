@@ -269,24 +269,34 @@ pub fn actions_row(
                 app.actions.push(Action::SetShuffle(!shuffle));
             }
         }
-        if let Some((uri, saved)) = &actions.saved
-            && !app.navidrome_mode
-        {
-            let (icon, tooltip, color) = if *saved {
-                (
-                    actions.saved_icons.1,
-                    &actions.saved_tooltips.1,
-                    palette.accent,
-                )
+        if let Some((uri, saved)) = &actions.saved {
+            if app.navidrome_mode {
+                if super::navidrome_favorites::toggle(
+                    ui,
+                    &app.navidrome_favorites,
+                    (&palette, locale),
+                    uri,
+                    26.0,
+                ) {
+                    app.actions.push(Action::ToggleSaved(uri.clone()));
+                }
             } else {
-                (
-                    actions.saved_icons.0,
-                    &actions.saved_tooltips.0,
-                    palette.secondary,
-                )
-            };
-            if theme::icon_button(ui, icon, 26.0, color, palette.text, tooltip).clicked() {
-                app.actions.push(Action::ToggleSaved(uri.clone()));
+                let (icon, tooltip, color) = if *saved {
+                    (
+                        actions.saved_icons.1,
+                        &actions.saved_tooltips.1,
+                        palette.accent,
+                    )
+                } else {
+                    (
+                        actions.saved_icons.0,
+                        &actions.saved_tooltips.0,
+                        palette.secondary,
+                    )
+                };
+                if theme::icon_button(ui, icon, 26.0, color, palette.text, tooltip).clicked() {
+                    app.actions.push(Action::ToggleSaved(uri.clone()));
+                }
             }
         }
         if let Some(seed) = &actions.save_radio

@@ -8,7 +8,7 @@ use crate::app::{
 };
 use crate::i18n::{Locale, gettext, ngettext, pgettext};
 use crate::model::{Action, Loadable, Page};
-use crate::navidrome::api::{Album, Collection};
+use crate::navidrome::api::{Album, Collection, FavoriteKind};
 use crate::theme::{self, Icon, Palette};
 
 pub(super) fn show(app: &mut App, ui: &mut Ui) {
@@ -27,6 +27,7 @@ pub(super) fn show(app: &mut App, ui: &mut Ui) {
         palette: app.palette,
         locale: app.locale,
         state,
+        favorites: &app.navidrome_favorites,
         artist: &artist_page,
         actions: &mut app.actions,
     };
@@ -74,6 +75,7 @@ struct ArtistPage<'a> {
     palette: Palette,
     locale: Locale,
     state: &'a State,
+    favorites: &'a crate::app::navidrome::favorites::State,
     artist: &'a Page,
     actions: &'a mut Vec<Action>,
 }
@@ -196,12 +198,21 @@ impl ArtistPage<'_> {
         );
         copy.add(egui::Label::new(title).selectable(false))
             .on_hover_text(name);
-        theme::text(
-            &mut copy,
-            meta,
-            theme::medium(14.0),
-            Color32::from_gray(235),
-        );
+        copy.horizontal(|ui| {
+            theme::text(ui, meta, theme::medium(14.0), Color32::from_gray(235));
+            if let Page::Artist(id) = self.artist {
+                let uri = format!("navidrome:artist:{id}");
+                if super::navidrome_favorites::toggle(
+                    ui,
+                    self.favorites,
+                    (&self.palette, self.locale),
+                    &uri,
+                    18.0,
+                ) {
+                    self.actions.push(Action::ToggleSaved(uri));
+                }
+            }
+        });
     }
 
     fn discography(&mut self, ui: &mut Ui, albums: &[Album]) {
@@ -295,7 +306,7 @@ impl ArtistPage<'_> {
         if detail.is_empty() && album.song_count > 0 {
             detail.push(self.locale.song_count(album.song_count));
         }
-        if tile(
+        let response = tile(
             ui,
             &self.palette,
             side,
@@ -303,12 +314,28 @@ impl ArtistPage<'_> {
             &detail.join("  ·  "),
             uri.as_deref(),
             false,
-        )
-        .clicked()
-        {
+        );
+        self.favorite_menu(ui, &response, FavoriteKind::Album.uri(&album.id));
+        if response.clicked() {
             self.actions
                 .push(Action::Open(Page::Album(encode(&album.id))));
         }
+    }
+
+    fn favorite_menu(&mut self, ui: &mut Ui, response: &egui::Response, uri: String) {
+        egui::Popup::context_menu(response)
+            .id(ui.make_persistent_id(("favorite", &uri)))
+            .frame(widgets::menu_frame(&self.palette))
+            .show(|ui| {
+                if super::navidrome_favorites::menu(
+                    ui,
+                    self.favorites,
+                    (&self.palette, self.locale),
+                    &uri,
+                ) {
+                    self.actions.push(Action::ToggleSaved(uri));
+                }
+            });
     }
 
     fn section_status<T>(&mut self, ui: &mut Ui, data: &Loadable<T>, empty: &str) {
@@ -469,7 +496,7 @@ impl ArtistPage<'_> {
                 for artist in row {
                     let Some(id) = &artist.id else { continue };
                     let uri = self.state.artwork_uri(artist.cover_art.as_deref());
-                    if tile(
+                    let response = tile(
                         ui,
                         &self.palette,
                         side,
@@ -477,9 +504,9 @@ impl ArtistPage<'_> {
                         "",
                         uri.as_deref(),
                         true,
-                    )
-                    .clicked()
-                    {
+                    );
+                    self.favorite_menu(ui, &response, FavoriteKind::Artist.uri(id));
+                    if response.clicked() {
                         self.actions.push(Action::Open(Page::Artist(encode(id))));
                     }
                 }

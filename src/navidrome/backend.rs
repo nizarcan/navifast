@@ -3,8 +3,8 @@
 use std::sync::{Arc, mpsc};
 
 use super::api::{
-    Album, ArtistInfo, Catalogue, Client, Collection, CollectionKind, CoverSize, NamedItem,
-    SearchPart,
+    Album, ArtistInfo, Catalogue, Client, Collection, CollectionKind, CoverSize, FavoriteKind,
+    NamedItem, RequestError, SearchPart,
 };
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
@@ -34,6 +34,18 @@ pub enum Request {
         request: u64,
         client: Client,
         id: String,
+    },
+    Favorites {
+        session: u64,
+        request: u64,
+        client: Client,
+    },
+    SetFavorite {
+        session: u64,
+        client: Client,
+        kind: FavoriteKind,
+        id: String,
+        starred: bool,
     },
     Search {
         session: u64,
@@ -104,6 +116,18 @@ pub enum Event {
         session: u64,
         request: u64,
         result: Result<Album, String>,
+    },
+    Favorites {
+        session: u64,
+        request: u64,
+        result: Result<Catalogue, String>,
+    },
+    FavoriteWritten {
+        session: u64,
+        kind: FavoriteKind,
+        id: String,
+        starred: bool,
+        result: Result<(), RequestError>,
     },
     Catalogue {
         session: u64,
@@ -344,6 +368,28 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             session,
             request,
             result: client.album(&id).await,
+        },
+        Request::Favorites {
+            session,
+            request,
+            client,
+        } => Event::Favorites {
+            session,
+            request,
+            result: client.favorites().await,
+        },
+        Request::SetFavorite {
+            session,
+            client,
+            kind,
+            id,
+            starred,
+        } => Event::FavoriteWritten {
+            session,
+            kind,
+            result: client.set_favorite(kind, &id, starred).await,
+            id,
+            starred,
         },
         Request::Search {
             session,

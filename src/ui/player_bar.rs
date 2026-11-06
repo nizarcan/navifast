@@ -564,9 +564,18 @@ fn now_playing_block(app: &mut App, ui: &mut egui::Ui, region: Rect, now: Option
                 .layout(Layout::centered_and_justified(egui::Direction::LeftToRight)),
         );
         if app.navidrome_mode {
-            heart_ui.disable();
-        }
-        if theme::icon_button(&mut heart_ui, icon, 17.0, color, palette.text, &tooltip).clicked() {
+            if super::navidrome_favorites::toggle(
+                &mut heart_ui,
+                &app.navidrome_favorites,
+                (&palette, app.locale),
+                &now.uri,
+                17.0,
+            ) {
+                app.actions.push(Action::ToggleSaved(now.uri.clone()));
+            }
+        } else if theme::icon_button(&mut heart_ui, icon, 17.0, color, palette.text, &tooltip)
+            .clicked()
+        {
             app.actions.push(Action::ToggleSaved(now.uri.clone()));
         }
     }

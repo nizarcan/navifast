@@ -819,6 +819,10 @@ pub fn item_menu(
     ui.set_max_width(300.0);
     let uri = item.uri().to_string();
     if app.navidrome_mode {
+        if super::navidrome_favorites::menu(ui, &app.navidrome_favorites, (&palette, locale), &uri)
+        {
+            app.actions.push(Action::ToggleSaved(uri.clone()));
+        }
         if menu_item(ui, &palette, Some(Icon::Play), &gettext(locale, "Play"))
             && let (Some(context), Some(index)) = (context, index)
         {
@@ -1025,6 +1029,16 @@ pub fn context_menu_items(
         });
     }
     if app.navidrome_mode {
+        if uri.starts_with("navidrome:album:")
+            && super::navidrome_favorites::menu(
+                ui,
+                &app.navidrome_favorites,
+                (&palette, locale),
+                uri,
+            )
+        {
+            app.actions.push(Action::ToggleSaved(uri.into()));
+        }
         return;
     }
     if kind != "artist"
@@ -1742,19 +1756,34 @@ fn track_row_contents(
             {
                 child.set_opacity(0.0);
             }
-            let (icon, color) = if saved == Some(true) {
-                (Icon::HeartFilled, palette.accent)
+            if app.navidrome_mode {
+                if super::navidrome_favorites::toggle(
+                    &mut child,
+                    &app.navidrome_favorites,
+                    (&palette, app.locale),
+                    row.item.uri(),
+                    16.0,
+                ) {
+                    app.actions
+                        .push(Action::ToggleSaved(row.item.uri().to_owned()));
+                }
             } else {
-                (Icon::Heart, palette.secondary)
-            };
-            let tooltip = if saved == Some(true) {
-                gettext(app.locale, "Remove from Liked Songs")
-            } else {
-                gettext(app.locale, "Save to Liked Songs")
-            };
-            if theme::icon_button(&mut child, icon, 16.0, color, palette.text, &tooltip).clicked() {
-                app.actions
-                    .push(Action::ToggleSaved(row.item.uri().to_string()));
+                let (icon, color) = if saved == Some(true) {
+                    (Icon::HeartFilled, palette.accent)
+                } else {
+                    (Icon::Heart, palette.secondary)
+                };
+                let tooltip = if saved == Some(true) {
+                    gettext(app.locale, "Remove from Liked Songs")
+                } else {
+                    gettext(app.locale, "Save to Liked Songs")
+                };
+                if theme::icon_button(&mut child, icon, 16.0, color, palette.text, &tooltip)
+                    .clicked()
+                {
+                    app.actions
+                        .push(Action::ToggleSaved(row.item.uri().to_string()));
+                }
             }
         }
         x += cols.heart;

@@ -430,6 +430,8 @@ fastframe_icons::icons! {
         Globe => "globe",
         GripVertical => "grip-vertical",
         Headphones => "headphones",
+        Star => "star",
+        StarFilled => "star-filled",
         Heart => "heart",
         HeartFilled => "heart-filled",
         House => "house",

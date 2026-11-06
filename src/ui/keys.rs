@@ -346,6 +346,10 @@ pub fn navidrome_shortcuts(locale: Locale) -> Vec<(Cow<'static, str>, Cow<'stati
             gettext(locale, "Albums"),
         ),
         (
+            keys(platform_shortcut("Ctrl+L", "Cmd+L")),
+            gettext(locale, "Favorites"),
+        ),
+        (
             keys(platform_shortcut("Ctrl+Shift+B", "Cmd+Shift+B")),
             gettext(locale, "Go to the playing album"),
         ),

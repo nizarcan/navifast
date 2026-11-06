@@ -22,6 +22,13 @@ executes API requests on a dedicated Tokio runtime with cancellation and
 session/request generations. IDs are opaque strings. Album pages use
 `getAlbumList2` and `getAlbum`. Artwork is fetched and decoded off the UI.
 
+After sign-in, opening Favorites, or a manual refresh, `getStarred2` reads
+the account’s starred songs, albums and artists. The UI shares one membership
+set. Each item has at most one `star` or `unstar` write in flight, using
+`id` for a song, `albumId` for an album and `artistId` for an artist.
+After a write, a fresh list confirms the change. Reads that still disagree
+are retried with backoff. Signing out discards pending edits and reads.
+
 Search waits for a 300 ms pause in typing or an explicit submission. It sends
 `search3` and `getPlaylists` independently and filters playlist names locally.
 Editing or clearing the term cancels both requests. Responses must match both

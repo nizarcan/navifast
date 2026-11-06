@@ -840,6 +840,18 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             Page::Home
         }));
     }
+    if app.navidrome_mode
+        && nav_row(
+            ui,
+            &palette,
+            Icon::Star,
+            &gettext(locale, "Favorites"),
+            page == Page::LikedSongs,
+        )
+        .clicked()
+    {
+        app.actions.push(Action::Open(Page::LikedSongs));
+    }
     if !app.navidrome_mode
         && nav_row(
             ui,

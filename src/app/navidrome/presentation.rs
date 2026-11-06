@@ -516,7 +516,20 @@ impl App {
         }
     }
     pub(super) fn ui_action(&mut self, action: UiAction, ctx: &egui::Context) {
+        let was_favorites = self.presentation.page() == &Page::LikedSongs;
         match action {
+            UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
+            UiAction::RetryFavorite(uri) if self.connected => self.retry_favorite(&uri),
+            UiAction::PlayFavorite(id) if self.connected => {
+                let songs = &self.presentation.navidrome_favorites.list.song;
+                if let Some(index) = songs.iter().position(|s| s.id == id) {
+                    self.play_search_songs(songs.clone(), index);
+                }
+            }
+            UiAction::Open(Page::LikedSongs) if self.connected => {
+                self.presentation.open(Page::LikedSongs)
+            }
+            UiAction::Reload(Page::LikedSongs) if self.connected => self.refresh_favorites(),
             UiAction::NavidromeSearch(action) if self.connected => self.search_action(action, ctx),
             UiAction::Search(query) if self.connected => {
                 self.presentation.search.focus_requested = true;
@@ -700,6 +713,9 @@ impl App {
             }
             _ => {}
         }
+        if !was_favorites && self.presentation.page() == &Page::LikedSongs {
+            self.refresh_favorites();
+        }
         let collection = match self.presentation.page() {
             page @ (Page::Artist(_) | Page::Playlist(_)) => Some(page),
             _ => None,
@@ -787,6 +803,8 @@ mod tests {
                             .as_slice()
                     } else if request.starts_with("GET /rest/ping.view?") {
                         br#"{"subsonic-response":{"status":"ok"}}"#.as_slice()
+                    } else if request.starts_with("GET /rest/getStarred2.view?") {
+                        br#"{"subsonic-response":{"status":"ok","starred2":{}}}"#.as_slice()
                     } else {
                         assert!(request.starts_with("GET /rest/getAlbumList2.view?"));
                         br#"{"subsonic-response":{"status":"ok","albumList2":{"album":[]}}}"#
@@ -840,7 +858,7 @@ mod tests {
                     }
                 }
                 let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-                while app.connecting {
+                while app.connecting || app.presentation.navidrome_favorites.loading {
                     assert!(
                         std::time::Instant::now() < deadline,
                         "login request timed out"
@@ -850,6 +868,7 @@ mod tests {
                 }
                 assert!(!app.restoring_login);
                 assert_eq!(app.connected, accepted);
+                assert_eq!(app.presentation.navidrome_favorites.ready, accepted);
                 let text = drawn_text(app, ctx, 1280.0);
                 assert_eq!(text.iter().any(|value| value == "Password"), !accepted);
                 let completed_session = app.session;

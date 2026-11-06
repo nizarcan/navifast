@@ -13,6 +13,7 @@ pub mod login;
 mod lyrics;
 pub mod navidrome;
 mod navidrome_artist;
+mod navidrome_favorites;
 mod navidrome_search;
 pub mod player_bar;
 pub mod queue;
@@ -298,6 +299,9 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
             // page casts a shadow under the header instead.
             ui.spacing_mut().scroll.fade.strength = 0.0;
             topbar::show(app, ui);
+            if app.navidrome_mode && !app.navidrome_favorites.failures.is_empty() {
+                navidrome_favorites::write_errors(app, ui);
+            }
             let page = app.page().clone();
             let mut area = egui::ScrollArea::vertical()
                 .id_salt(("page", page.encode()))
@@ -354,6 +358,9 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                                 navidrome_search::collection(app, ui)
                             }
                             Page::Search => search::show(app, ui),
+                            Page::LikedSongs if app.navidrome_mode => {
+                                navidrome_favorites::show(app, ui)
+                            }
                             Page::LikedSongs => collection::liked(app, ui),
                             Page::Albums | Page::Artists | Page::Podcasts | Page::Episodes => {
                                 library::show(app, ui, page)

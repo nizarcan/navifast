@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
+pub mod favorites;
 mod presentation;
 pub mod search;
 #[cfg(feature = "demo")]
@@ -394,6 +395,7 @@ impl App {
                 self.login.password.clear();
                 self.presentation.search = Default::default();
                 self.presentation.navidrome_search = Default::default();
+                self.presentation.navidrome_favorites = Default::default();
                 self.presentation.history = vec![crate::model::Page::Albums];
                 self.presentation.history_index = 0;
                 self.pending_play = None;
@@ -600,6 +602,7 @@ impl App {
             .cloned()
             .unwrap_or_default();
         self.client = Some(client);
+        self.presentation.navidrome_favorites = Default::default();
     }
 
     fn fetch_albums(&mut self, offset: usize) {
@@ -689,6 +692,9 @@ impl App {
     fn poll(&mut self, ctx: &egui::Context) {
         for event in self.backend.events.try_iter().collect::<Vec<_>>() {
             match event {
+                event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
+                    self.favorite_event(event)
+                }
                 event @ (Event::Catalogue { .. }
                 | Event::Playlists { .. }
                 | Event::Collection { .. }
@@ -712,6 +718,7 @@ impl App {
                             self.mark_dirty();
                             self.list_request += 1;
                             self.fetch_albums(0);
+                            self.refresh_favorites();
                         }
                         Err(error) => self.error = Some(error),
                     }
@@ -794,6 +801,7 @@ impl App {
             self.save();
         }
         self.poll_search(ctx);
+        self.poll_favorites(ctx);
         self.poll_controls(ctx);
         self.sync_media();
         self.spectrum = self.analyser.step(
@@ -1070,11 +1078,12 @@ impl App {
         self.transport.songs = self.albums[0].song.clone();
         self.transport.select(0, 83.0, false);
         self.transport.loading = false;
+        self.populate_demo_favorites(page, &flags);
         if flags.contains(&"no-art") {
             self.artwork.forget_all();
         }
-        let library_state =
-            page != Some("search") && !page.is_some_and(|p| p.starts_with("artist:"));
+        let library_state = !matches!(page, Some("search" | "favorites"))
+            && !page.is_some_and(|p| p.starts_with("artist:"));
         if library_state && flags.contains(&"empty") {
             self.albums.clear();
             self.album = None;
@@ -1093,7 +1102,9 @@ impl App {
             self.presentation.settings.theme = crate::settings::ThemeChoice::Light;
         }
         ctx.set_theme(self.presentation.theme_preference());
-        if page == Some("search") {
+        if page == Some("favorites") {
+            self.presentation.history = vec![crate::model::Page::LikedSongs];
+        } else if page == Some("search") {
             self.populate_demo_search(&flags, ctx);
         } else if let Some(id) = page.and_then(|p| p.strip_prefix("artist:")) {
             self.populate_demo_artist(id, &flags);

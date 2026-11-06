@@ -14,6 +14,9 @@ page also requests the expanded album's tracks and asks your Navidrome server
 for a biography and similar artists with `getArtistInfo2`. Navidrome may use
 the external metadata integrations configured by your server administrator.
 Navifast loads artist images through your server's `getCoverArt` endpoint.
+Navifast reads your favorites with `getStarred2` and sends `star` or `unstar`
+with the selected item ID to your server. Favorites and pending changes are
+held in memory for the signed-in session. Ratings are independent.
 It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.
 

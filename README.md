@@ -19,6 +19,8 @@ The first migration stage supports:
 - Opening credited artists from search results, album tracks, playlists, and the
   player bar. Artist pages show Discography, About, Similar artists from your
   library, and Appears on for guest releases. Open a release cover to pick a song.
+- Starring songs, albums and artists on your Navidrome account. Open **Favorites**
+  in the sidebar to play a starred song or open a starred album or artist.
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,
@@ -30,7 +32,7 @@ The first migration stage supports:
   player-bar visualizers.
 - Basic native media controls.
 
-This is an early playback build. Favorites, playlist management, queue editing,
+This is an early playback build. Playlist management, queue editing,
 shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
 Winamp/MilkDrop controls and tray behavior are still being migrated. Their
 inherited code remains in the repository but these features are not available

@@ -265,7 +265,11 @@ impl App {
         }
     }
 
-    fn play_search_songs(&mut self, songs: Vec<crate::navidrome::api::Song>, index: usize) {
+    pub(super) fn play_search_songs(
+        &mut self,
+        songs: Vec<crate::navidrome::api::Song>,
+        index: usize,
+    ) {
         self.playing_album = None;
         self.transport.songs = songs;
         self.load(index, 0.0, false);
