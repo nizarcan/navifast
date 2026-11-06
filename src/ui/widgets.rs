@@ -288,6 +288,9 @@ pub fn virtual_wrapped_cards(
     ui.spacing_mut().item_spacing = previous_spacing;
 }
 
+/// Distance in logical points at which a catalog requests its next page.
+pub(crate) const LOAD_AHEAD: f32 = 900.0;
+
 /// Asks for the next page when the user scrolls near the end of a list.
 pub fn load_more_when_near_end(ui: &Ui, app: &mut App, page: Page, can_load: bool) {
     if !can_load {
@@ -295,7 +298,7 @@ pub fn load_more_when_near_end(ui: &Ui, app: &mut App, page: Page, can_load: boo
     }
     let clip = ui.clip_rect();
     let cursor = ui.cursor().top();
-    if cursor - clip.bottom() < 900.0 {
+    if cursor - clip.bottom() < LOAD_AHEAD {
         app.actions.push(Action::LoadMore(page));
     }
 }

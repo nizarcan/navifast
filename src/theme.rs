@@ -811,21 +811,27 @@ fn soft_button_inner(
     (response, dismissed)
 }
 
+pub(crate) const SPINNER_TURNS_PER_SECOND: f64 = 1.2;
+
+/// The loading arc relative to its centre, shared by both desktop renderers.
+pub(crate) fn spinner_points(size: f32, start: f64) -> [[f32; 2]; 20] {
+    let radius = size / 2.0 - 2.0;
+    std::array::from_fn(|i| {
+        let (sin, cos) = (start + 250_f64.to_radians() * i as f64 / 19.).sin_cos();
+        [radius * cos as f32, radius * sin as f32]
+    })
+}
+
 /// An animated busy indicator paced independently of the graphics driver.
 pub fn spinner(ui: &mut egui::Ui, size: f32, color: Color32) -> Response {
     let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
     if ui.is_rect_visible(rect) {
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_millis(33));
-        let radius = size / 2.0 - 2.0;
-        let start = ui.input(|input| input.time) * std::f64::consts::TAU * 1.2;
-        let sweep = 250_f64.to_radians();
-        let points = (0..20)
-            .map(|index| {
-                let angle = start + sweep * f64::from(index) / 19.0;
-                let (sin, cos) = angle.sin_cos();
-                rect.center() + radius * egui::vec2(cos as f32, sin as f32)
-            })
+        let start = ui.input(|input| input.time) * std::f64::consts::TAU * SPINNER_TURNS_PER_SECOND;
+        let points = spinner_points(size, start)
+            .into_iter()
+            .map(|[x, y]| rect.center() + egui::vec2(x, y))
             .collect();
         ui.painter()
             .add(egui::Shape::line(points, Stroke::new(2.0, color)));

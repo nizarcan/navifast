@@ -55,6 +55,34 @@ impl Paint<'_> {
     fn tr(&self, value: &'static str) -> String {
         gettext(self.s.app.presentation.locale, value).into_owned()
     }
+    fn spinner(&self) -> El {
+        let points = crate::theme::spinner_points(18., 0.).map(|[x, y]| [9. + x, 9. + y]);
+        let arc = rune::Shape::new().stroke(points, 2., color(self.p.accent));
+        rune::canvas(arc)
+            .size(18., 18.)
+            .looping(rune::LoopSpec::rotation(
+                1. / crate::theme::SPINNER_TURNS_PER_SECOND,
+            ))
+            .a11y_hidden()
+    }
+    fn loading(&self) -> El {
+        row()
+            .pl(8.)
+            .gap(8.)
+            .items_center()
+            .role("status")
+            .child(self.spinner())
+            .child(label(self.tr("Loading…"), 13., 400., self.p.secondary))
+    }
+    fn empty(&self, icon: Icon, title: &str, detail: &str) -> El {
+        col()
+            .w_full()
+            .pt(48.)
+            .items_center()
+            .child(self.icon(icon, 40., self.p.dim))
+            .child(label(title, 16., 600., self.p.text).mt(8.))
+            .child(label(detail, 13.5, 400., self.p.secondary).mt(2.).wrap())
+    }
     fn icon(&self, icon: Icon, size: f32, ink: Color32) -> El {
         let px = (size * self.scale * self.zoom).round().max(1.) as u32;
         let mut cache = self.s.icons.borrow_mut();
@@ -279,6 +307,7 @@ impl Paint<'_> {
             row()
                 .items_center()
                 .gap(10.)
+                .child(self.spinner())
                 .child(label("Connecting…", 14., 400., self.p.text))
                 .child(self.button("Cancel", false, |s, _| {
                     s.app.apply(navidrome::Action::Cancel)

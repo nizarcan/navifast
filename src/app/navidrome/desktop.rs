@@ -775,6 +775,58 @@ mod tests {
     }
 
     #[test]
+    fn albums_prefetch_at_the_end_and_wait_for_retry_after_an_error() {
+        let mut rt = runtime("albums", "");
+        rt.update(|s, _| {
+            let sample = s.app.albums[0].clone();
+            s.app.albums = (0..120)
+                .map(|i| {
+                    let mut a = sample.clone();
+                    a.id = format!("fixture-{i}");
+                    a
+                })
+                .collect();
+            s.app.has_more = true;
+            s.app.demo = false;
+        });
+        rt.frame(0.);
+        for _ in 0..8 {
+            rt.frame(1. / 60.);
+        }
+        assert!(!rt.state.app.list_loading);
+        rt.update(|_, tx| tx.scroll_to_y("page", 10_000.));
+        rt.frame(0.);
+        for _ in 0..8 {
+            rt.frame(1. / 60.);
+        }
+        assert!(rt.state.app.list_loading);
+        rt.update(|s, tx| {
+            s.app.list_loading = false;
+            s.app.error = Some("fixture failure".into());
+            tx.scroll_to_y("page", 0.);
+        });
+        rt.frame(0.);
+        rt.update(|_, tx| tx.scroll_to_y("page", 10_000.));
+        rt.frame(0.);
+        for _ in 0..8 {
+            rt.frame(1. / 60.);
+        }
+        assert!(!rt.state.app.list_loading);
+        let [x, y, w, h] = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.role == "button" && e.label.as_deref() == Some("Retry"))
+            .expect("failed pagination offers a retry")
+            .rect;
+        let request = rt.state.app.list_request;
+        rt.pointer_down(x + w / 2., y + h / 2.);
+        rt.pointer_up(x + w / 2., y + h / 2.);
+        rt.frame(0.);
+        assert_eq!(rt.state.app.list_request, request + 1);
+        assert!(rt.state.app.list_loading);
+    }
+
+    #[test]
     fn library_card_play_starts_the_album_from_its_cover() {
         let mut rt = runtime("albums", "");
         let kind = crate::navidrome::api::FavoriteKind::Album;

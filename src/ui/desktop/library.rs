@@ -831,7 +831,7 @@ fn albums(v: &Paint<'_>, width: f32) -> El {
     let zoom = v.zoom;
     let rows = a.albums.len().div_ceil(n);
     let bounds = (v.width, v.height);
-    col()
+    let list = col()
         .w_full()
         .key("album-library-rows")
         .growth(rune::GrowthSpec::default())
@@ -868,28 +868,46 @@ fn albums(v: &Paint<'_>, width: f32) -> El {
                 }
                 band
             },
-        )
+        );
+    if !a.has_more || a.list_loading || a.error.is_some() {
+        return list;
+    }
+    list.on_visible_rows(move |s: &mut State, visible| {
+        // Row zero holds the title. Count only the album rows below the viewport.
+        let remaining = (rows + 1).saturating_sub(visible.end);
+        if remaining as f32 * 240. < crate::ui::widgets::LOAD_AHEAD
+            && s.app.has_more
+            && !s.app.list_loading
+            && s.app.error.is_none()
+            && s.app.presentation.page() == &Page::Albums
+        {
+            s.app.apply(Service::More);
+            true
+        } else {
+            false
+        }
+    })
 }
 fn album_status(v: &Paint<'_>) -> El {
     let a = &v.s.app;
     let mut page = col();
     if let Some(e) = &a.error {
-        page = page.child(label(e, 14., 400., v.p.danger)).child(v.button(
-            &v.tr("Retry"),
-            false,
-            |s, _| s.app.apply(Service::Retry),
-        ));
+        page = page.child(
+            row()
+                .pl(8.)
+                .gap(8.)
+                .items_center()
+                .child(v.icon(Icon::CircleAlert, 16., v.p.danger))
+                .child(retry(v, e, Action::Reload(Page::Albums)).key("album-list-error")),
+        );
     } else if a.list_loading || a.restoring_login {
-        page = page.child(label(v.tr("Loading…"), 14., 400., v.p.secondary));
+        page = page.child(v.loading());
     } else if a.albums.is_empty() {
-        page = page.child(heading(v, &v.tr("No albums"))).child(label(
-            v.tr("Albums in your Navidrome library appear here."),
-            14.,
-            400.,
-            v.p.secondary,
+        page = page.child(v.empty(
+            Icon::Disc,
+            &v.tr("No albums"),
+            &v.tr("Albums in your Navidrome library appear here."),
         ));
-    } else if a.has_more {
-        page = page.child(v.button(&v.tr("Load more"), false, |s, _| s.app.apply(Service::More)));
     }
     page
 }
@@ -903,7 +921,7 @@ fn album(v: &Paint<'_>) -> El {
                 |s, tx| s.dispatch(Action::Reload(s.app.presentation.page().clone()), tx),
             ))
         } else {
-            label(v.tr("Loading…"), 14., 400., v.p.secondary)
+            v.loading()
         };
     };
     let width = v.content_width();
@@ -1250,7 +1268,8 @@ fn songs(v: &Paint<'_>) -> El {
                 col()
                     .min_w(0.)
                     .grow(1.)
-                    .child(label(&song.title, 14., 550., ink).truncate())
+                    .items_start()
+                    .child(label(&song.title, 14., 550., ink).w_full().truncate())
                     .child(credits(&v, &song.artist, &song.credits))
             };
             let uri = FavoriteKind::Song.uri(&song.id);
@@ -1381,6 +1400,31 @@ pub(super) fn track_key(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool 
     tx.scroll_into_view(s.table.key(next));
     true
 }
+fn retry(v: &Paint<'_>, error: &str, action: Action) -> El {
+    let name = v.tr("Retry");
+    row()
+        .w_full()
+        .flex_wrap()
+        .gap(8.)
+        .items_center()
+        .child(label(error, 13., 400., v.p.secondary).wrap())
+        .child(
+            row()
+                .h(28.)
+                .px(10.)
+                .gap(6.)
+                .radius(14.)
+                .items_center()
+                .role("button")
+                .label(&name)
+                .focusable(true)
+                .fill(color(v.p.surface))
+                .hover(color(v.p.surface_hover))
+                .child(v.icon(Icon::Refresh, 14., v.p.secondary))
+                .child(label(name, 13., 600., v.p.text))
+                .on_press_tx(move |s: &mut State, tx| s.dispatch(action.clone(), tx)),
+        )
+}
 fn failed<T>(state: &Loadable<T>) -> Option<&str> {
     if let Loadable::Failed(e) = state {
         Some(e)
@@ -1504,19 +1548,13 @@ fn search(v: &Paint<'_>) -> El {
     let mut list = col().w_full().gap(2.);
     if v.s.query.text.trim().is_empty() {
         if s.recent.is_empty() {
-            return col()
-                .w_full()
-                .items_center()
-                .gap(8.)
-                .pt(48.)
-                .child(v.icon(Icon::Search, 40., v.p.secondary))
-                .child(heading(v, &v.tr("Search")))
-                .child(label(
-                    v.tr("What do you want to play?"),
-                    14.,
-                    400.,
-                    v.p.secondary,
-                ));
+            return v
+                .empty(
+                    Icon::Search,
+                    &v.tr("Search"),
+                    &v.tr("What do you want to play?"),
+                )
+                .mt(6.);
         }
         list = col()
             .w_full()
@@ -1539,6 +1577,20 @@ fn search(v: &Paint<'_>) -> El {
         }
         return list.child(terms);
     }
+    if v.s.app.presentation.search.typed_at.is_some()
+        || s.catalogue.is_loading()
+        || s.playlists.is_loading()
+    {
+        list = list.child(v.loading());
+    }
+    if let Some(error) = failed(&s.catalogue) {
+        let title = [v.tr("Songs"), v.tr("Albums"), v.tr("Artists")].join(" · ");
+        list = list.child(label(title, 17., 700., v.p.text)).child(retry(
+            v,
+            error,
+            Action::NavidromeSearch(Search::Retry(SearchPart::Catalogue)),
+        ));
+    }
     let mut previous = None;
     for (hit, name, artist) in s.rows() {
         use crate::app::navidrome::search::Hit;
@@ -1549,7 +1601,7 @@ fn search(v: &Paint<'_>) -> El {
             Hit::Playlist(_) => "Playlists",
         };
         if previous != Some(section) {
-            list = list.child(label(v.tr(section), 18., 650., v.p.text).mt(10.));
+            list = list.child(label(v.tr(section), 17., 700., v.p.text).mt(10.));
             previous = Some(section);
         }
         let icon = match hit {
@@ -1577,37 +1629,24 @@ fn search(v: &Paint<'_>) -> El {
         }
         list = list.child(line);
     }
-    if s.catalogue.get().is_some() && s.playlists.get().is_some() && previous.is_none() {
+    if let Some(error) = failed(&s.playlists) {
         list = list
-            .child(heading(
+            .child(label(v.tr("Playlists"), 17., 700., v.p.text).mt(10.))
+            .child(retry(
                 v,
-                &v.tr("No results for “{query}”")
-                    .replace("{query}", &v.s.app.presentation.search.committed),
-            ))
-            .child(label(
-                v.tr("Check the spelling, or try fewer words."),
-                14.,
-                400.,
-                v.p.secondary,
+                error,
+                Action::NavidromeSearch(Search::Retry(SearchPart::Playlists)),
             ));
     }
-    if v.s.app.presentation.search.typed_at.is_some()
-        || s.catalogue.is_loading()
-        || s.playlists.is_loading()
-    {
-        list = list.child(label(v.tr("Searching…"), 14., 400., v.p.secondary));
-    }
-    for (part, error) in [
-        (SearchPart::Catalogue, failed(&s.catalogue)),
-        (SearchPart::Playlists, failed(&s.playlists)),
-    ] {
-        if let Some(error) = error {
-            list = list
-                .child(label(error, 14., 400., v.p.danger))
-                .child(v.button(&v.tr("Retry"), false, move |s, tx| {
-                    s.dispatch(Action::NavidromeSearch(Search::Retry(part)), tx)
-                }));
-        }
+    if s.catalogue.get().is_some() && s.playlists.get().is_some() && previous.is_none() {
+        list = list.child(
+            v.empty(
+                Icon::Search,
+                &v.tr("No results for “{query}”")
+                    .replace("{query}", &v.s.app.presentation.search.committed),
+                &v.tr("Check the spelling, or try fewer words."),
+            ),
+        );
     }
     list
 }
@@ -1625,7 +1664,7 @@ fn collection(v: &Paint<'_>) -> El {
             false,
             |s, tx| s.dispatch(Action::Reload(s.app.presentation.page().clone()), tx),
         )),
-        _ => label(v.tr("Loading…"), 14., 400., v.p.secondary),
+        _ => v.loading(),
     }
 }
 fn favorites(v: &Paint<'_>) -> El {
@@ -1743,7 +1782,7 @@ fn favorites_header(v: &Paint<'_>, group: Option<FavoriteKind>) -> El {
             ),
     );
     if state.loading {
-        page = page.child(label(v.tr("Loading…"), 14., 400., v.p.secondary));
+        page = page.child(v.loading());
     }
     if let Some(e) = &state.error {
         page = page.child(label(e, 14., 400., v.p.danger)).child(v.button(

@@ -50,7 +50,7 @@ fn shelf(
 
 fn status<T>(v: &Paint<'_>, data: &Loadable<T>, empty: &'static str) -> El {
     match data {
-        Loadable::Loading => label(v.tr("Loading…"), 14., 400., v.p.secondary),
+        Loadable::Loading => v.loading(),
         Loadable::Failed(error) => row()
             .gap(8.)
             .items_center()
