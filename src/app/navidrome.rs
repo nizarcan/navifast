@@ -11,7 +11,7 @@ pub mod search;
 #[cfg(feature = "demo")]
 use egui::load::ImageLoader;
 use presentation::Artwork;
-pub(crate) use presentation::encode;
+pub(crate) use presentation::{encode, view_artists};
 
 type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, bool, Option<String>);
 
@@ -456,7 +456,7 @@ impl App {
             }
             Action::Play(index) => {
                 if let Some(album) = &self.album {
-                    self.play_album_songs(album.song.clone(), index);
+                    self.play_album(album.clone(), index);
                 }
             }
             Action::Toggle => {
@@ -617,13 +617,18 @@ impl App {
         }
     }
 
-    fn play_album_songs(&mut self, songs: Vec<Song>, index: usize) {
+    fn play_album(&mut self, mut album: Album, index: usize) {
+        let songs = std::mem::take(&mut album.song);
+        self.play_album_songs(Some(album), songs, index);
+    }
+
+    fn play_album_songs(&mut self, album: Option<Album>, songs: Vec<Song>, index: usize) {
         if index >= songs.len() {
             return;
         }
-        if let Some(album) = &self.album {
-            self.playing_album = Some(album.clone());
+        if let Some(album) = album {
             let uri = format!("navidrome:album:{}", presentation::encode(&album.id));
+            self.playing_album = Some(album);
             self.presentation.recent_contexts.retain(|old| old != &uri);
             self.presentation.recent_contexts.insert(0, uri);
             self.presentation.recent_contexts.truncate(100);
@@ -684,7 +689,9 @@ impl App {
             match event {
                 event @ (Event::Catalogue { .. }
                 | Event::Playlists { .. }
-                | Event::Collection { .. }) => self.search_event(event),
+                | Event::Collection { .. }
+                | Event::ArtistAlbum { .. }
+                | Event::ArtistInfo { .. }) => self.search_event(event),
                 Event::Restored { session, result } => self.restore_login(session, result),
                 Event::CredentialError { session, message } if session == self.session => {
                     if self.connected {
@@ -981,6 +988,10 @@ impl App {
                     Song {
                         id: reference.id.unwrap_or_default(),
                         title: reference.name,
+                        credits: crate::navidrome::api::ArtistCredits {
+                            artist_id: reference.artists.first().and_then(|a| a.id.clone()),
+                            ..Default::default()
+                        },
                         artist: reference
                             .artists
                             .iter()
@@ -999,6 +1010,10 @@ impl App {
             self.albums.push(Album {
                 id: id.clone(),
                 name: reference.name,
+                credits: crate::navidrome::api::ArtistCredits {
+                    artist_id: reference.artists.first().and_then(|a| a.id.clone()),
+                    ..Default::default()
+                },
                 artist: reference
                     .artists
                     .iter()
@@ -1054,16 +1069,18 @@ impl App {
         if flags.contains(&"no-art") {
             self.artwork.forget_all();
         }
-        if page != Some("search") && flags.contains(&"empty") {
+        let library_state =
+            page != Some("search") && !page.is_some_and(|p| p.starts_with("artist:"));
+        if library_state && flags.contains(&"empty") {
             self.albums.clear();
             self.album = None;
         }
-        if page != Some("search") && flags.contains(&"error") {
+        if library_state && flags.contains(&"error") {
             self.error = Some(
                 "The server did not respond in time. Check the connection and try again.".into(),
             );
         }
-        if page != Some("search") && flags.contains(&"loading") {
+        if library_state && flags.contains(&"loading") {
             self.album_loading = self.album.is_some();
             self.list_loading = self.album.is_none();
         }
@@ -1074,6 +1091,8 @@ impl App {
         ctx.set_theme(self.presentation.theme_preference());
         if page == Some("search") {
             self.populate_demo_search(&flags, ctx);
+        } else if let Some(id) = page.and_then(|p| p.strip_prefix("artist:")) {
+            self.populate_demo_artist(id, &flags);
         } else if page == Some("settings") || self.show_eq {
             self.presentation.history = vec![crate::model::Page::Settings];
         } else if page.is_some_and(|p| p.starts_with("album:")) {

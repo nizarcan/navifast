@@ -10,6 +10,22 @@ use sha2::Sha256;
 pub const PAGE_SIZE: usize = 60;
 const MAX_JSON: usize = 16 * 1024 * 1024;
 
+/// Older servers supply one artistId. OpenSubsonic can identify each credit.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistCredits {
+    pub artist_id: Option<String>,
+    #[serde(default)]
+    pub artists: Vec<ArtistCredit>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+pub struct ArtistCredit {
+    pub id: Option<String>,
+    #[serde(default)]
+    pub name: String,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Song {
@@ -18,6 +34,8 @@ pub struct Song {
     pub title: String,
     #[serde(default)]
     pub artist: String,
+    #[serde(flatten)]
+    pub credits: ArtistCredits,
     #[serde(default)]
     pub album: String,
     #[serde(default)]
@@ -40,6 +58,8 @@ pub struct Album {
     pub name: String,
     #[serde(default)]
     pub artist: String,
+    #[serde(flatten)]
+    pub credits: ArtistCredits,
     #[serde(default)]
     pub cover_art: Option<String>,
     #[serde(default)]
@@ -78,9 +98,24 @@ pub enum CollectionKind {
     Playlist,
 }
 
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtistInfo {
+    pub biography: Option<String>,
+    #[serde(default)]
+    pub similar_artist: Vec<ArtistCredit>,
+}
+
 pub enum Collection {
-    Artist { name: String, albums: Vec<Album> },
-    Playlist { name: String, songs: Vec<Song> },
+    Artist {
+        name: String,
+        cover_art: Option<String>,
+        albums: Vec<Album>,
+    },
+    Playlist {
+        name: String,
+        songs: Vec<Song>,
+    },
 }
 
 // Deliberately no Debug: both the secret and authenticated request URLs are sensitive.
@@ -277,8 +312,10 @@ impl Client {
 
     pub async fn collection(&self, kind: CollectionKind, id: &str) -> Result<Collection, String> {
         #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
         struct Artist {
             name: String,
+            cover_art: Option<String>,
             #[serde(default)]
             album: Vec<Album>,
         }
@@ -299,10 +336,15 @@ impl Client {
             .ok_or("The server returned no collection.")?;
         Ok(match kind {
             CollectionKind::Artist => {
-                let Artist { name, album } = decode(value)?;
+                let Artist {
+                    name,
+                    cover_art,
+                    album,
+                } = decode(value)?;
                 Collection::Artist {
                     name,
                     albums: album,
+                    cover_art,
                 }
             }
             CollectionKind::Playlist => {
@@ -310,6 +352,34 @@ impl Client {
                 Collection::Playlist { name, songs: entry }
             }
         })
+    }
+
+    pub async fn artist_info(&self, id: &str) -> Result<ArtistInfo, String> {
+        let body = self
+            .request(
+                "getArtistInfo2",
+                &[("id", id.into()), ("includeNotPresent", "false".into())],
+            )
+            .await?;
+        let mut info: ArtistInfo = decode(
+            body.get("artistInfo2")
+                .cloned()
+                .ok_or("The server returned no artist information.")?,
+        )?;
+        info.biography = info
+            .biography
+            .map(|bio| crate::util::strip_html(&bio))
+            .filter(|bio| !bio.trim().is_empty());
+        // Some servers include unmatched Last.fm recommendations with the
+        // Subsonic sentinel -1 even when only library artists were requested.
+        info.similar_artist.retain(|artist| {
+            !artist.name.trim().is_empty()
+                && artist
+                    .id
+                    .as_deref()
+                    .is_some_and(|id| !id.trim().is_empty() && id != "-1")
+        });
+        Ok(info)
     }
 
     pub async fn cover(&self, id: &str) -> Result<Vec<u8>, String> {

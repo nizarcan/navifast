@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-06 15:54+0300\n"
+"POT-Creation-Date: 2026-11-06 16:29+0300\n"
 "PO-Revision-Date: 2026-09-23 20:00+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -77,7 +77,7 @@ msgstr "Playlist • {owner}"
 #: src/ui/sidebar.rs:825 src/ui/sidebar.rs:973 src/model.rs:635
 #: src/model.rs:749 src/ui/keys.rs:346 src/ui/library.rs:17
 #: src/ui/navidrome_search.rs:36 src/ui/navidrome_search.rs:54
-#: src/ui/navidrome_search.rs:181 src/ui/search.rs:578
+#: src/ui/navidrome_search.rs:228 src/ui/search.rs:578
 msgid "Albums"
 msgstr "Álbuns"
 
@@ -151,7 +151,7 @@ msgstr "Artista"
 msgid "Podcast • {publisher}"
 msgstr "Podcast • {publisher}"
 
-#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:198
+#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:331
 msgid "Nothing here yet."
 msgstr "Nada por aqui ainda."
 
@@ -308,7 +308,7 @@ msgstr "Letra"
 msgid "Recent"
 msgstr "Recentes"
 
-#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:488
+#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:529
 msgid "Close"
 msgstr "Fechar"
 
@@ -1816,7 +1816,7 @@ msgstr "Limpar capas"
 msgid "Clear history"
 msgstr "Limpar histórico"
 
-#: src/ui/settings.rs:1835 src/ui/show.rs:34
+#: src/ui/settings.rs:1835 src/ui/navidrome_search.rs:280 src/ui/show.rs:34
 msgid "About"
 msgstr "Sobre"
 
@@ -1884,7 +1884,8 @@ msgid "All"
 msgstr "Tudo"
 
 #: src/model.rs:633 src/ui/navidrome_search.rs:35 src/ui/navidrome_search.rs:53
-#: src/ui/navidrome_search.rs:196 src/ui/search.rs:438
+#: src/ui/navidrome_search.rs:245 src/ui/navidrome_search.rs:317
+#: src/ui/search.rs:438
 msgid "Songs"
 msgstr "Músicas"
 
@@ -2527,7 +2528,7 @@ msgstr "Fechar a janela"
 msgid "Quit"
 msgstr "Sair"
 
-#: src/ui/library.rs:19 src/ui/navidrome_search.rs:183
+#: src/ui/library.rs:19 src/ui/navidrome_search.rs:230
 msgid "No albums"
 msgstr "Nenhum álbum"
 
@@ -2605,15 +2606,15 @@ msgstr "Configurações de proxy"
 msgid "Navifast {version} • not affiliated with Spotify"
 msgstr "Navifast {version} • sem afiliação com o Spotify"
 
-#: src/ui/mod.rs:474
+#: src/ui/mod.rs:515
 msgid "Minimize"
 msgstr "Minimizar"
 
-#: src/ui/mod.rs:480
+#: src/ui/mod.rs:521
 msgid "Restore"
 msgstr "Restaurar"
 
-#: src/ui/mod.rs:482
+#: src/ui/mod.rs:523
 msgid "Maximize"
 msgstr "Maximizar"
 
@@ -2626,6 +2627,10 @@ msgstr "Nenhum resultado para “{query}”"
 #: src/ui/navidrome_search.rs:90 src/ui/search.rs:68
 msgid "Check the spelling, or try fewer words."
 msgstr "Verifique a ortografia ou tente menos palavras."
+
+#: src/ui/navidrome_search.rs:293
+msgid "Similar artists"
+msgstr "Artistas semelhantes"
 
 #: src/ui/radio.rs:105
 msgid "Radio comes from playback on this computer. Turn it on in Settings."

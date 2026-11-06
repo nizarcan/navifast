@@ -2,7 +2,9 @@
 //! group so the arrival of the other response cannot move the user's selection.
 use super::{App, Duration, Instant};
 use crate::model::{Loadable, Page};
-use crate::navidrome::api::{Catalogue, Collection, CollectionKind, NamedItem, SearchPart};
+use crate::navidrome::api::{
+    Album, ArtistCredits, ArtistInfo, Catalogue, Collection, CollectionKind, NamedItem, SearchPart,
+};
 use crate::navidrome::backend::{Event, Request};
 
 const DEBOUNCE: Duration = Duration::from_millis(300);
@@ -23,6 +25,7 @@ pub enum Action {
     Activate(Hit),
     Retry(SearchPart),
     PlayEntry(usize),
+    ExpandAlbum(Option<String>),
 }
 
 #[derive(Default)]
@@ -32,11 +35,26 @@ pub struct State {
     pub selected: Option<Hit>,
     pub recent: Vec<String>,
     pub collection: Loadable<Collection>,
+    pub artist_info: Loadable<ArtistInfo>,
+    pub artist_album: Loadable<Album>,
+    pub artist_cover: Option<String>,
+    // Remember the expanded album when history returns to an artist.
+    expanded: std::collections::HashMap<Page, Option<String>>,
+    pub(super) collection_page: Option<Page>,
     collection_request: u64,
+    artist_album_request: u64,
 }
 
 impl State {
-    pub fn rows(&self) -> impl DoubleEndedIterator<Item = (Hit, &str, &str)> {
+    pub fn expanded_album(&self) -> Option<&str> {
+        self.expanded
+            .get(self.collection_page.as_ref()?)?
+            .as_deref()
+    }
+
+    pub fn rows(
+        &self,
+    ) -> impl DoubleEndedIterator<Item = (Hit, &str, Option<(&str, &ArtistCredits)>)> {
         let catalogue = self.catalogue.get();
         let songs = catalogue.map_or(&[][..], |c| c.song.as_slice());
         let albums = catalogue.map_or(&[][..], |c| c.album.as_slice());
@@ -45,24 +63,31 @@ impl State {
         songs
             .iter()
             .enumerate()
-            .map(|(i, s)| (Hit::Song(i), s.title.as_str(), s.artist.as_str()))
-            .chain(
-                albums
-                    .iter()
-                    .enumerate()
-                    .map(|(i, a)| (Hit::Album(i), a.name.as_str(), a.artist.as_str())),
-            )
+            .map(|(i, s)| {
+                (
+                    Hit::Song(i),
+                    s.title.as_str(),
+                    Some((s.artist.as_str(), &s.credits)),
+                )
+            })
+            .chain(albums.iter().enumerate().map(|(i, a)| {
+                (
+                    Hit::Album(i),
+                    a.name.as_str(),
+                    Some((a.artist.as_str(), &a.credits)),
+                )
+            }))
             .chain(
                 artists
                     .iter()
                     .enumerate()
-                    .map(|(i, a)| (Hit::Artist(i), a.name.as_str(), "")),
+                    .map(|(i, a)| (Hit::Artist(i), a.name.as_str(), None)),
             )
             .chain(
                 playlists
                     .iter()
                     .enumerate()
-                    .map(|(i, p)| (Hit::Playlist(i), p.name.as_str(), "")),
+                    .map(|(i, p)| (Hit::Playlist(i), p.name.as_str(), None)),
             )
     }
 
@@ -169,7 +194,26 @@ impl App {
                 request,
                 result,
             } if session == self.session && request == state.collection_request => {
-                state.collection = Loadable::from_result(result)
+                state.collection = Loadable::from_result(result);
+                self.load_artist_details();
+            }
+            Event::ArtistInfo {
+                session,
+                request,
+                result,
+            } if session == self.session && request == state.collection_request => {
+                state.artist_info = Loadable::from_result(result);
+            }
+            Event::ArtistAlbum {
+                session,
+                request,
+                id,
+                result,
+            } if session == self.session
+                && request == state.artist_album_request
+                && state.expanded_album() == Some(&id) =>
+            {
+                state.artist_album = Loadable::from_result(result);
             }
             _ => {}
         }
@@ -218,12 +262,23 @@ impl App {
                 }
             }
             Action::PlayEntry(index) => {
-                if let Some(Collection::Playlist { songs, .. }) =
-                    self.presentation.navidrome_search.collection.get()
-                    && index < songs.len()
-                {
-                    self.play_search_songs(songs.clone(), index);
+                let state = &self.presentation.navidrome_search;
+                match state.collection.get() {
+                    Some(Collection::Playlist { songs, .. }) if index < songs.len() => {
+                        self.play_search_songs(songs.clone(), index);
+                    }
+                    Some(Collection::Artist { .. }) => {
+                        if let Some(album) = state.artist_album.get()
+                            && index < album.song.len()
+                        {
+                            self.play_album(album.clone(), index);
+                        }
+                    }
+                    _ => {}
                 }
+            }
+            Action::ExpandAlbum(id) => {
+                self.expand_artist_album(id);
             }
         }
     }
@@ -261,6 +316,17 @@ impl App {
     }
 
     pub(super) fn fetch_collection(&mut self, page: &Page) {
+        let state = &mut self.presentation.navidrome_search;
+        self.backend.send(Request::CancelCollection);
+        state.collection_request = state.collection_request.wrapping_add(1);
+        state.collection_page = None;
+        state.artist_album = Loadable::NotLoaded;
+        state.artist_info = Loadable::NotLoaded;
+        state.artist_cover = None;
+        state.collection = Loadable::NotLoaded;
+        state
+            .expanded
+            .retain(|page, _| self.presentation.history.contains(page));
         let (kind, id) = match page {
             Page::Artist(id) => (CollectionKind::Artist, id),
             Page::Playlist(id) => (CollectionKind::Playlist, id),
@@ -269,8 +335,7 @@ impl App {
         let Some(id) = super::presentation::decode(id) else {
             return;
         };
-        let state = &mut self.presentation.navidrome_search;
-        state.collection_request = state.collection_request.wrapping_add(1);
+        state.collection_page = Some(page.clone());
         state.collection = Loadable::Loading;
         #[cfg(feature = "demo")]
         if self.demo && self.client.is_none() {
@@ -285,6 +350,72 @@ impl App {
                 kind,
                 id,
             });
+        }
+    }
+
+    fn load_artist_details(&mut self) {
+        let state = &self.presentation.navidrome_search;
+        let Some(Collection::Artist {
+            albums, cover_art, ..
+        }) = state.collection.get()
+        else {
+            return;
+        };
+        let Some(page @ Page::Artist(id)) = state.collection_page.as_ref() else {
+            return;
+        };
+        let Some(id) = super::presentation::decode(id) else {
+            return;
+        };
+        let expanded = state
+            .expanded
+            .get(page)
+            .cloned()
+            .unwrap_or_else(|| albums.first().map(|album| album.id.clone()));
+        self.presentation.navidrome_search.artist_cover = cover_art
+            .as_deref()
+            .filter(|id| !id.is_empty())
+            .map(|id| self.cover_uri(id));
+        self.expand_artist_album(expanded);
+        if let Some(client) = &self.client {
+            self.presentation.navidrome_search.artist_info = Loadable::Loading;
+            self.backend.send(Request::ArtistInfo {
+                session: self.session,
+                request: self.presentation.navidrome_search.collection_request,
+                client: client.clone(),
+                id,
+            });
+        }
+    }
+
+    fn expand_artist_album(&mut self, id: Option<String>) {
+        let state = &mut self.presentation.navidrome_search;
+        let Some(Collection::Artist { albums, .. }) = state.collection.get() else {
+            return;
+        };
+        let Some(page) = &state.collection_page else {
+            return;
+        };
+        let album = id
+            .as_ref()
+            .and_then(|id| albums.iter().find(|album| album.id == *id));
+        state
+            .expanded
+            .insert(page.clone(), album.map(|album| album.id.clone()));
+        state.artist_album_request = state.artist_album_request.wrapping_add(1);
+        state.artist_album = Loadable::NotLoaded;
+        if let Some(album) = album {
+            if let Some(client) = &self.client {
+                state.artist_album = Loadable::Loading;
+                self.backend.send(Request::ArtistAlbum {
+                    session: self.session,
+                    request: state.artist_album_request,
+                    client: client.clone(),
+                    id: album.id.clone(),
+                });
+            } else if self.demo {
+                state.artist_album = Loadable::Loaded(album.clone());
+            }
         }
     }
 }
@@ -305,11 +436,12 @@ impl App {
                     .collect();
                 let mut artists = Vec::new();
                 for album in &self.albums {
-                    if matches(&album.artist)
-                        && !artists.iter().any(|a: &NamedItem| a.id == album.artist)
+                    if let Some(id) = &album.credits.artist_id
+                        && matches(&album.artist)
+                        && !artists.iter().any(|a: &NamedItem| &a.id == id)
                     {
                         artists.push(NamedItem {
-                            id: album.artist.clone(),
+                            id: id.clone(),
                             name: album.artist.clone(),
                         });
                     }
@@ -346,11 +478,17 @@ impl App {
     fn demo_collection(&mut self, kind: CollectionKind, id: &str) {
         let collection = match kind {
             CollectionKind::Artist => Collection::Artist {
-                name: id.into(),
+                name: self
+                    .albums
+                    .iter()
+                    .find(|a| a.credits.artist_id.as_deref() == Some(id))
+                    .map_or(id, |a| &a.artist)
+                    .into(),
+                cover_art: None,
                 albums: self
                     .albums
                     .iter()
-                    .filter(|a| a.artist == id)
+                    .filter(|a| a.credits.artist_id.as_deref() == Some(id))
                     .cloned()
                     .collect(),
             },
@@ -367,6 +505,29 @@ impl App {
             },
         };
         self.presentation.navidrome_search.collection = Loadable::Loaded(collection);
+        self.load_artist_details();
+    }
+
+    pub(super) fn populate_demo_artist(&mut self, id: &str, flags: &[&str]) {
+        let page = Page::Artist(super::presentation::encode(id));
+        self.presentation.history = vec![page.clone()];
+        self.fetch_collection(&page);
+        let state = &mut self.presentation.navidrome_search;
+        if flags.contains(&"loading") {
+            state.artist_album = Loadable::Loading;
+        } else if flags.contains(&"error") {
+            state.artist_album = Loadable::Failed("The server did not respond in time.".into());
+        }
+        if id == "art0" && flags.contains(&"details") {
+            self.expand_artist_album(None);
+            self.presentation.navidrome_search.artist_info = Loadable::Loaded(ArtistInfo {
+                biography: Some("British producer and DJ Simon Green records as Bonobo.".into()),
+                similar_artist: vec![crate::navidrome::api::ArtistCredit {
+                    id: Some("art4".into()),
+                    name: "Floating Points".into(),
+                }],
+            });
+        }
     }
 
     pub(super) fn populate_demo_search(&mut self, flags: &[&str], ctx: &egui::Context) {

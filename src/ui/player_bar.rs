@@ -495,7 +495,7 @@ fn now_playing_block(app: &mut App, ui: &mut egui::Ui, region: Rect, now: Option
         } else {
             super::widgets::artist_links(
                 ui,
-                app,
+                &mut app.actions,
                 &now.artists,
                 theme::regular(12.0),
                 palette.secondary,

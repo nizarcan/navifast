@@ -26,8 +26,12 @@ Search waits for a 300 ms pause in typing or an explicit submission. It sends
 `search3` and `getPlaylists` independently and filters playlist names locally.
 Editing or clearing the term cancels both requests. Responses must match both
 the session and the current query generation. Retry repeats only the failed
-request. Opening an artist loads its albums with `getArtist`, and opening a
-playlist loads its ordered songs with `getPlaylist`.
+request. Opening a playlist loads its ordered songs with `getPlaylist`.
+Artist links use the IDs from OpenSubsonic's individual credits or the older
+`artistId` field. The artist page lists albums with `getArtist` and loads
+the expanded album's songs with `getAlbum`. A separate `getArtistInfo2`
+request asks for a biography and library-only similar artists. Navigating
+away cancels these reads and discards late responses.
 
 `navidrome::api::Client` uses salted Subsonic authentication and supports
 server base paths. It does not follow redirects or persist request URLs.

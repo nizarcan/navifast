@@ -16,6 +16,9 @@ The first migration stage supports:
 - Searching songs, albums, artists and playlists from the top bar. Select a
   result with the arrow keys and press Enter to play the song or open the
   album, artist or playlist.
+- Opening credited artists from search results, album tracks, playlists, and the
+  player bar. Expand an album on the artist page to play a song, or select
+  the album title to open it. Biography and similar artists appear when available.
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,

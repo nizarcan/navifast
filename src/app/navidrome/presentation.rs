@@ -225,10 +225,28 @@ pub(super) fn decode(id: &str) -> Option<String> {
 fn raw_uri(uri: &str, kind: &str) -> Option<String> {
     decode(uri.strip_prefix(&format!("navidrome:{kind}:"))?)
 }
-fn artist(name: &str) -> view::ArtistRef {
-    view::ArtistRef {
-        name: name.into(),
-        ..Default::default()
+pub(crate) fn view_artists(
+    credits: &crate::navidrome::api::ArtistCredits,
+    name: &str,
+) -> Vec<view::ArtistRef> {
+    let artist = |name: &str, id: Option<&str>| {
+        let id = id.filter(|id| !id.trim().is_empty()).map(encode);
+        view::ArtistRef {
+            name: name.into(),
+            uri: id.as_ref().map(|id| format!("navidrome:artist:{id}")),
+            id,
+        }
+    };
+    let artists: Vec<_> = credits
+        .artists
+        .iter()
+        .filter(|a| !a.name.trim().is_empty())
+        .map(|a| artist(&a.name, a.id.as_deref()))
+        .collect();
+    if artists.is_empty() && !name.trim().is_empty() {
+        vec![artist(name, credits.artist_id.as_deref())]
+    } else {
+        artists
     }
 }
 impl App {
@@ -282,7 +300,7 @@ impl App {
             uri: format!("navidrome:album:{id}"),
             id,
             name: album.name.clone(),
-            artists: vec![artist(&album.artist)],
+            artists: view_artists(&album.credits, &album.artist),
             album_type: Some("album".into()),
             total_tracks: Some(album.song_count),
             release_date: (album.year > 0).then(|| album.year.to_string()),
@@ -305,7 +323,7 @@ impl App {
             uri: format!("navidrome:track:{id}"),
             id: Some(id),
             name: song.title.clone(),
-            artists: vec![artist(&song.artist)],
+            artists: view_artists(&song.credits, &song.artist),
             duration_ms: (song.duration * 1000.0) as u32,
             track_number: Some(song.track),
             disc_number: Some(song.disc_number),
@@ -426,7 +444,7 @@ impl App {
             crate::player::LocalTrack {
                 uri: format!("navidrome:track:{}", encode(&song.id)),
                 title: song.title.clone(),
-                artists: vec![artist(&song.artist)],
+                artists: view_artists(&song.credits, &song.artist),
                 album: album.map_or(&song.album, |a| &a.name).clone(),
                 art_url: album
                     .and_then(|a| a.cover_art.as_ref())
@@ -485,7 +503,7 @@ impl App {
             .map(|id| source.iter().find(|song| &song.id == id).cloned())
             .collect();
         if let Some(songs) = songs {
-            self.play_album_songs(songs, index);
+            self.play_album_songs(self.album.clone(), songs, index);
         }
     }
     pub(super) fn ui_action(&mut self, action: UiAction, ctx: &egui::Context) {
@@ -508,7 +526,6 @@ impl App {
                 self.presentation.apply(action, ctx);
             }
             UiAction::Open(page @ (Page::Artist(_) | Page::Playlist(_))) if self.connected => {
-                self.fetch_collection(&page);
                 self.presentation.open(page);
             }
             UiAction::Reload(page @ (Page::Artist(_) | Page::Playlist(_))) => {
@@ -526,10 +543,12 @@ impl App {
             UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
             UiAction::Back | UiAction::Forward => {
                 self.presentation.apply(action, ctx);
-                let page = self.presentation.page().clone();
-                self.fetch_collection(&page);
+                crate::ui::restore_navidrome_scroll(ctx, self.presentation.page());
                 if let Page::Album(id) = self.presentation.page()
                     && let Some(id) = decode(id)
+                    && !(self.album.as_ref().is_some_and(|album| album.id == id)
+                        && !self.album_loading
+                        && self.error.is_none())
                 {
                     self.apply(Action::Open(id));
                 }
@@ -671,6 +690,13 @@ impl App {
                     .send(Request::OpenThemesFolder(self.dirs.config.join("themes")));
             }
             _ => {}
+        }
+        let collection = match self.presentation.page() {
+            page @ (Page::Artist(_) | Page::Playlist(_)) => Some(page),
+            _ => None,
+        };
+        if collection != self.presentation.navidrome_search.collection_page.as_ref() {
+            self.fetch_collection(&self.presentation.page().clone());
         }
     }
 }

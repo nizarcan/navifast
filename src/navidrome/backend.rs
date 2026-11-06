@@ -2,7 +2,9 @@
 
 use std::sync::{Arc, mpsc};
 
-use super::api::{Album, Catalogue, Client, Collection, CollectionKind, NamedItem, SearchPart};
+use super::api::{
+    Album, ArtistInfo, Catalogue, Client, Collection, CollectionKind, NamedItem, SearchPart,
+};
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
@@ -47,6 +49,19 @@ pub enum Request {
         kind: CollectionKind,
         id: String,
     },
+    ArtistAlbum {
+        session: u64,
+        request: u64,
+        client: Client,
+        id: String,
+    },
+    ArtistInfo {
+        session: u64,
+        request: u64,
+        client: Client,
+        id: String,
+    },
+    CancelCollection,
     Cover {
         session: u64,
         client: Client,
@@ -101,6 +116,17 @@ pub enum Event {
         request: u64,
         result: Result<Collection, String>,
     },
+    ArtistAlbum {
+        session: u64,
+        request: u64,
+        id: String,
+        result: Result<Album, String>,
+    },
+    ArtistInfo {
+        session: u64,
+        request: u64,
+        result: Result<ArtistInfo, String>,
+    },
     Cover {
         session: u64,
         id: String,
@@ -145,6 +171,7 @@ impl Backend {
                 let credentials = create_store();
                 let permits = Arc::new(tokio::sync::Semaphore::new(4));
                 let mut tasks = tokio::task::JoinSet::new();
+                let mut collections = tokio::task::JoinSet::new();
                 let mut searches = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
                 loop {
@@ -155,9 +182,11 @@ impl Backend {
                                 Request::Shutdown => break,
                                 Request::Cancel => {
                                     credentials.invalidate(Slot::Navidrome);
+                                    collections.abort_all();
                                     tasks.abort_all();
                                     searches.abort_all();
                                 }
+                                Request::CancelCollection => collections.abort_all(),
                                 Request::CancelSearch => searches.abort_all(),
                                 Request::Forget { session } => {
                                     // Persist revocation off the UI thread before queuing deletion.
@@ -202,7 +231,11 @@ impl Backend {
                                     let ctx = ctx.clone();
                                     let permits = permits.clone();
                                     let lease = credentials.lease(Slot::Navidrome);
-                                    let group = if matches!(request, Request::Search { .. }) { &mut searches } else { &mut tasks };
+                                    let group = match request {
+                                        Request::Search { .. } => &mut searches,
+                                        Request::Collection { .. } | Request::ArtistInfo { .. } | Request::ArtistAlbum { .. } => &mut collections,
+                                        _ => &mut tasks,
+                                    };
                                     group.spawn(async move {
                                         let Ok(_permit) = permits.acquire().await else { return; };
                                         let event = execute(request, &lease).await;
@@ -226,6 +259,7 @@ impl Backend {
                                 }
                             }
                         }
+                        _ = collections.join_next(), if !collections.is_empty() => {}
                         _ = searches.join_next(), if !searches.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
@@ -336,6 +370,27 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             request,
             result: client.collection(kind, &id).await,
         },
+        Request::ArtistAlbum {
+            session,
+            request,
+            client,
+            id,
+        } => Event::ArtistAlbum {
+            session,
+            request,
+            result: client.album(&id).await,
+            id,
+        },
+        Request::ArtistInfo {
+            session,
+            request,
+            client,
+            id,
+        } => Event::ArtistInfo {
+            session,
+            request,
+            result: client.artist_info(&id).await,
+        },
         Request::Cover {
             session,
             client,
@@ -361,6 +416,7 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
         Request::Save { .. }
         | Request::Forget { .. }
         | Request::OpenThemesFolder(_)
+        | Request::CancelCollection
         | Request::CancelSearch
         | Request::Cancel
         | Request::Shutdown => return None,

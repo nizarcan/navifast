@@ -9,7 +9,12 @@ use it contacts only the Navidrome server you configure, using your system
 HTTP proxy settings. Sign-in and playback use `ping`, `getAlbumList2`,
 `getAlbum`, `getCoverArt` and `stream`. Searching sends the term to `search3`
 and matches playlist names locally using `getPlaylists`. Opening an artist or
-playlist requests its contents with `getArtist` or `getPlaylist`. It does not contact Spotify, download
+playlist requests its contents with `getArtist` or `getPlaylist`. The artist
+page also requests the expanded album's tracks and asks your Navidrome server
+for a biography and similar artists with `getArtistInfo2`. Navidrome may use
+the external metadata integrations configured by your server administrator.
+Navifast loads artist images through your server's `getCoverArt` endpoint.
+It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.
 
 Subsonic authentication sends your username, a new random salt and a token

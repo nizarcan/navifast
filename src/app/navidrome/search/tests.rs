@@ -218,6 +218,12 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
                 r#"{"status":"ok","searchResult3":{"song":[{"id":"s","title":"Dawn"}],"album":[{"id":"a","name":"Dawn"}],"artist":[{"id":"r/x","name":"Dawn"}]}}"#
             } else if request.starts_with("GET /rest/getPlaylists.view?") {
                 r#"{"status":"failed","error":{"code":50}}"#
+            } else if request.starts_with("GET /rest/getArtistInfo2.view?") {
+                assert!(request.contains("includeNotPresent=false"));
+                r#"{"status":"ok","artistInfo2":{"biography":"<p>From the library</p>","similarArtist":[{"id":"r/y","name":"Dawn"},{"id":"-1","name":"External"},{"name":"Unknown"}]}}"#
+            } else if request.starts_with("GET /rest/getAlbum.view?") {
+                assert!(request.contains("id=a"));
+                r#"{"status":"ok","album":{"id":"a","name":"First Light","song":[{"id":"one","title":"One"},{"id":"two","title":"Two","artist":"Dawn","artistId":"r/x"}]}}"#
             } else {
                 assert!(
                     request.starts_with("GET /rest/getArtist.view?")
@@ -266,8 +272,218 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
             panic!("expected artist albums")
         };
         assert_eq!(albums[0].name, "First Light");
+        assert!(app.presentation.navidrome_search.artist_cover.is_none());
+        // Hold the optional response until the listener has played a song
+        // and left the page, regardless of the order the worker completes.
+        let mut delayed = None;
+        for _ in 0..2 {
+            let event = app
+                .backend
+                .events
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap();
+            match event {
+                event @ Event::ArtistAlbum { .. } => app.search_event(event),
+                event @ Event::ArtistInfo { .. } => delayed = Some(event),
+                _ => panic!("unexpected artist request"),
+            }
+        }
+        let delayed = delayed.unwrap();
+        let Event::ArtistInfo {
+            result: Ok(info), ..
+        } = &delayed
+        else {
+            panic!("expected metadata")
+        };
+        assert_eq!(info.biography.as_deref(), Some("From the library"));
+        assert_eq!(info.similar_artist.len(), 1);
+        assert_eq!(info.similar_artist[0].id.as_deref(), Some("r/y"));
+        app.client = None; // Exercise the native transport without a real audio device.
+        app.search_action(Action::PlayEntry(1), ctx);
+        assert_eq!(app.transport.song().unwrap().id, "two");
+        assert_eq!(app.playing_album.as_ref().unwrap().id, "a");
+        let generation = app.transport.generation;
         app.ui_action(UiAction::Back, ctx);
         assert_eq!(app.presentation.page(), &Page::Search);
+        app.search_event(delayed);
+        assert!(
+            app.presentation
+                .navidrome_search
+                .artist_info
+                .get()
+                .is_none()
+        );
+        assert_eq!(app.transport.generation, generation);
         assert_eq!(app.presentation.search.query, "Dawn");
+    });
+}
+
+fn frame(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>) -> egui::FullOutput {
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1280.0, 800.0),
+            )),
+            events,
+            ..Default::default()
+        },
+        |ui| app.draw(ui),
+    );
+    output.textures_delta.clear();
+    output
+}
+
+/// Click the actual painted credit. The same text can occur in a row and in
+/// the player bar, so pick the occurrence by its vertical position.
+fn click_credit(
+    app: &mut App,
+    ctx: &egui::Context,
+    name: &str,
+    in_player: bool,
+    occurrence: usize,
+) {
+    frame(app, ctx, vec![]);
+    let output = frame(app, ctx, vec![]);
+    let positions: Vec<_> = output
+        .shapes
+        .iter()
+        .filter_map(|shape| {
+            let egui::epaint::Shape::Text(text) = &shape.shape else {
+                return None;
+            };
+            let pos = text.pos + text.galley.size() * 0.5;
+            (text.galley.job.text == name
+                && (pos.y > 710.0) == in_player
+                && shape.clip_rect.contains(pos))
+            .then_some(pos)
+        })
+        .collect();
+    let pos = positions[occurrence];
+    for pressed in [true, false] {
+        frame(
+            app,
+            ctx,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+    }
+}
+
+#[test]
+fn same_named_credits_open_by_id_from_search_album_and_player_without_starting_a_row() {
+    with_app(|app, ctx| {
+        let song: Song = serde_json::from_value(serde_json::json!({
+            "id":"s", "title":"Duet", "artist":"Echo", "artistId":"older-primary",
+            "artists":[{"id":"r:/α","name":"Echo"},{"id":"r:/β","name":"Echo"},{"name":"Guest"}]
+        }))
+        .unwrap();
+        let album = app.album.as_mut().unwrap();
+        album.song = vec![song.clone()];
+        album.artist = "Ensemble".into();
+        album.credits.artist_id = Some("ensemble".into());
+        let album_page = Page::Album(navidrome::encode(&album.id));
+        app.albums[0] = album.clone();
+        app.play_search_songs(vec![song.clone()], 0);
+        app.sync_presentation();
+        let now = app.presentation.now_playing().unwrap();
+        assert_eq!(now.artists[2].name, "Guest");
+        assert!(now.artists[2].id.is_none());
+        let generation = app.transport.generation;
+
+        app.ui_action(UiAction::Search("Duet".into()), ctx);
+        app.presentation.navidrome_search.catalogue = Loadable::Loaded(Catalogue {
+            song: vec![song],
+            ..Default::default()
+        });
+        click_credit(app, ctx, "Echo", false, 1);
+        assert_eq!(
+            app.presentation.page(),
+            &Page::Artist(navidrome::encode("r:/β"))
+        );
+        app.ui_action(UiAction::Back, ctx);
+        assert_eq!(app.presentation.page(), &Page::Search);
+
+        app.ui_action(UiAction::Open(album_page.clone()), ctx);
+        click_credit(app, ctx, "Echo", false, 0);
+        assert_eq!(
+            app.presentation.page(),
+            &Page::Artist(navidrome::encode("r:/α"))
+        );
+        app.ui_action(UiAction::Back, ctx);
+        assert_eq!(app.presentation.page(), &album_page);
+        click_credit(app, ctx, "Echo", true, 1);
+        assert_eq!(
+            app.presentation.page(),
+            &Page::Artist(navidrome::encode("r:/β"))
+        );
+        assert_eq!(app.transport.generation, generation);
+    });
+}
+
+#[test]
+fn back_restores_the_visible_playlist_row_after_its_contents_reload() {
+    with_app(|app, ctx| {
+        let playlist = Page::Playlist(navidrome::encode("p"));
+        let contents = || Collection::Playlist {
+            name: "Long playlist".into(),
+            songs: (0..90)
+                .map(|i| Song {
+                    id: i.to_string(),
+                    title: format!("Track {i}"),
+                    ..Default::default()
+                })
+                .collect(),
+        };
+        app.ui_action(UiAction::Open(playlist.clone()), ctx);
+        app.presentation.navidrome_search.collection = Loadable::Loaded(contents());
+        frame(app, ctx, vec![]);
+        frame(
+            app,
+            ctx,
+            vec![
+                egui::Event::PointerMoved(egui::pos2(700., 400.)),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    phase: egui::TouchPhase::Move,
+                    delta: egui::vec2(0., -1250.),
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        let visible = |output: egui::FullOutput| {
+            output
+                .shapes
+                .into_iter()
+                .find_map(|shape| {
+                    let egui::epaint::Shape::Text(text) = shape.shape else {
+                        return None;
+                    };
+                    (text.galley.job.text.starts_with("Track ")
+                        && shape.clip_rect.contains(text.pos))
+                    .then(|| (text.galley.job.text.clone(), text.pos.y))
+                })
+                .unwrap()
+        };
+        // Allow egui's animated wheel movement to settle before leaving.
+        for _ in 0..60 {
+            frame(app, ctx, vec![]);
+        }
+        let original = visible(frame(app, ctx, vec![]));
+        assert_ne!(original.0, "Track 0");
+        app.ui_action(UiAction::Open(Page::Artist(navidrome::encode("r"))), ctx);
+        frame(app, ctx, vec![]);
+        app.ui_action(UiAction::Back, ctx);
+        app.presentation.navidrome_search.collection = Loadable::Loading;
+        frame(app, ctx, vec![]);
+        app.presentation.navidrome_search.collection = Loadable::Loaded(contents());
+        assert_eq!(original, visible(frame(app, ctx, vec![])));
     });
 }

@@ -36,6 +36,14 @@ and play from a chosen song. Clicking a result also opens or plays it. If one
 part of the search fails, **Retry** reloads that part while the other results
 stay available.
 
+Select an artist credit in search, on an album or playlist, or in the player
+bar to explore that artist. Navifast links each artist your server identifies.
+The first album opens with its songs visible. Select another album's arrow
+to see its songs, select a song to play it, or select the album title to open
+the full album. Back returns you to your place while playback continues.
+A biography and similar artists from your library appear when your server
+provides them.
+
 Clear the box to see your ten most recent submitted searches for this server
 and account. Pressing Enter, choosing a result, or reusing a recent term
 moves that term to the top. Use the × beside a term to remove it.

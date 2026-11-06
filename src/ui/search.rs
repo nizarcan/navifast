@@ -365,7 +365,7 @@ fn top_result(
                 );
                 subtitle_clicked = widgets::artist_links(
                     &mut child,
-                    app,
+                    &mut app.actions,
                     artists,
                     theme::regular(13.5),
                     palette.secondary,

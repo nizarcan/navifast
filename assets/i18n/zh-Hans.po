@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-06 15:54+0300\n"
+"POT-Creation-Date: 2026-11-06 16:29+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Simplified Chinese\n"
@@ -77,7 +77,7 @@ msgstr "歌单 • {owner}"
 #: src/ui/sidebar.rs:825 src/ui/sidebar.rs:973 src/model.rs:635
 #: src/model.rs:749 src/ui/keys.rs:346 src/ui/library.rs:17
 #: src/ui/navidrome_search.rs:36 src/ui/navidrome_search.rs:54
-#: src/ui/navidrome_search.rs:181 src/ui/search.rs:578
+#: src/ui/navidrome_search.rs:228 src/ui/search.rs:578
 msgid "Albums"
 msgstr "专辑"
 
@@ -151,7 +151,7 @@ msgstr "艺人"
 msgid "Podcast • {publisher}"
 msgstr "播客 • {publisher}"
 
-#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:198
+#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:331
 msgid "Nothing here yet."
 msgstr "这里还没有内容。"
 
@@ -304,7 +304,7 @@ msgstr "歌词"
 msgid "Recent"
 msgstr "最近播放"
 
-#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:488
+#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:529
 msgid "Close"
 msgstr "关闭"
 
@@ -1754,7 +1754,7 @@ msgstr "清除封面图片"
 msgid "Clear history"
 msgstr "清除记录"
 
-#: src/ui/settings.rs:1835 src/ui/show.rs:34
+#: src/ui/settings.rs:1835 src/ui/navidrome_search.rs:280 src/ui/show.rs:34
 msgid "About"
 msgstr "关于"
 
@@ -1822,7 +1822,8 @@ msgid "All"
 msgstr "全部"
 
 #: src/model.rs:633 src/ui/navidrome_search.rs:35 src/ui/navidrome_search.rs:53
-#: src/ui/navidrome_search.rs:196 src/ui/search.rs:438
+#: src/ui/navidrome_search.rs:245 src/ui/navidrome_search.rs:317
+#: src/ui/search.rs:438
 msgid "Songs"
 msgstr "歌曲"
 
@@ -2441,7 +2442,7 @@ msgstr "关闭窗口"
 msgid "Quit"
 msgstr "退出"
 
-#: src/ui/library.rs:19 src/ui/navidrome_search.rs:183
+#: src/ui/library.rs:19 src/ui/navidrome_search.rs:230
 msgid "No albums"
 msgstr "没有专辑"
 
@@ -2518,15 +2519,15 @@ msgstr "代理设置"
 msgid "Navifast {version} • not affiliated with Spotify"
 msgstr "Navifast {version} • 与 Spotify 无关"
 
-#: src/ui/mod.rs:474
+#: src/ui/mod.rs:515
 msgid "Minimize"
 msgstr "最小化"
 
-#: src/ui/mod.rs:480
+#: src/ui/mod.rs:521
 msgid "Restore"
 msgstr "还原"
 
-#: src/ui/mod.rs:482
+#: src/ui/mod.rs:523
 msgid "Maximize"
 msgstr "最大化"
 
@@ -2539,6 +2540,10 @@ msgstr "没有“{query}”的相关结果"
 #: src/ui/navidrome_search.rs:90 src/ui/search.rs:68
 msgid "Check the spelling, or try fewer words."
 msgstr "请检查拼写，或减少字词。"
+
+#: src/ui/navidrome_search.rs:293
+msgid "Similar artists"
+msgstr "相似艺人"
 
 #: src/ui/radio.rs:105
 msgid "Radio comes from playback on this computer. Turn it on in Settings."

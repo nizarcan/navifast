@@ -257,6 +257,17 @@ fn page_tint(app: &mut App) -> Option<Color32> {
     }
 }
 
+/// A returning album or artist can briefly be shorter than its saved scroll
+/// offset while its rows reload. Reapply the offset as the rows arrive.
+pub(crate) fn restore_navidrome_scroll(ctx: &egui::Context, page: &Page) {
+    let id = egui::Id::new(("navidrome-history", page));
+    ctx.data_mut(|data| {
+        if let Some(offset) = data.get_temp::<f32>(id) {
+            data.insert_temp(id.with("restore"), offset);
+        }
+    });
+}
+
 fn central(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let tint = page_tint(app);
@@ -284,47 +295,77 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
             ui.spacing_mut().scroll.fade.strength = 0.0;
             topbar::show(app, ui);
             let page = app.page().clone();
-            let scroll = crate::autoscroll::show(
-                ui,
-                egui::ScrollArea::vertical()
-                    .id_salt(("page", page.encode()))
-                    .auto_shrink([false, false]),
-                egui::Vec2b::new(false, true),
-                |ui| {
-                    Frame::new()
-                        .inner_margin(Margin {
-                            left: widgets::PAGE_PADDING as i8,
-                            right: widgets::PAGE_PADDING as i8,
-                            top: 4,
-                            bottom: 48,
-                        })
-                        .show(ui, |ui| {
-                            ui.set_min_width(ui.available_width());
-                            match page {
-                                Page::Home => home::show(app, ui),
-                                Page::TopSongs => collection::top_songs(app, ui),
-                                Page::Search if app.navidrome_mode => {
-                                    navidrome_search::show(app, ui)
-                                }
-                                Page::Artist(_) | Page::Playlist(_) if app.navidrome_mode => {
-                                    navidrome_search::collection(app, ui)
-                                }
-                                Page::Search => search::show(app, ui),
-                                Page::LikedSongs => collection::liked(app, ui),
-                                Page::Albums | Page::Artists | Page::Podcasts | Page::Episodes => {
-                                    library::show(app, ui, page)
-                                }
-                                Page::Playlist(id) => collection::playlist(app, ui, &id),
-                                Page::Album(id) => collection::album(app, ui, &id),
-                                Page::Artist(id) => artist::show(app, ui, &id),
-                                Page::Show(id) => show::show(app, ui, &id),
-                                Page::Radio(seed) => radio::radio(app, ui, &seed),
-                                Page::Queue => queue::page(app, ui),
-                                Page::Settings => settings::show(app, ui),
+            let mut area = egui::ScrollArea::vertical()
+                .id_salt(("page", page.encode()))
+                .auto_shrink([false, false]);
+            let history = app
+                .navidrome_mode
+                .then(|| egui::Id::new(("navidrome-history", &page)));
+            let restore = history
+                .and_then(|id| ui.data(|data| data.get_temp::<f32>(id.with("restore"))))
+                .filter(|_| {
+                    !ui.input(|input| {
+                        input.pointer.any_pressed() || input.smooth_scroll_delta.y != 0.0
+                    })
+                });
+            let loading = match &page {
+                Page::Album(id) => app
+                    .album_pages
+                    .get(id)
+                    .is_some_and(|p| p.album.is_loading()),
+                Page::Artist(_) | Page::Playlist(_) => {
+                    let state = &app.navidrome_search;
+                    state.collection.is_loading()
+                        || state.artist_album.is_loading()
+                        || state.artist_info.is_loading()
+                }
+                _ => false,
+            };
+            if let Some(offset) = restore {
+                area = area.vertical_scroll_offset(offset);
+            }
+            let scroll = crate::autoscroll::show(ui, area, egui::Vec2b::new(false, true), |ui| {
+                Frame::new()
+                    .inner_margin(Margin {
+                        left: widgets::PAGE_PADDING as i8,
+                        right: widgets::PAGE_PADDING as i8,
+                        top: 4,
+                        bottom: 48,
+                    })
+                    .show(ui, |ui| {
+                        ui.set_min_width(ui.available_width());
+                        match page {
+                            Page::Home => home::show(app, ui),
+                            Page::TopSongs => collection::top_songs(app, ui),
+                            Page::Search if app.navidrome_mode => navidrome_search::show(app, ui),
+                            Page::Artist(_) | Page::Playlist(_) if app.navidrome_mode => {
+                                navidrome_search::collection(app, ui)
                             }
-                        });
-                },
-            );
+                            Page::Search => search::show(app, ui),
+                            Page::LikedSongs => collection::liked(app, ui),
+                            Page::Albums | Page::Artists | Page::Podcasts | Page::Episodes => {
+                                library::show(app, ui, page)
+                            }
+                            Page::Playlist(id) => collection::playlist(app, ui, &id),
+                            Page::Album(id) => collection::album(app, ui, &id),
+                            Page::Artist(id) => artist::show(app, ui, &id),
+                            Page::Show(id) => show::show(app, ui, &id),
+                            Page::Radio(seed) => radio::radio(app, ui, &seed),
+                            Page::Queue => queue::page(app, ui),
+                            Page::Settings => settings::show(app, ui),
+                        }
+                    });
+            });
+            if let Some(id) = history {
+                ui.data_mut(|data| {
+                    if restore.is_none_or(|offset| {
+                        !loading || (scroll.state.offset.y - offset).abs() < 1.0
+                    }) {
+                        data.insert_temp(id, scroll.state.offset.y);
+                        data.remove::<f32>(id.with("restore"));
+                    }
+                });
+            }
             header_shadow(ui, scroll.inner_rect, scroll.state.offset.y, palette.dark);
         });
 }

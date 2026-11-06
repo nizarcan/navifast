@@ -1155,10 +1155,10 @@ pub struct TrackRow<'a> {
     pub picked_songs: &'a [PlayableItem],
 }
 
-/// Draw each credited artist separately so its Spotify id remains clickable.
+/// Draw each credited artist separately so each known ID opens its own artist.
 pub(crate) fn artist_links(
     ui: &mut Ui,
-    app: &mut App,
+    actions: &mut Vec<Action>,
     artists: &[ArtistRef],
     font: egui::FontId,
     color: Color32,
@@ -1178,7 +1178,7 @@ pub(crate) fn artist_links(
         }
         if let Some(id) = &artist.id {
             if theme::link(ui, &artist.name, font.clone(), color).clicked() {
-                app.actions.push(Action::Open(Page::Artist(id.clone())));
+                actions.push(Action::Open(Page::Artist(id.clone())));
                 clicked = true;
             }
         } else {
@@ -1504,7 +1504,7 @@ fn track_row_contents(
                 );
                 artist_links(
                     &mut child,
-                    app,
+                    &mut app.actions,
                     &track.artists,
                     theme::regular(13.0),
                     subtitle_color,
@@ -1592,7 +1592,7 @@ fn track_row_contents(
                     }
                     artist_links(
                         ui,
-                        app,
+                        &mut app.actions,
                         &track.artists,
                         theme::regular(12.5),
                         subtitle_color,
