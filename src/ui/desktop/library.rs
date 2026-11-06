@@ -74,7 +74,8 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             24.
         })
         .pt(match page {
-            Page::Artist(_) | Page::LikedSongs | Page::FavoriteGroup(_) | Page::Search => 8.,
+            Page::Artist(_) | Page::LikedSongs | Page::FavoriteGroup(_) => 8.,
+            Page::Search => 10.,
             Page::Settings => 16.,
             _ => 22.,
         })
@@ -297,36 +298,53 @@ fn topbar(v: &Paint<'_>) -> El {
             .child(
                 v.icon_button(&v.tr("Show sidebar"), Icon::PanelLeft, 18., |s, tx| {
                     s.dispatch(Action::ToggleSidebar, tx)
-                }),
+                })
+                .mr(2.),
             )
             .child(v.icon_button(&v.tr("Home"), Icon::House, 18., |s, tx| {
                 s.dispatch(Action::Open(Page::Albums), tx)
             }));
     }
+    let navigation = |name, icon, enabled: bool, action: Action| {
+        el().size(32., 32.)
+            .center()
+            .radius(16.)
+            .fill(color(Color32::from_black_alpha(if v.p.dark {
+                90
+            } else {
+                20
+            })))
+            .role("button")
+            .label(v.tr(name))
+            .focusable(true)
+            .disabled(!enabled)
+            .child(v.icon(icon, 20., if enabled { v.p.secondary } else { v.p.dim }))
+            .on_press_tx(move |s: &mut State, tx| s.dispatch(action.clone(), tx))
+    };
     bar = bar
-        .child(
-            v.icon_button(&v.tr("Back"), Icon::ChevronLeft, 18., |s, tx| {
-                s.dispatch(Action::Back, tx)
-            })
-            .fill(color(v.p.panel))
-            .disabled(!v.s.app.presentation.can_go_back()),
-        )
-        .child(
-            v.icon_button(&v.tr("Forward"), Icon::ChevronRight, 18., |s, tx| {
-                s.dispatch(Action::Forward, tx)
-            })
-            .fill(color(v.p.panel))
-            .disabled(!v.s.app.presentation.can_go_forward()),
-        );
+        .child(navigation(
+            "Back",
+            Icon::ChevronLeft,
+            v.s.app.presentation.can_go_back(),
+            Action::Back,
+        ))
+        .child(navigation(
+            "Forward",
+            Icon::ChevronRight,
+            v.s.app.presentation.can_go_forward(),
+            Action::Forward,
+        ));
+    let hint = v.tr("What do you want to play?");
+    let focused = v.s.query.focused;
     let input = text_input(&v.s.query, TextStyle::new(14., 400.))
         .single_line()
         .key("query")
-        .label(v.tr("Search"))
-        .grow(1.)
+        .label(&hint)
+        .w_full()
         .min_w(0.)
-        .h(32.)
+        .h(18.)
+        .caret(color(v.p.accent), color(v.p.accent.gamma_multiply(0.28)))
         .color(color(v.p.text))
-        .placeholder(v.tr("What do you want to play?"), color(v.p.secondary))
         .on_edit(|s: &mut State| &mut s.query)
         .on_input_change(|s: &mut State, tx| {
             if s.app.presentation.page() != &Page::Search {
@@ -350,65 +368,92 @@ fn topbar(v: &Paint<'_>) -> El {
             true
         })
         .on_submit(|s: &mut State, tx| s.dispatch(Action::NavidromeSearch(Search::Submit), tx));
-    bar.child(
-        row()
-            .w((v.content_width() - 205.).clamp(56., 440.))
-            .max_w(440.)
-            .min_w(56.)
-            .h(34.)
-            .px(12.)
-            .gap(8.)
-            .items_center()
-            .radius(17.)
-            .fill(color(v.p.surface))
-            .child(v.icon(Icon::Search, 16., v.p.secondary))
-            .child(input)
-            .child(if v.s.query.text.is_empty() {
-                el()
-            } else {
-                v.icon_button(&v.tr("Clear"), Icon::X, 14., |s, tx| {
-                    s.query.clear();
-                    s.dispatch(Action::NavidromeSearch(Search::Edit(String::new())), tx);
-                })
+    let width = crate::ui::topbar::navidrome_search_width(
+        v.content_width() + 2. * crate::ui::widgets::PAGE_PADDING,
+        v.s.app.presentation.settings.sidebar_visible,
+    );
+    let mut editor = el().grow(1.).min_w(0.).h(18.);
+    if v.s.query.text.is_empty() {
+        // Use a one-line label so the hint has the reference ellipsis at narrow widths.
+        editor = editor.child(
+            label(&hint, 14., 400., v.p.secondary)
+                .absolute(0., 0.)
+                .w_full()
+                .pr(4.)
+                .truncate()
+                .a11y_hidden(),
+        );
+    }
+    let mut field = row()
+        .key("search-field")
+        .ml(8.)
+        .w(width)
+        .h(34.)
+        .pl(10.)
+        .pr(30.)
+        .gap(8.)
+        .items_center()
+        .radius(17.)
+        .fill(color(if focused {
+            v.p.surface_hover
+        } else {
+            v.p.surface
+        }))
+        .child(v.icon(Icon::Search, 16., v.p.secondary))
+        .child(editor.child(input));
+    if focused {
+        field = field.border(1.5, color(v.p.text.gamma_multiply(0.6)));
+    }
+    if !v.s.query.text.is_empty() {
+        field = field.child(
+            v.icon_button(&v.tr("Clear"), Icon::X, 15., |s, tx| {
+                s.query.clear();
+                s.query.focused = true;
+                s.dispatch(Action::NavidromeSearch(Search::Edit(String::new())), tx);
+            })
+            .key("clear-query")
+            .size(24., 24.)
+            .pin(None, Some(5.), Some(5.), None),
+        );
+    }
+    bar.child(field.disabled(!v.s.app.connected))
+        .child(el().grow(1.))
+        .child(
+            v.icon_button(&v.tr("Settings"), Icon::Settings, 18., |s, tx| {
+                s.dispatch(Action::Open(Page::Settings), tx)
             }),
-    )
-    .child(el().grow(1.))
-    .child(
-        v.icon_button(&v.tr("Settings"), Icon::Settings, 18., |s, tx| {
-            s.dispatch(Action::Open(Page::Settings), tx)
-        }),
-    )
-    .child(
-        el().key("account")
-            .size(36., 36.)
-            .center()
-            .radius(18.)
-            .fill(color(v.p.surface))
-            .hover(color(v.p.surface_hover))
-            .role("button")
-            .label(v.tr("Account"))
-            .focusable(true)
-            .child(
-                el().size(28., 28.)
-                    .center()
-                    .radius(14.)
-                    .fill(color(v.p.accent))
-                    .child(label(
-                        v.s.app
-                            .preferences
-                            .username
-                            .chars()
-                            .next()
-                            .unwrap_or('?')
-                            .to_uppercase()
-                            .to_string(),
-                        13.,
-                        700.,
-                        v.p.on_accent,
-                    )),
-            )
-            .on_press_tx(|s: &mut State, _| s.menu = Some("account")),
-    )
+        )
+        .child(
+            el().key("account")
+                .size(36., 36.)
+                .center()
+                .radius(18.)
+                .fill(color(v.p.surface))
+                .hover(color(v.p.surface_hover))
+                .role("button")
+                .label(v.tr("Account"))
+                .focusable(true)
+                .child(
+                    el().size(28., 28.)
+                        .center()
+                        .radius(14.)
+                        .fill(color(v.p.accent))
+                        .child(label(
+                            v.s.app
+                                .preferences
+                                .username
+                                .chars()
+                                .next()
+                                .unwrap_or('?')
+                                .to_uppercase()
+                                .to_string(),
+                            13.,
+                            700.,
+                            v.p.on_accent,
+                        )),
+                )
+                .on_press_tx(|s: &mut State, _| s.menu = Some("account")),
+        )
 }
 fn account_menu(v: &Paint<'_>) -> El {
     let rule = || el().w_full().h(1.).fill(color(v.p.outline)).my(4.);
@@ -780,9 +825,14 @@ pub(super) fn favorite_context(tile: El, kind: FavoriteKind, id: &str) -> El {
         }
     })
 }
-pub(super) fn credits(v: &Paint<'_>, name: &str, by: &crate::navidrome::api::ArtistCredits) -> El {
+fn credits(
+    v: &Paint<'_>,
+    name: &str,
+    by: &crate::navidrome::api::ArtistCredits,
+    weight: f32,
+) -> El {
     if by.artists.iter().all(|a| a.name.trim().is_empty()) {
-        return credit(v, name, by.artist_id.as_deref());
+        return credit(v, name, by.artist_id.as_deref()).font(TextStyle::new(14., weight));
     }
     let mut names = row().min_w(0.).items_center().gap(3.);
     for (i, a) in by
@@ -794,7 +844,7 @@ pub(super) fn credits(v: &Paint<'_>, name: &str, by: &crate::navidrome::api::Art
         if i > 0 {
             names = names.child(label(",", 12.5, 400., v.p.secondary));
         }
-        names = names.child(credit(v, &a.name, a.id.as_deref()));
+        names = names.child(credit(v, &a.name, a.id.as_deref()).font(TextStyle::new(14., weight)));
     }
     names
 }
@@ -1285,14 +1335,14 @@ fn songs(v: &Paint<'_>) -> El {
                     .gap(5.)
                     .child(label(&song.title, 14., 550., ink).truncate())
                     .child(label("•", 12., 400., p.secondary))
-                    .child(credits(&v, &song.artist, &song.credits))
+                    .child(credits(&v, &song.artist, &song.credits, 500.))
             } else {
                 col()
                     .min_w(0.)
                     .grow(1.)
                     .items_start()
                     .child(label(&song.title, 14., 550., ink).w_full().truncate())
-                    .child(credits(&v, &song.artist, &song.credits))
+                    .child(credits(&v, &song.artist, &song.credits, 500.))
             };
             let uri = FavoriteKind::Song.uri(&song.id);
             let more = v
@@ -1465,8 +1515,8 @@ fn catalogue_button(
         .grow(1.)
         .min_w(0.)
         .h(32.)
-        .gap(6.)
-        .px(6.)
+        .gap(4.)
+        .pr(8.)
         .items_center()
         .radius(5.)
         .role("button")
@@ -1479,14 +1529,18 @@ fn catalogue_button(
             Color::TRANSPARENT
         })
         .hover(color(v.p.surface_hover))
-        .child(v.icon(icon, 16., if selected { v.p.accent } else { v.p.secondary }))
-        .child(label(name, 14., 500., v.p.text).truncate());
+        .child(el().size(32., 32.).center().child(v.icon(
+            icon,
+            16.,
+            if selected { v.p.accent } else { v.p.secondary },
+        )))
+        .child(label(name, 14., 400., v.p.text).truncate());
     if let Some((by, details)) = artist
         && !by.is_empty()
     {
         hit_row = hit_row
-            .child(label("·", 13., 400., v.p.dim))
-            .child(credits(v, by, details));
+            .child(label("·", 14., 400., v.p.secondary).mx(1.))
+            .child(credits(v, by, details, 400.));
     }
     hit_row
 }
@@ -1567,7 +1621,7 @@ fn playlist(v: &Paint<'_>) -> El {
 }
 fn search(v: &Paint<'_>) -> El {
     let s = &v.s.app.presentation.navidrome_search;
-    let mut list = col().w_full().gap(2.);
+    let mut list = col().w_full().gap(6.);
     if v.s.query.text.trim().is_empty() {
         if s.recent.is_empty() {
             return v
@@ -1580,21 +1634,49 @@ fn search(v: &Paint<'_>) -> El {
         }
         list = col()
             .w_full()
-            .child(label(v.tr("Recent searches"), 18., 650., v.p.text));
-        let mut terms = row().flex_wrap().gap(8.);
+            .pt(6.)
+            .child(label(v.tr("Recent searches"), 17., 700., v.p.text));
+        let mut terms = row().flex_wrap().gap(8.).mt(12.);
         for term in &s.recent {
             let query = term.clone();
             let forget = term.clone();
+            let remove = el()
+                .key(format!("forget-query-{term}"))
+                .size(21., 21.)
+                .center()
+                .role("button")
+                .label(format!("{} {term}", v.tr("Remove")))
+                .focusable(true)
+                .child(v.icon(Icon::Clock, 15., v.p.text).group_opacity(1., 0.))
+                .child(
+                    v.icon(Icon::X, 15., v.p.text)
+                        .absolute(3., 3.)
+                        .group_opacity(0., 1.),
+                )
+                .on_press_tx(move |s: &mut State, tx| {
+                    s.dispatch(Action::ForgetSearch(forget.clone()), tx)
+                });
             terms = terms.child(
                 row()
+                    .key(format!("recent-query-{term}"))
+                    .h(30.)
+                    .pl(9.)
+                    .pr(12.)
+                    .gap(3.)
                     .items_center()
-                    .child(v.button(term, false, move |s, tx| {
+                    .radius(15.)
+                    .fill(color(v.p.surface))
+                    .hover(color(v.p.surface_hover))
+                    .hover_group()
+                    .role("button")
+                    .label(term)
+                    .focusable(true)
+                    .child(remove)
+                    .child(label(term, 13., 500., v.p.text))
+                    .on_press_tx(move |s: &mut State, tx| {
                         s.query.replace_text(&query);
                         s.dispatch(Action::Search(query.clone()), tx);
-                    }))
-                    .child(v.icon_button(&v.tr("Remove"), Icon::X, 14., move |s, tx| {
-                        s.dispatch(Action::ForgetSearch(forget.clone()), tx)
-                    })),
+                    }),
             );
         }
         return list.child(terms);
@@ -1623,7 +1705,7 @@ fn search(v: &Paint<'_>) -> El {
             Hit::Playlist(_) => "Playlists",
         };
         if previous != Some(section) {
-            list = list.child(label(v.tr(section), 17., 700., v.p.text).mt(10.));
+            list = list.child(label(v.tr(section), 17., 700., v.p.text).mt(9.));
             previous = Some(section);
         }
         let icon = match hit {
@@ -1637,7 +1719,7 @@ fn search(v: &Paint<'_>) -> El {
         let mut line = row()
             .w_full()
             .items_center()
-            .gap(6.)
+            .gap(8.)
             .child(hit_row.on_press_tx(move |s: &mut State, tx| {
                 s.dispatch(Action::NavidromeSearch(Search::Activate(hit)), tx)
             }));
@@ -1647,13 +1729,13 @@ fn search(v: &Paint<'_>) -> El {
             Hit::Artist(i) => Some((FavoriteKind::Artist, &c.artist[i].id)),
             Hit::Playlist(_) => None,
         }) {
-            line = line.child(star(v, kind, id, 18.));
+            line = line.child(star(v, kind, id, 17.));
         }
         list = list.child(line);
     }
     if let Some(error) = failed(&s.playlists) {
         list = list
-            .child(label(v.tr("Playlists"), 17., 700., v.p.text).mt(10.))
+            .child(label(v.tr("Playlists"), 17., 700., v.p.text).mt(9.))
             .child(retry(
                 v,
                 error,
@@ -1891,7 +1973,7 @@ fn favorite_row(v: &Paint<'_>, kind: FavoriteKind, start: usize, cols: usize, li
         }
         let subtitle = by.map_or_else(
             || label(v.tr("Artist"), 12.5, 400., v.p.secondary),
-            |(name, by)| credits(v, name, by),
+            |(name, by)| credits(v, name, by, 500.),
         );
         let tile = col()
             .w(172.)

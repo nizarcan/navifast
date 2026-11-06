@@ -693,6 +693,50 @@ mod tests {
     }
 
     #[test]
+    fn search_editor_fits_the_reference_toolbar_at_both_widths() {
+        let mut rt = runtime("albums", "");
+        for (viewport, width) in [(1280., 440.), (760., 200.)] {
+            rt.set_viewport((viewport, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            let elements = rt.elements();
+            let field = elements
+                .iter()
+                .find(|e| e.key.as_deref() == Some("search-field"))
+                .unwrap();
+            let editor = elements
+                .iter()
+                .find(|e| e.key.as_deref() == Some("query"))
+                .unwrap();
+            let field_y = (crate::theme::TOP_BAR_HEIGHT + rt.state.titlebar_inset() - 34.) / 2.;
+            assert_eq!(field.rect, [362., field_y, width, 34.]);
+            assert_eq!(editor.rect, [396., field_y + 8., width - 64., 18.]);
+            assert_eq!(editor.label.as_deref(), Some("What do you want to play?"));
+        }
+    }
+
+    #[test]
+    fn recent_search_reopens_and_can_be_removed_independently() {
+        let mut rt = runtime("search", "recent");
+        let click = rune::accesskit::Action::Click;
+        assert!(rt.accessibility_action("recent-query-Bonobo", click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.query.text, "Bonobo");
+        assert_eq!(rt.state.app.presentation.search.committed, "Bonobo");
+        assert!(rt.accessibility_action("clear-query", click, None));
+        rt.frame(0.);
+        assert!(rt.state.query.focused);
+        assert!(rt.state.query.text.is_empty());
+        assert!(rt.accessibility_action("forget-query-Bonobo", click, None));
+        rt.frame(0.);
+        assert!(rt.state.query.text.is_empty());
+        assert_eq!(
+            rt.state.app.presentation.navidrome_search.recent,
+            ["Promises"]
+        );
+    }
+
+    #[test]
     fn album_keyboard_plays_the_selected_occurrence_after_scrolling() {
         let mut rt = runtime("album:alb0", "");
         // Make the two duplicate entries reachable only after the header scrolls out.

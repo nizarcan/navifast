@@ -82,8 +82,8 @@ impl Paint<'_> {
             .pt(48.)
             .items_center()
             .child(self.icon(icon, 40., self.p.dim))
-            .child(label(title, 16., 600., self.p.text).mt(8.))
-            .child(label(detail, 13.5, 400., self.p.secondary).mt(2.).wrap())
+            .child(label(title, 16., 600., self.p.text).mt(14.))
+            .child(label(detail, 13.5, 400., self.p.secondary).mt(8.).wrap())
     }
     fn icon(&self, icon: Icon, size: f32, ink: Color32) -> El {
         let px = (size * self.scale * self.zoom).round().max(1.) as u32;

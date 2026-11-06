@@ -96,6 +96,24 @@ fn topbar_fit(room: f32, controls: f32, labelled: f32, icons: f32) -> TopbarFit 
     }
 }
 
+/// Reserve the navigation buttons and the trailing controls before fitting Search.
+pub(super) fn navidrome_search_width(bar_width: f32, sidebar_visible: bool) -> f32 {
+    let button_and_gap = 32. + ITEM_SPACING;
+    let lead = super::widgets::PAGE_PADDING + 2. * button_and_gap + 8.;
+    let sidebar_controls = if sidebar_visible {
+        0.
+    } else {
+        2. * button_and_gap + 2.
+    };
+    topbar_fit(
+        bar_width - lead - sidebar_controls,
+        RIGHT_CONTROLS_WIDTH,
+        0.,
+        0.,
+    )
+    .search
+}
+
 /// What a badge asks of the bar, including the spacing before it.
 fn badge_width(galley: Option<&Arc<Galley>>, padding: f32, labels: bool) -> f32 {
     galley.map_or(0.0, |galley| {
