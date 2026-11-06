@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::navidrome::desktop::autoscroll::{self, Pane};
 use crate::app::navidrome::{Action as Service, search::Action as Search};
 use crate::model::Loadable;
 use crate::navidrome::api::{Album, Collection, FavoriteKind, SearchPart, Song};
@@ -79,12 +80,17 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             stick_bottom: false,
         })
         .child(content);
+    let scroll_enabled =
+        crate::autoscroll::enabled(s.app.presentation.settings.middle_click_autoscroll);
+    scroller = autoscroll::pane(scroller, Pane::Page, scroll_enabled);
     let shadow = rune::Live::new(0.);
     if let Some(offset) = s.offsets.get(page).cloned() {
         let opacity = shadow.clone();
         let depth = |y: f32| (y / 24.).clamp(0., 1.);
         opacity.set(depth(offset.get()));
+        let viewport = s.autoscroll.viewport(Pane::Page);
         scroller = scroller.on_scroll_offset(move |pos| {
+            viewport.set(pos);
             offset.set(pos.offset[1]);
             opacity.set(depth(pos.offset[1]));
         });
@@ -189,7 +195,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if s.app.presentation.dialog.is_some() {
         shell = shell.child(preferences::shortcuts(v));
     }
-    shell
+    autoscroll::shell(shell, s, v.zoom)
 }
 fn page_tint(v: &Paint<'_>, page: &Page) -> Option<Color32> {
     if let Page::LikedSongs = page {
@@ -656,6 +662,17 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
                 band
             },
         ));
+    let enabled = crate::autoscroll::enabled(app.presentation.settings.middle_click_autoscroll);
+    let list = if enabled {
+        let viewport = v.s.autoscroll.viewport(Pane::Library);
+        autoscroll::pane(
+            list.on_scroll_offset(move |pos| viewport.set(pos)),
+            Pane::Library,
+            true,
+        )
+    } else {
+        list
+    };
     side.child(list)
 }
 fn heading(v: &Paint<'_>, text: &str) -> El {

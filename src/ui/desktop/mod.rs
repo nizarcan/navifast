@@ -355,6 +355,9 @@ pub(crate) fn view(s: &State, cx: &mut Cx<State>) -> El {
 
 pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
     use rune::Key;
+    if k.key == Key::Escape && s.autoscroll.cancel() {
+        return true;
+    }
     if !s.app.connected {
         return false;
     }

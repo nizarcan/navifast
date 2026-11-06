@@ -7,8 +7,6 @@
 use egui::{Context, Id, LayerId, Pos2, Rect, Response, ScrollArea, Ui, Vec2, ViewportId};
 
 const FRAME_ID: &str = "navifast-autoscroll-frame";
-const DEAD_ZONE: f32 = 12.0;
-const SPEED: f32 = 6.0;
 
 #[derive(Clone, Copy, Default)]
 struct Input {
@@ -183,11 +181,7 @@ impl Autoscroll {
                     distance.y = 0.0;
                 }
                 let length = distance.length();
-                let delta = if length <= DEAD_ZONE {
-                    Vec2::ZERO
-                } else {
-                    distance / length * (length - DEAD_ZONE) * SPEED * owner.input.dt
-                };
+                let delta = distance.normalized() * super::speed(length) * owner.input.dt;
                 let offset = (active.offset + delta).clamp(Vec2::ZERO, owner.max);
                 let mut state = owner.state;
                 state.offset = offset;

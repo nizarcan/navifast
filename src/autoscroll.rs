@@ -18,6 +18,11 @@ pub fn enabled(chosen_on_linux: bool) -> bool {
     enabled_for(cfg!(windows), cfg!(target_os = "linux"), chosen_on_linux)
 }
 
+/// Scroll points per second beyond the middle-click anchor's dead zone.
+pub(crate) fn speed(distance: f32) -> f32 {
+    (distance - 12.).max(0.) * 6.
+}
+
 const fn enabled_for(windows: bool, linux: bool, chosen_on_linux: bool) -> bool {
     windows || (linux && chosen_on_linux)
 }

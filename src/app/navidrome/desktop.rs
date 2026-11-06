@@ -1,5 +1,6 @@
 //! The Rune window for the active Navidrome controller.
 mod artwork;
+pub(crate) mod autoscroll;
 mod placement;
 mod tracks;
 use super::{App, Host, presentation};
@@ -118,6 +119,7 @@ pub(crate) struct State {
     pub(crate) icons: RefCell<HashMap<(crate::theme::Icon, egui::Color32, u32), rune::Image>>,
     pub(crate) logos: RefCell<HashMap<u32, rune::Pixels>>,
     pub(crate) table: tracks::Tracks,
+    pub(crate) autoscroll: autoscroll::Autoscroll,
     history_tables: HashMap<Page, tracks::Tracks>,
     pub(crate) offsets: HashMap<Page, Live<f32>>,
     restore_scroll: Option<f32>,
@@ -204,6 +206,7 @@ impl State {
             icons: RefCell::default(),
             logos: RefCell::default(),
             table: Default::default(),
+            autoscroll: Default::default(),
             history_tables: Default::default(),
             offsets: HashMap::from([(page, Live::new(0.))]),
             restore_scroll: None,
@@ -306,6 +309,7 @@ impl State {
         Some(format!("song-{occurrence}:{}", song.id))
     }
     pub(crate) fn dispatch(&mut self, action: Action, tx: &mut Tx) {
+        self.autoscroll.cancel();
         let previous = self.app.presentation.page().clone();
         let session = self.app.session;
         self.app.ui_action(action, &self.window);
@@ -422,6 +426,7 @@ impl Drop for State {
 }
 
 fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
+    s.autoscroll.poll(tx);
     let restoring = s.app.restoring_login;
     let mut changed = s.app.poll(&s.window);
     if changed {
@@ -598,6 +603,7 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
         .on_close(|s, _| s.save_placement())
         .on_focus(|s, on, _| {
             if !on {
+                s.autoscroll.cancel();
                 s.save_placement();
             }
         });
