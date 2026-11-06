@@ -11,7 +11,8 @@ the appropriate AppData directories on Windows). The profile is separate from th
 
 `navidrome.json` in the config directory stores the server URL, username,
 legacy light/dark preference, volume, EQ enablement, preamp and ten band levels. It contains
-no password or authenticated stream/artwork URL. Changes are written atomically
+no password or authenticated stream/artwork URL. It also keeps up to ten recent submitted searches per server
+and username. Changes are written atomically
 on a background worker. Window geometry is stored by the native shell in its
 own Navifast profile. Logs use the state directory's `navifast.log`.
 

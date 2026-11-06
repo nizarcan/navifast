@@ -16,7 +16,7 @@ hero:
       link: https://github.com/nizarcan/navifast
 ---
 
-The first migration stage provides server sign-in, albums, artwork, local
+The first migration stage provides server sign-in, library search, albums, artwork, local
 playback, transport controls, an equalizer and spectrum display. See the
 [getting started guide](/getting-started/) for scope and limitations.
 

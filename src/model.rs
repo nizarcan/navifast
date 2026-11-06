@@ -1054,6 +1054,7 @@ pub enum Action {
     OpenInSpotify(String),
     Search(String),
     ForgetSearch(String),
+    NavidromeSearch(crate::app::navidrome::search::Action),
     SetSearchFilter(SearchFilter),
     FocusSearch,
     LoadMore(Page),

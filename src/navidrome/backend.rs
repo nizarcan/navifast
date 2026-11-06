@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, mpsc};
 
-use super::api::{Album, Client};
+use super::api::{Album, Catalogue, Client, Collection, CollectionKind, NamedItem, SearchPart};
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
@@ -30,6 +30,21 @@ pub enum Request {
         session: u64,
         request: u64,
         client: Client,
+        id: String,
+    },
+    Search {
+        session: u64,
+        request: u64,
+        client: Client,
+        query: String,
+        part: SearchPart,
+    },
+    CancelSearch,
+    Collection {
+        session: u64,
+        request: u64,
+        client: Client,
+        kind: CollectionKind,
         id: String,
     },
     Cover {
@@ -70,6 +85,21 @@ pub enum Event {
         session: u64,
         request: u64,
         result: Result<Album, String>,
+    },
+    Catalogue {
+        session: u64,
+        request: u64,
+        result: Result<Catalogue, String>,
+    },
+    Playlists {
+        session: u64,
+        request: u64,
+        result: Result<Vec<NamedItem>, String>,
+    },
+    Collection {
+        session: u64,
+        request: u64,
+        result: Result<Collection, String>,
     },
     Cover {
         session: u64,
@@ -115,6 +145,7 @@ impl Backend {
                 let credentials = create_store();
                 let permits = Arc::new(tokio::sync::Semaphore::new(4));
                 let mut tasks = tokio::task::JoinSet::new();
+                let mut searches = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
                 loop {
                     tokio::select! {
@@ -125,7 +156,9 @@ impl Backend {
                                 Request::Cancel => {
                                     credentials.invalidate(Slot::Navidrome);
                                     tasks.abort_all();
+                                    searches.abort_all();
                                 }
+                                Request::CancelSearch => searches.abort_all(),
                                 Request::Forget { session } => {
                                     // Persist revocation off the UI thread before queuing deletion.
                                     // A locked keyring must not restore a signed-out account.
@@ -169,7 +202,8 @@ impl Backend {
                                     let ctx = ctx.clone();
                                     let permits = permits.clone();
                                     let lease = credentials.lease(Slot::Navidrome);
-                                    tasks.spawn(async move {
+                                    let group = if matches!(request, Request::Search { .. }) { &mut searches } else { &mut tasks };
+                                    group.spawn(async move {
                                         let Ok(_permit) = permits.acquire().await else { return; };
                                         let event = execute(request, &lease).await;
                                         // Queue persistence before showing success, without making
@@ -192,6 +226,7 @@ impl Backend {
                                 }
                             }
                         }
+                        _ = searches.join_next(), if !searches.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
                     }
@@ -272,6 +307,35 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             request,
             result: client.album(&id).await,
         },
+        Request::Search {
+            session,
+            request,
+            client,
+            query,
+            part,
+        } => match part {
+            SearchPart::Catalogue => Event::Catalogue {
+                session,
+                request,
+                result: client.search(&query).await,
+            },
+            SearchPart::Playlists => Event::Playlists {
+                session,
+                request,
+                result: client.matching_playlists(&query).await,
+            },
+        },
+        Request::Collection {
+            session,
+            request,
+            client,
+            kind,
+            id,
+        } => Event::Collection {
+            session,
+            request,
+            result: client.collection(kind, &id).await,
+        },
         Request::Cover {
             session,
             client,
@@ -297,6 +361,7 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
         Request::Save { .. }
         | Request::Forget { .. }
         | Request::OpenThemesFolder(_)
+        | Request::CancelSearch
         | Request::Cancel
         | Request::Shutdown => return None,
     })

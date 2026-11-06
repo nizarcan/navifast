@@ -50,6 +50,39 @@ pub struct Album {
     pub song: Vec<Song>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct NamedItem {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Default, Deserialize)]
+pub struct Catalogue {
+    #[serde(default)]
+    pub song: Vec<Song>,
+    #[serde(default)]
+    pub album: Vec<Album>,
+    #[serde(default)]
+    pub artist: Vec<NamedItem>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SearchPart {
+    Catalogue,
+    Playlists,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CollectionKind {
+    Artist,
+    Playlist,
+}
+
+pub enum Collection {
+    Artist { name: String, albums: Vec<Album> },
+    Playlist { name: String, songs: Vec<Song> },
+}
+
 // Deliberately no Debug: both the secret and authenticated request URLs are sensitive.
 #[derive(Clone)]
 pub struct Client {
@@ -211,6 +244,72 @@ impl Client {
                 .cloned()
                 .ok_or("The server returned no album.")?,
         )
+    }
+
+    pub async fn search(&self, query: &str) -> Result<Catalogue, String> {
+        let body = self.request("search3", &[("query", query.into())]).await?;
+        decode(
+            body.get("searchResult3")
+                .cloned()
+                .ok_or("The server returned no search results object.")?,
+        )
+    }
+
+    pub async fn matching_playlists(&self, query: &str) -> Result<Vec<NamedItem>, String> {
+        #[derive(Deserialize)]
+        struct Playlists {
+            #[serde(default)]
+            playlist: Vec<NamedItem>,
+        }
+        let body = self.request("getPlaylists", &[]).await?;
+        let playlists: Playlists = decode(
+            body.get("playlists")
+                .cloned()
+                .ok_or("The server returned no playlist list.")?,
+        )?;
+        let needle = query.to_lowercase();
+        Ok(playlists
+            .playlist
+            .into_iter()
+            .filter(|item| item.name.to_lowercase().contains(&needle))
+            .collect())
+    }
+
+    pub async fn collection(&self, kind: CollectionKind, id: &str) -> Result<Collection, String> {
+        #[derive(Deserialize)]
+        struct Artist {
+            name: String,
+            #[serde(default)]
+            album: Vec<Album>,
+        }
+        #[derive(Deserialize)]
+        struct Playlist {
+            name: String,
+            #[serde(default)]
+            entry: Vec<Song>,
+        }
+        let (endpoint, field) = match kind {
+            CollectionKind::Artist => ("getArtist", "artist"),
+            CollectionKind::Playlist => ("getPlaylist", "playlist"),
+        };
+        let body = self.request(endpoint, &[("id", id.into())]).await?;
+        let value = body
+            .get(field)
+            .cloned()
+            .ok_or("The server returned no collection.")?;
+        Ok(match kind {
+            CollectionKind::Artist => {
+                let Artist { name, album } = decode(value)?;
+                Collection::Artist {
+                    name,
+                    albums: album,
+                }
+            }
+            CollectionKind::Playlist => {
+                let Playlist { name, entry } = decode(value)?;
+                Collection::Playlist { name, songs: entry }
+            }
+        })
     }
 
     pub async fn cover(&self, id: &str) -> Result<Vec<u8>, String> {

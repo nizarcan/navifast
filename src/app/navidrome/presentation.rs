@@ -201,7 +201,7 @@ impl ImageLoader for Artwork {
     }
 }
 
-pub(super) fn encode(id: &str) -> String {
+pub(crate) fn encode(id: &str) -> String {
     use std::fmt::Write;
     let mut encoded = String::new();
     for byte in id.bytes() {
@@ -209,7 +209,7 @@ pub(super) fn encode(id: &str) -> String {
     }
     encoded
 }
-fn decode(id: &str) -> Option<String> {
+pub(super) fn decode(id: &str) -> Option<String> {
     let (pairs, tail) = id.as_bytes().as_chunks::<2>();
     if !tail.is_empty() {
         return None;
@@ -421,10 +421,21 @@ impl App {
             }
             self.presentation_revision = Some(signature);
         }
-        let track = self
-            .transport
-            .song()
-            .map(|song| self.view_track(song, self.playing_album.as_ref()));
+        let track = self.transport.song().map(|song| {
+            let album = self.playing_album.as_ref();
+            crate::player::LocalTrack {
+                uri: format!("navidrome:track:{}", encode(&song.id)),
+                title: song.title.clone(),
+                artists: vec![artist(&song.artist)],
+                album: album.map_or(&song.album, |a| &a.name).clone(),
+                art_url: album
+                    .and_then(|a| a.cover_art.as_ref())
+                    .or(song.cover_art.as_ref())
+                    .map(|id| self.cover_uri(id)),
+                duration_ms: (song.duration * 1000.0) as u32,
+                ..Default::default()
+            }
+        });
         let local = &mut self.presentation.local;
         local.connected = self.connected;
         local.username = self.preferences.username.clone();
@@ -442,22 +453,7 @@ impl App {
         } else {
             crate::player::Playback::Playing
         };
-        local.track = track.map(|track| crate::player::LocalTrack {
-            uri: track.uri,
-            title: track.name,
-            artists: track.artists,
-            album: track
-                .album
-                .as_ref()
-                .map(|album| album.name.clone())
-                .unwrap_or_default(),
-            art_url: track
-                .album
-                .as_ref()
-                .and_then(|album| album.images.first().map(|image| image.url.clone())),
-            duration_ms: track.duration_ms,
-            ..Default::default()
-        });
+        local.track = track;
         local.error = self.transport.error.clone();
         self.presentation.assumed_context =
             self.playing_album
@@ -489,13 +485,35 @@ impl App {
             .map(|id| source.iter().find(|song| &song.id == id).cloned())
             .collect();
         if let Some(songs) = songs {
-            self.transport.songs = songs;
-            self.pending_play = None;
-            self.load(index, 0.0, false);
+            self.play_album_songs(songs, index);
         }
     }
     pub(super) fn ui_action(&mut self, action: UiAction, ctx: &egui::Context) {
         match action {
+            UiAction::NavidromeSearch(action) if self.connected => self.search_action(action, ctx),
+            UiAction::Search(query) if self.connected => {
+                self.presentation.search.focus_requested = true;
+                self.presentation.open(Page::Search);
+                self.edit_search(query, ctx);
+                self.submit_query();
+            }
+            UiAction::ForgetSearch(query) if self.connected => {
+                self.presentation
+                    .navidrome_search
+                    .recent
+                    .retain(|term| term != &query);
+                self.save_recent_searches();
+            }
+            UiAction::Open(Page::Search) | UiAction::FocusSearch if self.connected => {
+                self.presentation.apply(action, ctx);
+            }
+            UiAction::Open(page @ (Page::Artist(_) | Page::Playlist(_))) if self.connected => {
+                self.fetch_collection(&page);
+                self.presentation.open(page);
+            }
+            UiAction::Reload(page @ (Page::Artist(_) | Page::Playlist(_))) => {
+                self.fetch_collection(&page)
+            }
             UiAction::Open(Page::Album(id)) => {
                 if let Some(id) = decode(&id) {
                     self.apply(Action::Open(id));
@@ -508,6 +526,8 @@ impl App {
             UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
             UiAction::Back | UiAction::Forward => {
                 self.presentation.apply(action, ctx);
+                let page = self.presentation.page().clone();
+                self.fetch_collection(&page);
                 if let Page::Album(id) = self.presentation.page()
                     && let Some(id) = decode(id)
                 {
@@ -542,8 +562,7 @@ impl App {
                     if self.album.as_ref().is_some_and(|album| album.id == id)
                         && !self.album_loading
                     {
-                        self.transport.songs = self.album.as_ref().unwrap().song.clone();
-                        self.load(index, 0.0, false);
+                        self.apply(Action::Play(index));
                     } else {
                         self.apply(Action::Open(id.clone()));
                         self.pending_play = Some((id, index));
@@ -660,58 +679,7 @@ impl App {
 mod tests {
     use super::*;
 
-    fn with_app(test: impl FnOnce(&mut App, &egui::Context)) {
-        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
-        let root = std::env::temp_dir().join(format!(
-            "navifast-presentation-{:016x}",
-            rand::random::<u64>()
-        ));
-        let mut app = App::new(
-            &cc,
-            crate::paths::AppDirs {
-                config: root.join("config"),
-                state: root.join("state"),
-                cache: root.join("cache"),
-            },
-            None,
-            true,
-        );
-        app.connected = true;
-        app.preferences.username = "listener".into();
-        let album = Album {
-            id: "library:/🌍/album".into(),
-            name: "Original album".into(),
-            artist: "Artist".into(),
-            cover_art: Some("art:/🌍".into()),
-            song_count: 3,
-            song: vec![
-                Song {
-                    id: "song:/α".into(),
-                    title: "First".into(),
-                    duration: 120.0,
-                    ..Default::default()
-                },
-                Song {
-                    id: "song:/β".into(),
-                    title: "Second".into(),
-                    duration: 180.0,
-                    ..Default::default()
-                },
-                Song {
-                    id: "song:/α".into(),
-                    title: "First".into(),
-                    duration: 120.0,
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        };
-        app.albums.push(album.clone());
-        app.album = Some(album);
-        test(&mut app, &cc.egui_ctx);
-        drop(app);
-        let _ = std::fs::remove_dir_all(root);
-    }
+    use crate::app::navidrome::tests::with_app;
 
     #[test]
     fn native_rows_play_the_displayed_order_and_keep_duplicate_occurrences() {

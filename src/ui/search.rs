@@ -80,28 +80,41 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     }
 }
 
-fn recent(app: &mut App, ui: &mut egui::Ui) {
+pub(super) fn recent(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     ui.add_space(6.0);
-    if app.settings.search_history.is_empty() {
+    let history = if app.navidrome_mode {
+        &app.navidrome_search.recent
+    } else {
+        &app.settings.search_history
+    };
+    if history.is_empty() {
         widgets::empty_state(
             ui,
             &palette,
             Icon::Search,
-            &gettext(app.locale, "Search Spotify"),
-            &gettext(
-                app.locale,
-                "Find songs, artists, albums, playlists, and podcasts.",
-            ),
+            &if app.navidrome_mode {
+                gettext(app.locale, "Search")
+            } else {
+                gettext(app.locale, "Search Spotify")
+            },
+            &if app.navidrome_mode {
+                gettext(app.locale, "What do you want to play?")
+            } else {
+                gettext(
+                    app.locale,
+                    "Find songs, artists, albums, playlists, and podcasts.",
+                )
+            },
         );
         return;
     }
     theme::section_title(ui, &palette, &gettext(app.locale, "Recent searches"));
     ui.add_space(6.0);
-    let history = app.settings.search_history.clone();
+
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(8.0, 8.0);
-        for query in &history {
+        for query in history {
             let (response, forget) = theme::soft_button_dismiss(ui, &palette, Icon::Clock, query);
             if forget {
                 app.actions.push(Action::ForgetSearch(query.clone()));

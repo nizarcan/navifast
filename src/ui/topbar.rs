@@ -324,15 +324,38 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             let fit = topbar_fit(search_room, controls, badges(true), badges(false));
             let search_width = fit.search;
             let id = egui::Id::new("global-search");
-            let before = app.search.query.clone();
+            let mut query = app.search.query.clone();
+            let nav_key = if app.navidrome_mode
+                && app.page() == &Page::Search
+                && !egui::Popup::is_any_open(ui.ctx())
+                && app.dialog.is_none()
+                && ui.memory(|m| m.focused().is_none() || m.has_focus(id))
+            {
+                use crate::app::navidrome::search::Action as SearchAction;
+                ui.input_mut(|input| {
+                    [
+                        (egui::Key::ArrowDown, SearchAction::Move(true)),
+                        (egui::Key::ArrowUp, SearchAction::Move(false)),
+                        (egui::Key::Enter, SearchAction::Submit),
+                    ]
+                    .into_iter()
+                    .find_map(|(key, action)| {
+                        input
+                            .consume_key(egui::Modifiers::NONE, key)
+                            .then_some(action)
+                    })
+                })
+            } else {
+                None
+            };
             let response = ui
-                .add_enabled_ui(!app.navidrome_mode, |ui| {
+                .add_enabled_ui(!app.navidrome_mode || app.is_connected(), |ui| {
                     super::widgets::search_field(
                         ui,
                         &palette,
                         app.locale,
                         id,
-                        &mut app.search.query,
+                        &mut query,
                         &gettext(locale, "What do you want to play?"),
                         search_width,
                     )
@@ -344,17 +367,29 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             }
             // Clear empties the field and hands it focus in the same frame.
             // Neither should leave the page: only typing a query does.
-            let cleared = app.search.query.is_empty() && !before.is_empty();
+            let cleared = query.is_empty() && !app.search.query.is_empty();
             if response.gained_focus() && !cleared && !matches!(app.page(), Page::Search) {
                 app.actions.push(Action::Open(Page::Search));
             }
-            if app.search.query != before {
-                app.search.typed_at = Some(std::time::Instant::now());
+            if query != app.search.query {
+                if app.navidrome_mode {
+                    app.actions.push(Action::NavidromeSearch(
+                        crate::app::navidrome::search::Action::Edit(query),
+                    ));
+                } else {
+                    app.search.query = query;
+                    app.search.typed_at = Some(std::time::Instant::now());
+                }
                 if !cleared && !matches!(app.page(), Page::Search) {
                     app.actions.push(Action::Open(Page::Search));
                 }
             }
-            if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+            if let Some(action) = nav_key {
+                app.actions.push(Action::NavidromeSearch(action));
+            } else if !app.navidrome_mode
+                && response.lost_focus()
+                && ui.input(|input| input.key_pressed(egui::Key::Enter))
+            {
                 let query = app.search.query.clone();
                 app.actions.push(Action::Search(query));
             }

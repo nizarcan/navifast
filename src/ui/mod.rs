@@ -12,6 +12,7 @@ pub mod library;
 pub mod login;
 mod lyrics;
 pub mod navidrome;
+mod navidrome_search;
 pub mod player_bar;
 pub mod queue;
 pub mod radio;
@@ -302,6 +303,12 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                             match page {
                                 Page::Home => home::show(app, ui),
                                 Page::TopSongs => collection::top_songs(app, ui),
+                                Page::Search if app.navidrome_mode => {
+                                    navidrome_search::show(app, ui)
+                                }
+                                Page::Artist(_) | Page::Playlist(_) if app.navidrome_mode => {
+                                    navidrome_search::collection(app, ui)
+                                }
                                 Page::Search => search::show(app, ui),
                                 Page::LikedSongs => collection::liked(app, ui),
                                 Page::Albums | Page::Artists | Page::Podcasts | Page::Episodes => {

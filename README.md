@@ -13,6 +13,9 @@ The first migration stage supports:
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
+- Searching songs, albums, artists and playlists from the top bar. Select a
+  result with the arrow keys and press Enter to play the song or open the
+  album, artist or playlist.
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,
@@ -24,7 +27,7 @@ The first migration stage supports:
   player-bar visualizers.
 - Basic native media controls.
 
-This is an early playback build. Search, favorites, playlists, queue editing,
+This is an early playback build. Favorites, playlist management, queue editing,
 shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
 Winamp/MilkDrop controls and tray behavior are still being migrated. Their
 inherited code remains in the repository but these features are not available
@@ -77,8 +80,9 @@ connects, without flashing the login form. **Sign out** forgets it. If the store
 is locked or unavailable, playback still works and a message explains why the
 login could not be saved. Passwords are never written to the settings files.
 The server URL, username, playback preferences and up to 100 recently played
-album identifiers are saved in `navidrome.json`;
-the existing interface and theme preferences use `settings.json`, both under
+album identifiers are saved in `navidrome.json`, along with the ten most recent
+submitted searches for each server and account.
+The existing interface and theme preferences use `settings.json`. Both files live under
 Navifast's config directory. Spotify profiles and
 credentials are not imported. The app does not check for updates or contact
 Spotify in normal use. See [privacy](docs/_reference/privacy.md).
@@ -92,7 +96,7 @@ Deterministic Navidrome UI previews require the `demo` feature:
 cargo run --locked --features demo --bin navifast -- --demo --demo-navidrome
 ```
 
-Add `--demo-page album:alb0`, `--demo-page settings`, `--demo-show about`,
+Add `--demo-page search`, `--demo-page album:alb0`, `--demo-page settings`, `--demo-show about`,
 `--demo-show light,equalizer`, `--demo-show signed-out`, or
 `--demo-show restoring` for the startup loading state.
 `--demo-shot PATH --demo-size 1100x760` captures a PNG.

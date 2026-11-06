@@ -358,6 +358,7 @@ pub struct App {
     pub recents_generation: u64,
     pub queue_tab: QueueTab,
     pub search: SearchState,
+    pub(crate) navidrome_search: navidrome::search::State,
     pub playlist_pages: HashMap<String, PlaylistPage>,
     /// One checkpoint snapshot at a time, including pages evicted while it writes.
     playlist_cache_write_in_flight: bool,
@@ -849,6 +850,7 @@ impl App {
                 .and_then(QueueTab::decode)
                 .unwrap_or_default(),
             search: SearchState::default(),
+            navidrome_search: Default::default(),
             playlist_pages: HashMap::new(),
             playlist_cache_write_in_flight: false,
             load_generation: 0,
@@ -8840,6 +8842,7 @@ impl App {
                 self.open(Page::Search);
                 self.run_search(query.trim().to_string());
             }
+            Action::NavidromeSearch(_) => {} // Handled by the Navidrome presentation adapter.
             Action::ForgetSearch(query) => {
                 self.settings.search_history.retain(|entry| entry != &query);
                 self.settings_dirty = true;

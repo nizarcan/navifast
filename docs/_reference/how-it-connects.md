@@ -20,7 +20,14 @@ again. GPU textures are released with their corresponding images. Sign-out
 clears both caches, and no artwork is written to disk. `navidrome::backend`
 executes API requests on a dedicated Tokio runtime with cancellation and
 session/request generations. IDs are opaque strings. Album pages use
-`getAlbumList2` and `getAlbum`; artwork is fetched and decoded off the UI.
+`getAlbumList2` and `getAlbum`. Artwork is fetched and decoded off the UI.
+
+Search waits for a 300 ms pause in typing or an explicit submission. It sends
+`search3` and `getPlaylists` independently and filters playlist names locally.
+Editing or clearing the term cancels both requests. Responses must match both
+the session and the current query generation. Retry repeats only the failed
+request. Opening an artist loads its albums with `getArtist`, and opening a
+playlist loads its ordered songs with `getPlaylist`.
 
 `navidrome::api::Client` uses salted Subsonic authentication and supports
 server base paths. It does not follow redirects or persist request URLs.

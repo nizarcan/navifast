@@ -29,6 +29,17 @@ current song after three seconds; otherwise it selects the previous song.
 Next and natural completion advance through the selected album. Seeking while
 paused keeps playback paused. Space toggles play/pause outside text fields.
 
+Type in the search box above the library, or focus it with Ctrl+F (Cmd+F on
+macOS). Results appear as you type. Use Up and Down to select a result and
+Enter to play a song, open an album, see an artist's albums, or open a playlist
+and play from a chosen song. Clicking a result also opens or plays it. If one
+part of the search fails, **Retry** reloads that part while the other results
+stay available.
+
+Clear the box to see your ten most recent submitted searches for this server
+and account. Pressing Enter, choosing a result, or reusing a recent term
+moves that term to the top. Use the × beside a term to remove it.
+
 The equalizer changes both the sound and spectrum; muting leaves the spectrum
 active. Open **Settings** from the account menu for the original appearance,
 system/light/dark or custom theme, language, zoom and EQ controls. These
@@ -40,5 +51,5 @@ your server and reverse proxy. A redirect error means the final URL should be
 entered directly. A failed request keeps the app usable and provides a retry.
 
 This first stage has album playback, not the full inherited feature set.
-Search, playlists, favorites, shuffle/repeat, saved queues, lyrics, scrobbling,
+Playlist management, favorites, shuffle/repeat, saved queues, lyrics, scrobbling,
 transcoding, Winamp/MilkDrop controls and tray operation are still pending.

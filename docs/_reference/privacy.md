@@ -6,8 +6,10 @@ nav_order: 4
 
 Navifast has no analytics, telemetry, advertising or hosted service. In normal
 use it contacts only the Navidrome server you configure, using your system
-HTTP proxy settings. The initial client uses `ping`, `getAlbumList2`,
-`getAlbum`, `getCoverArt` and `stream`. It does not contact Spotify, download
+HTTP proxy settings. Sign-in and playback use `ping`, `getAlbumList2`,
+`getAlbum`, `getCoverArt` and `stream`. Searching sends the term to `search3`
+and matches playlist names locally using `getPlaylists`. Opening an artist or
+playlist requests its contents with `getArtist` or `getPlaylist`. It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.
 
 Subsonic authentication sends your username, a new random salt and a token
@@ -26,6 +28,8 @@ Preferences contain the server base URL, username, theme, volume, equalizer
 settings and up to 100 recently played album identifiers, but never the password.
 The recent album order stays on this computer in `navidrome.json`, survives
 restarts and is cleared when a different server or account signs in successfully.
+The same file keeps the ten most recent submitted search terms separately for
+each server and username. You can remove individual terms from the search page.
 
 Sign-out disables automatic sign-in, deletes the saved login, stops playback
 and clears the active account, library and artwork from memory. A non-secret

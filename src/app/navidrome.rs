@@ -7,9 +7,11 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 mod presentation;
+pub mod search;
 #[cfg(feature = "demo")]
 use egui::load::ImageLoader;
 use presentation::Artwork;
+pub(crate) use presentation::encode;
 
 type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, bool, Option<String>);
 
@@ -33,6 +35,8 @@ pub struct Preferences {
     pub username: String,
     /// Album URIs, newest first, belonging to the server and account above.
     pub recent_contexts: Vec<String>,
+    /// Submitted terms by the client's server and username scope.
+    pub search_history: HashMap<String, Vec<String>>,
     pub light: bool,
     pub volume: f32,
     pub eq_on: bool,
@@ -46,6 +50,7 @@ impl Default for Preferences {
             server: String::new(),
             username: String::new(),
             recent_contexts: Vec::new(),
+            search_history: HashMap::new(),
             light: false,
             volume: 0.7,
             eq_on: false,
@@ -387,6 +392,11 @@ impl App {
                 self.connecting = false;
                 self.restoring_login = false;
                 self.login.password.clear();
+                self.presentation.search = Default::default();
+                self.presentation.navidrome_search = Default::default();
+                self.presentation.history = vec![crate::model::Page::Albums];
+                self.presentation.history_index = 0;
+                self.pending_play = None;
                 self.albums.clear();
                 self.album = None;
                 self.requested_covers.clear();
@@ -446,8 +456,7 @@ impl App {
             }
             Action::Play(index) => {
                 if let Some(album) = &self.album {
-                    self.transport.songs = album.song.clone();
-                    self.load(index, 0.0, false);
+                    self.play_album_songs(album.song.clone(), index);
                 }
             }
             Action::Toggle => {
@@ -579,6 +588,18 @@ impl App {
         self.preferences.username = username.into();
     }
 
+    fn set_client(&mut self, client: Client) {
+        self.remember_account(client.base_url(), client.username());
+        self.login.password.clear();
+        self.presentation.navidrome_search.recent = self
+            .preferences
+            .search_history
+            .get(&client.scope)
+            .cloned()
+            .unwrap_or_default();
+        self.client = Some(client);
+    }
+
     fn fetch_albums(&mut self, offset: usize) {
         self.error = None;
         self.list_loading = true;
@@ -596,14 +617,11 @@ impl App {
         }
     }
 
-    fn load(&mut self, index: usize, position: f64, paused: bool) {
-        self.pending_play = None;
-        let Some(song) = self.transport.select(index, position, paused) else {
+    fn play_album_songs(&mut self, songs: Vec<Song>, index: usize) {
+        if index >= songs.len() {
             return;
-        };
-        if let Some(album) = &self.album
-            && album.song.iter().any(|item| item.id == song.id)
-        {
+        }
+        if let Some(album) = &self.album {
             self.playing_album = Some(album.clone());
             let uri = format!("navidrome:album:{}", presentation::encode(&album.id));
             self.presentation.recent_contexts.retain(|old| old != &uri);
@@ -611,6 +629,15 @@ impl App {
             self.presentation.recent_contexts.truncate(100);
             self.mark_dirty();
         }
+        self.transport.songs = songs;
+        self.load(index, 0.0, false);
+    }
+
+    fn load(&mut self, index: usize, position: f64, paused: bool) {
+        self.pending_play = None;
+        let Some(song) = self.transport.select(index, position, paused) else {
+            return;
+        };
         self.tap.clear();
         if let Some(client) = &self.client {
             self.player.send(player::Command::Load {
@@ -655,6 +682,9 @@ impl App {
     fn poll(&mut self, ctx: &egui::Context) {
         for event in self.backend.events.try_iter().collect::<Vec<_>>() {
             match event {
+                event @ (Event::Catalogue { .. }
+                | Event::Playlists { .. }
+                | Event::Collection { .. }) => self.search_event(event),
                 Event::Restored { session, result } => self.restore_login(session, result),
                 Event::CredentialError { session, message } if session == self.session => {
                     if self.connected {
@@ -668,9 +698,7 @@ impl App {
                     self.restoring_login = false;
                     match result {
                         Ok(client) => {
-                            self.remember_account(client.base_url(), client.username());
-                            self.login.password.clear();
-                            self.client = Some(client);
+                            self.set_client(client);
                             self.connected = true;
                             self.mark_dirty();
                             self.list_request += 1;
@@ -709,8 +737,7 @@ impl App {
                             let play = self.pending_play.take().filter(|(id, _)| *id == album.id);
                             self.album = Some(album);
                             if let Some((_, index)) = play {
-                                self.transport.songs = self.album.as_ref().unwrap().song.clone();
-                                self.load(index, 0.0, false);
+                                self.apply(Action::Play(index));
                             }
                         }
                         Err(error) => self.error = Some(error),
@@ -756,6 +783,7 @@ impl App {
         {
             self.save();
         }
+        self.poll_search(ctx);
         self.poll_controls(ctx);
         self.sync_media();
         self.spectrum = self.analyser.step(
@@ -1026,16 +1054,16 @@ impl App {
         if flags.contains(&"no-art") {
             self.artwork.forget_all();
         }
-        if flags.contains(&"empty") {
+        if page != Some("search") && flags.contains(&"empty") {
             self.albums.clear();
             self.album = None;
         }
-        if flags.contains(&"error") {
+        if page != Some("search") && flags.contains(&"error") {
             self.error = Some(
                 "The server did not respond in time. Check the connection and try again.".into(),
             );
         }
-        if flags.contains(&"loading") {
+        if page != Some("search") && flags.contains(&"loading") {
             self.album_loading = self.album.is_some();
             self.list_loading = self.album.is_none();
         }
@@ -1044,7 +1072,9 @@ impl App {
             self.presentation.settings.theme = crate::settings::ThemeChoice::Light;
         }
         ctx.set_theme(self.presentation.theme_preference());
-        if page == Some("settings") || self.show_eq {
+        if page == Some("search") {
+            self.populate_demo_search(&flags, ctx);
+        } else if page == Some("settings") || self.show_eq {
             self.presentation.history = vec![crate::model::Page::Settings];
         } else if page.is_some_and(|p| p.starts_with("album:")) {
             self.presentation.history = vec![crate::model::Page::Album(presentation::encode(
@@ -1112,6 +1142,59 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+    pub(super) fn with_app(test: impl FnOnce(&mut App, &egui::Context)) {
+        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
+        let root = std::env::temp_dir().join(format!(
+            "navifast-presentation-{:016x}",
+            rand::random::<u64>()
+        ));
+        let mut app = App::new(
+            &cc,
+            crate::paths::AppDirs {
+                config: root.join("config"),
+                state: root.join("state"),
+                cache: root.join("cache"),
+            },
+            None,
+            true,
+        );
+        app.connected = true;
+        app.preferences.username = "listener".into();
+        let album = Album {
+            id: "library:/🌍/album".into(),
+            name: "Original album".into(),
+            artist: "Artist".into(),
+            cover_art: Some("art:/🌍".into()),
+            song_count: 3,
+            song: vec![
+                Song {
+                    id: "song:/α".into(),
+                    title: "First".into(),
+                    duration: 120.0,
+                    ..Default::default()
+                },
+                Song {
+                    id: "song:/β".into(),
+                    title: "Second".into(),
+                    duration: 180.0,
+                    ..Default::default()
+                },
+                Song {
+                    id: "song:/α".into(),
+                    title: "First".into(),
+                    duration: 120.0,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        };
+        app.albums.push(album.clone());
+        app.album = Some(album);
+        test(&mut app, &cc.egui_ctx);
+        drop(app);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     fn transport() -> Transport {
         Transport {
             songs: vec![
