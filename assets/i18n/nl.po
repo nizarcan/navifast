@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-06 16:29+0300\n"
+"POT-Creation-Date: 2026-11-06 17:28+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Dutch\n"
@@ -76,8 +76,8 @@ msgstr "Playlist • {owner}"
 
 #: src/ui/sidebar.rs:825 src/ui/sidebar.rs:973 src/model.rs:635
 #: src/model.rs:749 src/ui/keys.rs:346 src/ui/library.rs:17
-#: src/ui/navidrome_search.rs:36 src/ui/navidrome_search.rs:54
-#: src/ui/navidrome_search.rs:228 src/ui/search.rs:578
+#: src/ui/navidrome_artist.rs:235 src/ui/navidrome_search.rs:36
+#: src/ui/navidrome_search.rs:54 src/ui/search.rs:578
 msgid "Albums"
 msgstr "Albums"
 
@@ -141,7 +141,8 @@ msgstr "Zoeken in je bibliotheek"
 
 #: src/ui/sidebar.rs:1127 src/app.rs:2459 src/ui/artist.rs:197
 #: src/ui/artist.rs:299 src/ui/home.rs:545 src/ui/library.rs:103
-#: src/ui/search.rs:158 src/ui/search.rs:483 src/ui/winamp/playlist.rs:729
+#: src/ui/navidrome_artist.rs:193 src/ui/search.rs:158 src/ui/search.rs:483
+#: src/ui/winamp/playlist.rs:729
 msgid "Artist"
 msgstr "Artiest"
 
@@ -151,7 +152,7 @@ msgstr "Artiest"
 msgid "Podcast • {publisher}"
 msgstr "Podcast • {publisher}"
 
-#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:331
+#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:236
 msgid "Nothing here yet."
 msgstr "Hier staat nog niets."
 
@@ -308,7 +309,7 @@ msgstr "Songtekst"
 msgid "Recent"
 msgstr "Recent"
 
-#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:529
+#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:541
 msgid "Close"
 msgstr "Sluiten"
 
@@ -347,7 +348,7 @@ msgid "Next up"
 msgstr "Daarna"
 
 #: src/ui/queue.rs:474 src/ui/queue.rs:507 src/ui/widgets.rs:2482
-#: src/ui/collection.rs:1071 src/ui/navidrome_search.rs:102
+#: src/ui/collection.rs:1071 src/ui/navidrome_search.rs:107
 msgid "Retry"
 msgstr "Opnieuw proberen"
 
@@ -678,7 +679,7 @@ msgstr "Spotify-audio verbroken. Lokaal afspelen maakt opnieuw verbinding"
 msgid "Radio"
 msgstr "Radio"
 
-#: src/app.rs:2440 src/api/models.rs:259
+#: src/app.rs:2440 src/api/models.rs:259 src/ui/navidrome_artist.rs:280
 msgid "Album"
 msgstr "Album"
 
@@ -1825,7 +1826,7 @@ msgstr "Covers wissen"
 msgid "Clear history"
 msgstr "Geschiedenis wissen"
 
-#: src/ui/settings.rs:1835 src/ui/navidrome_search.rs:280 src/ui/show.rs:34
+#: src/ui/settings.rs:1835 src/ui/navidrome_artist.rs:49 src/ui/show.rs:34
 msgid "About"
 msgstr "Over"
 
@@ -1865,7 +1866,7 @@ msgctxt "language"
 msgid "System"
 msgstr "Systeem"
 
-#: src/api/models.rs:256
+#: src/api/models.rs:256 src/ui/navidrome_artist.rs:281
 msgid "Single"
 msgstr "Single"
 
@@ -1887,14 +1888,13 @@ msgstr "Onbeperkt"
 msgid "{rate} fps, your screen"
 msgstr "{rate} fps, je scherm"
 
-#: src/model.rs:632 src/model.rs:748
+#: src/model.rs:632 src/model.rs:748 src/ui/navidrome_artist.rs:234
 msgctxt "filter"
 msgid "All"
 msgstr "Alles"
 
 #: src/model.rs:633 src/ui/navidrome_search.rs:35 src/ui/navidrome_search.rs:53
-#: src/ui/navidrome_search.rs:245 src/ui/navidrome_search.rs:317
-#: src/ui/search.rs:438
+#: src/ui/navidrome_search.rs:222 src/ui/search.rs:438
 msgid "Songs"
 msgstr "Nummers"
 
@@ -1902,7 +1902,7 @@ msgstr "Nummers"
 msgid "Episodes"
 msgstr "Afleveringen"
 
-#: src/model.rs:750
+#: src/model.rs:750 src/ui/navidrome_artist.rs:236
 msgid "Singles & EPs"
 msgstr "Singles en ep's"
 
@@ -1981,11 +1981,11 @@ msgstr ""
 msgid "Popular"
 msgstr "Populair"
 
-#: src/ui/artist.rs:74
+#: src/ui/artist.rs:74 src/ui/navidrome_artist.rs:617
 msgid "Show less"
 msgstr "Minder tonen"
 
-#: src/ui/artist.rs:76
+#: src/ui/artist.rs:76 src/ui/navidrome_artist.rs:619
 msgid "See more"
 msgstr "Meer tonen"
 
@@ -1993,7 +1993,7 @@ msgstr "Meer tonen"
 msgid "No popular songs to show."
 msgstr "Geen populaire nummers om te tonen."
 
-#: src/ui/artist.rs:100
+#: src/ui/artist.rs:100 src/ui/navidrome_artist.rs:222
 msgid "Discography"
 msgstr "Discografie"
 
@@ -2537,7 +2537,7 @@ msgstr "Venster sluiten"
 msgid "Quit"
 msgstr "Afsluiten"
 
-#: src/ui/library.rs:19 src/ui/navidrome_search.rs:230
+#: src/ui/library.rs:19 src/ui/navidrome_artist.rs:228
 msgid "No albums"
 msgstr "Geen albums"
 
@@ -2615,17 +2615,48 @@ msgstr "Proxyinstellingen"
 msgid "Navifast {version} • not affiliated with Spotify"
 msgstr "Navifast {version} • niet verbonden aan Spotify"
 
-#: src/ui/mod.rs:515
+#: src/ui/mod.rs:527
 msgid "Minimize"
 msgstr "Minimaliseren"
 
-#: src/ui/mod.rs:521
+#: src/ui/mod.rs:533
 msgid "Restore"
 msgstr "Herstellen"
 
-#: src/ui/mod.rs:523
+#: src/ui/mod.rs:535
 msgid "Maximize"
 msgstr "Maximaliseren"
+
+#: src/ui/navidrome_artist.rs:61
+msgid "No biography available."
+msgstr "Geen biografie beschikbaar."
+
+#: src/ui/navidrome_artist.rs:282
+msgid "EP"
+msgstr "EP"
+
+#: src/ui/navidrome_artist.rs:362
+msgid "Appears on"
+msgstr "Komt voor op"
+
+#: src/ui/navidrome_artist.rs:371
+msgid "No featured releases in your library."
+msgstr "Geen gastoptredens in je bibliotheek."
+
+#: src/ui/navidrome_artist.rs:452
+msgid "Similar artists"
+msgstr "Vergelijkbare artiesten"
+
+#: src/ui/navidrome_artist.rs:461
+msgid "No similar artists in your library."
+msgstr "Geen vergelijkbare artiesten in je bibliotheek."
+
+#: src/ui/navidrome_artist.rs:602
+#, rust-format
+msgid "{count} release"
+msgid_plural "{count} releases"
+msgstr[0] "{count} release"
+msgstr[1] "{count} releases"
 
 #. Translators: {query} is the text the user searched for.
 #: src/ui/navidrome_search.rs:89 src/ui/search.rs:66
@@ -2636,10 +2667,6 @@ msgstr "Geen resultaten voor “{query}”"
 #: src/ui/navidrome_search.rs:90 src/ui/search.rs:68
 msgid "Check the spelling, or try fewer words."
 msgstr "Controleer de spelling of probeer minder woorden."
-
-#: src/ui/navidrome_search.rs:293
-msgid "Similar artists"
-msgstr "Vergelijkbare artiesten"
 
 #: src/ui/radio.rs:105
 msgid "Radio comes from playback on this computer. Turn it on in Settings."
@@ -3165,6 +3192,7 @@ msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr ""
 "Gebruik op Wayland de sneltoets of vensterregel “Altijd bovenop” van je "
 "bureaublad."
+
 
 #~ msgid "Scroll left"
 #~ msgstr "Naar links scrollen"

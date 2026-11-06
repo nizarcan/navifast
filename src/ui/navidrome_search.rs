@@ -5,7 +5,7 @@ use crate::app::{
     navidrome::search::{Action as SearchAction, Hit},
 };
 use crate::i18n::gettext;
-use crate::model::{Action, Loadable, Page};
+use crate::model::{Action, Loadable};
 use crate::navidrome::api::{ArtistCredits, Collection, SearchPart, Song};
 use crate::theme::{self, Icon, Palette};
 
@@ -92,7 +92,12 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
     }
 }
 
-fn retry(ui: &mut egui::Ui, palette: &Palette, locale: crate::i18n::Locale, message: &str) -> bool {
+pub(super) fn retry(
+    ui: &mut egui::Ui,
+    palette: &Palette,
+    locale: crate::i18n::Locale,
+    message: &str,
+) -> bool {
     ui.horizontal_wrapped(|ui| {
         theme::subtle(ui, palette, message);
         theme::soft_button(
@@ -211,107 +216,7 @@ pub(super) fn collection(app: &mut App, ui: &mut egui::Ui) {
                 app.actions.push(Action::Reload(app.page().clone()));
             }
         }
-        Loadable::Loaded(Collection::Artist { name, albums, .. }) => {
-            let state = &app.navidrome_search;
-            ui.horizontal(|ui| {
-                widgets::cover(
-                    ui,
-                    &palette,
-                    state.artist_cover.as_deref(),
-                    56.0,
-                    28.0,
-                    Icon::User,
-                );
-                theme::section_title(ui, &palette, name);
-            });
-            ui.add_space(8.0);
-            theme::section_title(ui, &palette, &gettext(locale, "Albums"));
-            if albums.is_empty() {
-                theme::subtle(ui, &palette, &gettext(locale, "No albums"));
-            }
-            for album in albums {
-                let open = state.expanded_album() == Some(&album.id);
-                ui.horizontal(|ui| {
-                    if theme::icon_button(
-                        ui,
-                        if open {
-                            Icon::ChevronDown
-                        } else {
-                            Icon::ChevronRight
-                        },
-                        16.0,
-                        palette.secondary,
-                        palette.text,
-                        &gettext(locale, "Songs"),
-                    )
-                    .clicked()
-                    {
-                        app.actions
-                            .push(Action::NavidromeSearch(SearchAction::ExpandAlbum(
-                                (!open).then(|| album.id.clone()),
-                            )));
-                    }
-                    if theme::link(ui, &album.name, theme::medium(15.0), palette.text).clicked() {
-                        app.actions
-                            .push(Action::Open(Page::Album(crate::app::navidrome::encode(
-                                &album.id,
-                            ))));
-                    }
-                });
-                if open {
-                    ui.indent(&album.id, |ui| match &state.artist_album {
-                        Loadable::Loaded(detail) => {
-                            song_rows(ui, &mut app.actions, &palette, locale, &detail.song)
-                        }
-                        Loadable::Failed(error) => {
-                            if retry(ui, &palette, locale, error) {
-                                app.actions.push(Action::NavidromeSearch(
-                                    SearchAction::ExpandAlbum(Some(album.id.clone())),
-                                ));
-                            }
-                        }
-                        _ => widgets::loading_row(ui, &palette, locale),
-                    });
-                }
-            }
-            if let Some(info) = state.artist_info.get() {
-                if let Some(bio) = &info.biography {
-                    ui.add_space(10.0);
-                    theme::section_title(ui, &palette, &gettext(locale, "About"));
-                    ui.label(crate::bidi::layout(
-                        ui.painter(),
-                        bio,
-                        theme::regular(14.0),
-                        palette.secondary,
-                        ui.available_width(),
-                        usize::MAX,
-                        None,
-                    ));
-                }
-                if !info.similar_artist.is_empty() {
-                    ui.add_space(10.0);
-                    theme::section_title(ui, &palette, &gettext(locale, "Similar artists"));
-                    for artist in &info.similar_artist {
-                        if let Some(id) = &artist.id
-                            && row(
-                                ui,
-                                &mut app.actions,
-                                &palette,
-                                Icon::User,
-                                &artist.name,
-                                None,
-                                false,
-                            )
-                            .clicked()
-                        {
-                            app.actions.push(Action::Open(Page::Artist(
-                                crate::app::navidrome::encode(id),
-                            )));
-                        }
-                    }
-                }
-            }
-        }
+        Loadable::Loaded(Collection::Artist { .. }) => super::navidrome_artist::show(app, ui),
         Loadable::Loaded(Collection::Playlist { name, songs }) => {
             theme::section_title(ui, &palette, name);
             theme::subtle(ui, &palette, &gettext(locale, "Songs"));

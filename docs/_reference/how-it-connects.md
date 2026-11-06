@@ -28,8 +28,14 @@ Editing or clearing the term cancels both requests. Responses must match both
 the session and the current query generation. Retry repeats only the failed
 request. Opening a playlist loads its ordered songs with `getPlaylist`.
 Artist links use the IDs from OpenSubsonic's individual credits or the older
-`artistId` field. The artist page lists albums with `getArtist` and loads
-the expanded album's songs with `getAlbum`. A separate `getArtistInfo2`
+`artistId` field. The artist page uses album-artist IDs from `getArtist` to separate
+the discography from guest appearances. When the server returns only the
+discography, a paginated, song-only `search3` lookup checks performer IDs and
+groups appearances by album ID. Opening a release loads its songs with
+`getAlbum`. Artist portraits and visible
+release covers use the same bounded artwork cache as the library. The artist
+header requests a 1200-pixel portrait with `getCoverArt`. Sleeves and small
+portraits request 300 pixels. A separate `getArtistInfo2`
 request asks for a biography and library-only similar artists. Navigating
 away cancels these reads and discards late responses.
 

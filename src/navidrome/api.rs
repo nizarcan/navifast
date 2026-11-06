@@ -1,5 +1,6 @@
 //! Navidrome's public OpenSubsonic interface. Credentials never enter models.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -8,6 +9,22 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use sha2::Sha256;
 
 pub const PAGE_SIZE: usize = 60;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CoverSize {
+    Sleeve,
+    Portrait,
+}
+
+impl CoverSize {
+    pub fn pixels(self) -> u32 {
+        match self {
+            Self::Sleeve => 300,
+            Self::Portrait => 1200,
+        }
+    }
+}
+
 const MAX_JSON: usize = 16 * 1024 * 1024;
 
 /// Older servers supply one artistId. OpenSubsonic can identify each credit.
@@ -19,8 +36,35 @@ pub struct ArtistCredits {
     pub artists: Vec<ArtistCredit>,
 }
 
+impl ArtistCredits {
+    fn artist_ids(&self) -> impl Iterator<Item = &str> {
+        self.artists
+            .iter()
+            .filter_map(|artist| artist.id.as_deref())
+            .filter(|id| !id.trim().is_empty())
+    }
+
+    pub fn contains_id(&self, id: &str) -> bool {
+        if self.artist_ids().next().is_some() {
+            self.artist_ids().any(|credit| credit == id)
+        } else {
+            self.artist_id.as_deref() == Some(id)
+        }
+    }
+
+    pub fn has_ids(&self) -> bool {
+        self.artist_ids().next().is_some()
+            || self
+                .artist_id
+                .as_deref()
+                .is_some_and(|id| !id.trim().is_empty())
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct ArtistCredit {
+    pub cover_art: Option<String>,
     pub id: Option<String>,
     #[serde(default)]
     pub name: String,
@@ -64,6 +108,8 @@ pub struct Album {
     pub cover_art: Option<String>,
     #[serde(default)]
     pub song_count: u32,
+    #[serde(default)]
+    pub release_types: Vec<String>,
     #[serde(default)]
     pub year: u32,
     #[serde(default)]
@@ -354,6 +400,98 @@ impl Client {
         })
     }
 
+    /// Look up guest performances when getArtist returns only album-artist releases.
+    /// A search hit supplies candidates. Only a matching performer ID establishes a credit.
+    pub async fn appearances(
+        &self,
+        id: &str,
+        name: &str,
+        mut known: HashSet<String>,
+    ) -> Result<Vec<Album>, String> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Track {
+            id: String,
+            #[serde(flatten)]
+            credits: ArtistCredits,
+            album_id: Option<String>,
+            #[serde(default)]
+            album: String,
+            #[serde(default)]
+            album_artists: Vec<ArtistCredit>,
+            cover_art: Option<String>,
+        }
+        #[derive(Deserialize)]
+        struct Results {
+            #[serde(default)]
+            song: Vec<Track>,
+        }
+        let mut releases = Vec::new();
+        let mut offset = 0;
+        let mut page_starts = HashSet::new();
+        loop {
+            let body = self
+                .request(
+                    "search3",
+                    &[
+                        ("query", name.into()),
+                        ("songCount", PAGE_SIZE.to_string()),
+                        ("songOffset", offset.to_string()),
+                        ("artistCount", "0".into()),
+                        ("albumCount", "0".into()),
+                    ],
+                )
+                .await?;
+            let results: Results = decode(
+                body.get("searchResult3")
+                    .cloned()
+                    .ok_or("The server returned no search results object.")?,
+            )?;
+            let count = results.song.len();
+            let Some(first) = results.song.first() else {
+                break;
+            };
+            if !page_starts.insert(first.id.clone()) {
+                break;
+            }
+            for track in results.song {
+                let Some(album_id) = track.album_id else {
+                    continue;
+                };
+                if album_id.trim().is_empty()
+                    || track.album.trim().is_empty()
+                    || !track.credits.contains_id(id)
+                    || track
+                        .album_artists
+                        .iter()
+                        .any(|a| a.id.as_deref() == Some(id))
+                    || !known.insert(album_id.clone())
+                {
+                    continue;
+                }
+                let artist = track
+                    .album_artists
+                    .iter()
+                    .map(|a| a.name.as_str())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                releases.push(Album {
+                    id: album_id,
+                    name: track.album,
+                    artist,
+                    cover_art: track.cover_art,
+                    ..Default::default()
+                });
+            }
+            if count < PAGE_SIZE {
+                break;
+            }
+            offset += count;
+        }
+        Ok(releases)
+    }
+
     pub async fn artist_info(&self, id: &str) -> Result<ArtistInfo, String> {
         let body = self
             .request(
@@ -372,20 +510,26 @@ impl Client {
             .filter(|bio| !bio.trim().is_empty());
         // Some servers include unmatched Last.fm recommendations with the
         // Subsonic sentinel -1 even when only library artists were requested.
+        let mut seen = HashSet::new();
         info.similar_artist.retain(|artist| {
             !artist.name.trim().is_empty()
-                && artist
-                    .id
-                    .as_deref()
-                    .is_some_and(|id| !id.trim().is_empty() && id != "-1")
+                && artist.id.as_deref().is_some_and(|other| {
+                    !other.trim().is_empty()
+                        && other != "-1"
+                        && other != id
+                        && seen.insert(other.to_owned())
+                })
         });
         Ok(info)
     }
 
-    pub async fn cover(&self, id: &str) -> Result<Vec<u8>, String> {
+    pub async fn cover(&self, id: &str, size: CoverSize) -> Result<Vec<u8>, String> {
         let mut response = self
             .http
-            .get(self.url("getCoverArt", &[("id", id.into()), ("size", "300".into())]))
+            .get(self.url(
+                "getCoverArt",
+                &[("id", id.into()), ("size", size.pixels().to_string())],
+            ))
             .send()
             .await
             .map_err(network_error)?
@@ -572,5 +716,46 @@ mod tests {
             assert!(error.contains("Sign-in failed"));
             assert!(!error.contains("secret"));
         });
+    }
+    #[tokio::test]
+    async fn appearances_page_past_name_matches_and_deduplicate_album_ids() {
+        use crate::navidrome::test_server::{Server, response};
+        let server = Server::spawn(|request| {
+            assert!(
+                request.starts_with("GET /rest/search3.view?")
+                    && request.contains("artistCount=0")
+                    && request.contains("albumCount=0")
+            );
+            let songs = if request.contains("songOffset=0&") {
+                (0..PAGE_SIZE).map(|i| serde_json::json!({"id":i.to_string(),"artistId":"namesake","artist":"Twin","album":"Wrong album","albumId":"wrong"})).collect()
+            } else {
+                assert!(request.contains(&format!("songOffset={PAGE_SIZE}")));
+                vec![
+                    serde_json::json!({"id":"a","artists":[{"id":"guest"}],"albumId":"own","album":"Own"}),
+                    serde_json::json!({"id":"b","artists":[{"id":"guest"}],"albumArtists":[{"id":"guest"}],"albumId":"co","album":"Joint"}),
+                    serde_json::json!({"id":"c","artists":[{"id":"first"},{"id":"guest"}],"albumArtists":[{"id":"first","name":"Performer"}],"albumId":"other:/α","album":"Other","coverArt":"art"}),
+                    serde_json::json!({"id":"d","artistId":"guest","albumId":"other:/α","album":"Other"}),
+                    serde_json::json!({"id":"e","title":"A song feat. Twin","albumId":"wrong","album":"Wrong"}),
+                    serde_json::json!({"id":"f","artistId":"guest","artists":[{"id":"namesake"}],"albumId":"legacy-mismatch","album":"Wrong"}),
+                ]
+            };
+            let data = serde_json::json!({"subsonic-response":{"status":"ok","searchResult3":{"song":songs}}});
+            response("200 OK", "", data.to_string().as_bytes())
+        });
+        let client = Client::new(
+            &server.url,
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        let albums = client
+            .appearances("guest", "Twin", HashSet::from(["own".into()]))
+            .await
+            .unwrap();
+        assert_eq!(albums.len(), 1);
+        assert_eq!(albums[0].id, "other:/α");
+        assert_eq!(albums[0].artist, "Performer");
+        assert_eq!(albums[0].cover_art.as_deref(), Some("art"));
     }
 }

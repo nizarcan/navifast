@@ -220,10 +220,7 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
                 r#"{"status":"failed","error":{"code":50}}"#
             } else if request.starts_with("GET /rest/getArtistInfo2.view?") {
                 assert!(request.contains("includeNotPresent=false"));
-                r#"{"status":"ok","artistInfo2":{"biography":"<p>From the library</p>","similarArtist":[{"id":"r/y","name":"Dawn"},{"id":"-1","name":"External"},{"name":"Unknown"}]}}"#
-            } else if request.starts_with("GET /rest/getAlbum.view?") {
-                assert!(request.contains("id=a"));
-                r#"{"status":"ok","album":{"id":"a","name":"First Light","song":[{"id":"one","title":"One"},{"id":"two","title":"Two","artist":"Dawn","artistId":"r/x"}]}}"#
+                r#"{"status":"ok","artistInfo2":{"biography":"<p>From the library</p>","similarArtist":[{"id":"r/y","name":"Dawn"},{"id":"-1","name":"External"},{"name":"Unknown"},{"id":"r/x","name":"Self"},{"id":"r/y","name":"Duplicate"}]}}"#
             } else {
                 assert!(
                     request.starts_with("GET /rest/getArtist.view?")
@@ -273,8 +270,7 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
         };
         assert_eq!(albums[0].name, "First Light");
         assert!(app.presentation.navidrome_search.artist_cover.is_none());
-        // Hold the optional response until the listener has played a song
-        // and left the page, regardless of the order the worker completes.
+        // Hold the optional response until the listener leaves the artist page.
         let mut delayed = None;
         for _ in 0..2 {
             let event = app
@@ -283,7 +279,7 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
                 .recv_timeout(Duration::from_secs(5))
                 .unwrap();
             match event {
-                event @ Event::ArtistAlbum { .. } => app.search_event(event),
+                event @ Event::Appearances { .. } => app.search_event(event),
                 event @ Event::ArtistInfo { .. } => delayed = Some(event),
                 _ => panic!("unexpected artist request"),
             }
@@ -298,10 +294,14 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
         assert_eq!(info.biography.as_deref(), Some("From the library"));
         assert_eq!(info.similar_artist.len(), 1);
         assert_eq!(info.similar_artist[0].id.as_deref(), Some("r/y"));
-        app.client = None; // Exercise the native transport without a real audio device.
-        app.search_action(Action::PlayEntry(1), ctx);
-        assert_eq!(app.transport.song().unwrap().id, "two");
-        assert_eq!(app.playing_album.as_ref().unwrap().id, "a");
+        assert!(
+            app.presentation
+                .navidrome_search
+                .appearances
+                .get()
+                .unwrap()
+                .is_empty()
+        );
         let generation = app.transport.generation;
         app.ui_action(UiAction::Back, ctx);
         assert_eq!(app.presentation.page(), &Page::Search);
@@ -485,5 +485,146 @@ fn back_restores_the_visible_playlist_row_after_its_contents_reload() {
         frame(app, ctx, vec![]);
         app.presentation.navidrome_search.collection = Loadable::Loaded(contents());
         assert_eq!(original, visible(frame(app, ctx, vec![])));
+    });
+}
+
+#[test]
+fn artist_sleeves_filter_by_server_tags_and_open_the_album_without_starting_playback() {
+    with_app(|app, ctx| {
+        app.presentation.settings.sidebar_visible = false;
+        let releases = vec![
+            Album {
+                id: "ep:/β".into(),
+                name: "Two Ends".into(),
+                song: app.albums[0].song.clone(),
+                song_count: 3,
+                release_types: vec!["EP".into()],
+                year: 2022,
+                ..Default::default()
+            },
+            Album {
+                release_types: vec!["album".into()],
+                year: 2019,
+                ..app.albums[0].clone()
+            },
+            Album {
+                id: "untagged".into(),
+                name: "Archive Tape".into(),
+                ..Default::default()
+            },
+        ];
+        app.albums.push(releases[0].clone());
+        app.playing_album = Some(releases[1].clone());
+        app.ui_action(UiAction::Open(Page::Artist(navidrome::encode("r"))), ctx);
+        app.presentation.navidrome_search.collection = Loadable::Loaded(Collection::Artist {
+            name: "Library artist".into(),
+            cover_art: Some("portrait:/α".into()),
+            albums: releases,
+        });
+        app.load_artist_details();
+        let state = &app.presentation.navidrome_search;
+        assert_ne!(state.artist_cover, state.artwork_uri(Some("portrait:/α")));
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1280.0, 1800.0),
+                )),
+                ..Default::default()
+            },
+            |ui| app.draw(ui),
+        );
+        output.textures_delta.clear();
+        let headings: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|s| match &s.shape {
+                egui::Shape::Text(t)
+                    if [
+                        "Discography",
+                        "About",
+                        "Similar artists",
+                        "Appears on",
+                        "Songs",
+                    ]
+                    .contains(&t.galley.job.text.as_str()) =>
+                {
+                    Some(t.galley.job.text.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            headings,
+            ["Discography", "About", "Similar artists", "Appears on"]
+        );
+        let generation = app.transport.generation;
+        click_credit(app, ctx, "Singles & EPs", false, 0);
+        let output = frame(app, ctx, vec![]);
+        assert!(!output.shapes.iter().any(|shape| matches!(&shape.shape, egui::Shape::Text(t) if t.galley.job.text == "Archive Tape")));
+        click_credit(app, ctx, "Two Ends", false, 0);
+        assert_eq!(
+            app.presentation.page(),
+            &Page::Album(navidrome::encode("ep:/β"))
+        );
+        assert_eq!(app.transport.generation, generation);
+        // Let the sleeve click leave egui's triple-click window before the song double-click.
+        let later = ctx.input(|input| input.time + 1.0);
+        ctx.run_ui(
+            egui::RawInput {
+                time: Some(later),
+                ..Default::default()
+            },
+            |ui| app.draw(ui),
+        )
+        .textures_delta
+        .clear();
+        click_credit(app, ctx, "Second", false, 0);
+        click_credit(app, ctx, "Second", false, 0);
+        assert_eq!(app.transport.song().unwrap().id, "song:/β");
+        assert_eq!(app.playing_album.as_ref().unwrap().id, "ep:/β");
+    });
+}
+
+#[test]
+fn guest_releases_open_by_id_and_collaborative_albums_remain_in_discography() {
+    with_app(|app, ctx| {
+        let page = Page::Artist(navidrome::encode("lead"));
+        app.presentation.settings.sidebar_visible = false;
+        app.ui_action(UiAction::Open(page.clone()), ctx);
+        let albums = serde_json::from_value(serde_json::json!([
+            {"id":"joint","name":"Joint release","artistId":"other","artists":[{"id":"other"},{"id":"lead"}]},
+            {"id":"legacy","name":"Earlier release"},
+            {"id":"comp:β","name":"Featured release","artistId":"another"}
+        ])).unwrap();
+        app.presentation.navidrome_search.collection = Loadable::Loaded(Collection::Artist {
+            name: "Lead artist".into(),
+            cover_art: None,
+            albums,
+        });
+        app.load_artist_details();
+        let state = &app.presentation.navidrome_search;
+        let Some(Collection::Artist { albums, .. }) = state.collection.get() else {
+            panic!()
+        };
+        assert_eq!(
+            albums.iter().map(|a| a.id.as_str()).collect::<Vec<_>>(),
+            ["joint", "legacy"]
+        );
+        assert_eq!(state.appearances.get().unwrap()[0].id, "comp:β");
+        frame(app, ctx, vec![]);
+        ctx.data_mut(|d| {
+            d.insert_temp(
+                egui::Id::new(("navidrome-history", &page)).with("restore"),
+                1500.0f32,
+            )
+        });
+        let generation = app.transport.generation;
+        click_credit(app, ctx, "Featured release", false, 0);
+        assert_eq!(
+            app.presentation.page(),
+            &Page::Album(navidrome::encode("comp:β"))
+        );
+        assert_eq!(app.transport.generation, generation);
     });
 }

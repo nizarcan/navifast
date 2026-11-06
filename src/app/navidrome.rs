@@ -16,7 +16,7 @@ pub(crate) use presentation::{encode, view_artists};
 type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, bool, Option<String>);
 
 use crate::navidrome::{
-    api::{Album, Client, PAGE_SIZE, Song},
+    api::{Album, Client, CoverSize, PAGE_SIZE, Song},
     backend::{Backend, Event, Request},
     player::{self, Player},
 };
@@ -84,7 +84,7 @@ pub enum Action {
         bands: [f32; 10],
         preamp: f32,
     },
-    Cover(String),
+    Cover(String, CoverSize),
 }
 
 #[derive(Default)]
@@ -540,14 +540,16 @@ impl App {
                 *self.eq.lock().unwrap_or_else(|p| p.into_inner()) = settings;
                 self.mark_dirty();
             }
-            Action::Cover(id) => {
-                if self.requested_covers.insert(id.clone())
+            Action::Cover(id, size) => {
+                let uri = presentation::artwork_uri(self.session, &id, size);
+                if self.requested_covers.insert(uri.clone())
                     && let Some(client) = &self.client
                 {
                     self.backend.send(Request::Cover {
                         session: self.session,
                         client: client.clone(),
-                        cached: self.artwork.cached_bytes(&self.cover_uri(&id)),
+                        size,
+                        cached: self.artwork.cached_bytes(&uri),
                         id,
                     });
                 }
@@ -690,7 +692,7 @@ impl App {
                 event @ (Event::Catalogue { .. }
                 | Event::Playlists { .. }
                 | Event::Collection { .. }
-                | Event::ArtistAlbum { .. }
+                | Event::Appearances { .. }
                 | Event::ArtistInfo { .. }) => self.search_event(event),
                 Event::Restored { session, result } => self.restore_login(session, result),
                 Event::CredentialError { session, message } if session == self.session => {
@@ -751,12 +753,13 @@ impl App {
                     }
                 }
                 Event::Cover {
+                    size,
                     session,
                     id,
                     result: Ok(cover),
                 } if session == self.session => {
-                    self.requested_covers.remove(&id);
-                    let uri = self.cover_uri(&id);
+                    let uri = presentation::artwork_uri(session, &id, size);
+                    self.requested_covers.remove(&uri);
                     if let Some(color) = cover.color {
                         let tint = self.presentation.palette.tint_from_art(color);
                         self.presentation.accents.insert(uri.clone(), tint);
@@ -1022,6 +1025,7 @@ impl App {
                     .join(", "),
                 cover_art: Some(id.clone()),
                 song_count: 12,
+                release_types: vec!["Album".into()],
                 year: crate::demo::ALBUMS[index].2.parse().unwrap_or_default(),
                 song: songs,
             });

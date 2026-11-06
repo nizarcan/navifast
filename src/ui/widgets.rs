@@ -123,7 +123,7 @@ fn paint_ready_cover_url(
     art.is_some_and(|art| art.is_ready(url)) && paint_cover_url(ui, url, rect, corner, art, false)
 }
 
-fn paint_cover_url(
+pub(super) fn paint_cover_url(
     ui: &Ui,
     url: &str,
     rect: Rect,

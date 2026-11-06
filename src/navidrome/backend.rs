@@ -3,7 +3,8 @@
 use std::sync::{Arc, mpsc};
 
 use super::api::{
-    Album, ArtistInfo, Catalogue, Client, Collection, CollectionKind, NamedItem, SearchPart,
+    Album, ArtistInfo, Catalogue, Client, Collection, CollectionKind, CoverSize, NamedItem,
+    SearchPart,
 };
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
@@ -49,11 +50,13 @@ pub enum Request {
         kind: CollectionKind,
         id: String,
     },
-    ArtistAlbum {
+    Appearances {
         session: u64,
         request: u64,
         client: Client,
         id: String,
+        name: String,
+        discography: std::collections::HashSet<String>,
     },
     ArtistInfo {
         session: u64,
@@ -63,6 +66,7 @@ pub enum Request {
     },
     CancelCollection,
     Cover {
+        size: CoverSize,
         session: u64,
         client: Client,
         id: String,
@@ -116,11 +120,10 @@ pub enum Event {
         request: u64,
         result: Result<Collection, String>,
     },
-    ArtistAlbum {
+    Appearances {
         session: u64,
         request: u64,
-        id: String,
-        result: Result<Album, String>,
+        result: Result<Vec<Album>, String>,
     },
     ArtistInfo {
         session: u64,
@@ -128,6 +131,7 @@ pub enum Event {
         result: Result<ArtistInfo, String>,
     },
     Cover {
+        size: CoverSize,
         session: u64,
         id: String,
         result: Result<Cover, String>,
@@ -233,7 +237,7 @@ impl Backend {
                                     let lease = credentials.lease(Slot::Navidrome);
                                     let group = match request {
                                         Request::Search { .. } => &mut searches,
-                                        Request::Collection { .. } | Request::ArtistInfo { .. } | Request::ArtistAlbum { .. } => &mut collections,
+                                        Request::Collection { .. } | Request::ArtistInfo { .. } | Request::Appearances { .. } => &mut collections,
                                         _ => &mut tasks,
                                     };
                                     group.spawn(async move {
@@ -370,16 +374,17 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             request,
             result: client.collection(kind, &id).await,
         },
-        Request::ArtistAlbum {
+        Request::Appearances {
             session,
             request,
             client,
             id,
-        } => Event::ArtistAlbum {
+            name,
+            discography,
+        } => Event::Appearances {
             session,
             request,
-            result: client.album(&id).await,
-            id,
+            result: client.appearances(&id, &name, discography).await,
         },
         Request::ArtistInfo {
             session,
@@ -392,6 +397,7 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             result: client.artist_info(&id).await,
         },
         Request::Cover {
+            size,
             session,
             client,
             id,
@@ -399,15 +405,16 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
         } => {
             let bytes = match cached {
                 Some(bytes) => Ok(bytes),
-                None => client.cover(&id).await.map(Arc::from),
+                None => client.cover(&id, size).await.map(Arc::from),
             };
             let result = match bytes {
-                Ok(bytes) => tokio::task::spawn_blocking(move || decode_cover(bytes))
+                Ok(bytes) => tokio::task::spawn_blocking(move || decode_cover(bytes, size))
                     .await
                     .unwrap_or_else(|_| Err("Artwork could not be decoded.".into())),
                 Err(error) => Err(error),
             };
             Event::Cover {
+                size,
                 session,
                 id,
                 result,
@@ -423,7 +430,7 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
     })
 }
 
-fn decode_cover(bytes: Arc<[u8]>) -> Result<Cover, String> {
+fn decode_cover(bytes: Arc<[u8]>, size: CoverSize) -> Result<Cover, String> {
     let mut reader = image::ImageReader::new(std::io::Cursor::new(&*bytes))
         .with_guessed_format()
         .map_err(|_| "Invalid artwork.")?;
@@ -434,8 +441,13 @@ fn decode_cover(bytes: Arc<[u8]>) -> Result<Cover, String> {
     reader.limits(limits);
     let image = reader
         .decode()
-        .map_err(|_| "Unsupported or oversized artwork.")?
-        .thumbnail(300, 300);
+        .map_err(|_| "Unsupported or oversized artwork.")?;
+    let edge = size.pixels();
+    let image = if image.width().max(image.height()) > edge {
+        image.thumbnail(edge, edge)
+    } else {
+        image
+    };
     let preview = image.thumbnail(64, 64).into_rgba8();
     let image = image.into_rgba8();
     Ok(Cover {
@@ -612,11 +624,13 @@ mod tests {
         )
         .unwrap();
         let Some(Event::Cover {
+            size: CoverSize::Sleeve,
             session,
             id,
             result: Ok(cover),
         }) = execute(
             Request::Cover {
+                size: CoverSize::Sleeve,
                 session: 42,
                 client,
                 id: "cover:/🌍".into(),
@@ -634,10 +648,13 @@ mod tests {
         assert_eq!(cover.preview.size, [64, 32]);
         assert!(Arc::ptr_eq(&bytes, &cover.bytes));
         assert!(cover.color.is_some());
+        let portrait = decode_cover(bytes, CoverSize::Portrait).unwrap();
+        assert_eq!(portrait.image.size, [600, 300]);
+        assert_eq!(portrait.preview.size, [64, 32]);
     }
 
     #[test]
     fn invalid_artwork_is_not_retained() {
-        assert!(decode_cover(Arc::from(&b"not an image"[..])).is_err());
+        assert!(decode_cover(Arc::from(&b"not an image"[..]), CoverSize::Sleeve).is_err());
     }
 }

@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-06 16:29+0300\n"
+"POT-Creation-Date: 2026-11-06 17:28+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Traditional Chinese\n"
@@ -76,8 +76,8 @@ msgstr "播放清單 • {owner}"
 
 #: src/ui/sidebar.rs:825 src/ui/sidebar.rs:973 src/model.rs:635
 #: src/model.rs:749 src/ui/keys.rs:346 src/ui/library.rs:17
-#: src/ui/navidrome_search.rs:36 src/ui/navidrome_search.rs:54
-#: src/ui/navidrome_search.rs:228 src/ui/search.rs:578
+#: src/ui/navidrome_artist.rs:235 src/ui/navidrome_search.rs:36
+#: src/ui/navidrome_search.rs:54 src/ui/search.rs:578
 msgid "Albums"
 msgstr "專輯"
 
@@ -141,7 +141,8 @@ msgstr "在音樂庫中搜尋"
 
 #: src/ui/sidebar.rs:1127 src/app.rs:2459 src/ui/artist.rs:197
 #: src/ui/artist.rs:299 src/ui/home.rs:545 src/ui/library.rs:103
-#: src/ui/search.rs:158 src/ui/search.rs:483 src/ui/winamp/playlist.rs:729
+#: src/ui/navidrome_artist.rs:193 src/ui/search.rs:158 src/ui/search.rs:483
+#: src/ui/winamp/playlist.rs:729
 msgid "Artist"
 msgstr "藝人"
 
@@ -151,7 +152,7 @@ msgstr "藝人"
 msgid "Podcast • {publisher}"
 msgstr "Podcast • {publisher}"
 
-#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:331
+#: src/ui/sidebar.rs:1221 src/ui/navidrome_search.rs:236
 msgid "Nothing here yet."
 msgstr "這裡還沒有內容。"
 
@@ -304,7 +305,7 @@ msgstr "歌詞"
 msgid "Recent"
 msgstr "最近播放"
 
-#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:529
+#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:541
 msgid "Close"
 msgstr "關閉"
 
@@ -343,7 +344,7 @@ msgid "Next up"
 msgstr "後續曲目"
 
 #: src/ui/queue.rs:474 src/ui/queue.rs:507 src/ui/widgets.rs:2482
-#: src/ui/collection.rs:1071 src/ui/navidrome_search.rs:102
+#: src/ui/collection.rs:1071 src/ui/navidrome_search.rs:107
 msgid "Retry"
 msgstr "重試"
 
@@ -668,7 +669,7 @@ msgstr "Spotify 音訊已中斷，正在重新連線本機播放"
 msgid "Radio"
 msgstr "電台"
 
-#: src/app.rs:2440 src/api/models.rs:259
+#: src/app.rs:2440 src/api/models.rs:259 src/ui/navidrome_artist.rs:280
 msgid "Album"
 msgstr "專輯"
 
@@ -1758,7 +1759,7 @@ msgstr "清除封面圖片"
 msgid "Clear history"
 msgstr "清除紀錄"
 
-#: src/ui/settings.rs:1835 src/ui/navidrome_search.rs:280 src/ui/show.rs:34
+#: src/ui/settings.rs:1835 src/ui/navidrome_artist.rs:49 src/ui/show.rs:34
 msgid "About"
 msgstr "關於"
 
@@ -1798,7 +1799,7 @@ msgctxt "language"
 msgid "System"
 msgstr "系統"
 
-#: src/api/models.rs:256
+#: src/api/models.rs:256 src/ui/navidrome_artist.rs:281
 msgid "Single"
 msgstr "單曲"
 
@@ -1820,14 +1821,13 @@ msgstr "不限制"
 msgid "{rate} fps, your screen"
 msgstr "{rate} fps，與螢幕相同"
 
-#: src/model.rs:632 src/model.rs:748
+#: src/model.rs:632 src/model.rs:748 src/ui/navidrome_artist.rs:234
 msgctxt "filter"
 msgid "All"
 msgstr "全部"
 
 #: src/model.rs:633 src/ui/navidrome_search.rs:35 src/ui/navidrome_search.rs:53
-#: src/ui/navidrome_search.rs:245 src/ui/navidrome_search.rs:317
-#: src/ui/search.rs:438
+#: src/ui/navidrome_search.rs:222 src/ui/search.rs:438
 msgid "Songs"
 msgstr "歌曲"
 
@@ -1835,7 +1835,7 @@ msgstr "歌曲"
 msgid "Episodes"
 msgstr "單集"
 
-#: src/model.rs:750
+#: src/model.rs:750 src/ui/navidrome_artist.rs:236
 msgid "Singles & EPs"
 msgstr "單曲和 EP"
 
@@ -1906,11 +1906,11 @@ msgstr "無法載入自訂主題。請執行 navifast reload-themes 再試一次
 msgid "Popular"
 msgstr "熱門"
 
-#: src/ui/artist.rs:74
+#: src/ui/artist.rs:74 src/ui/navidrome_artist.rs:617
 msgid "Show less"
 msgstr "顯示較少"
 
-#: src/ui/artist.rs:76
+#: src/ui/artist.rs:76 src/ui/navidrome_artist.rs:619
 msgid "See more"
 msgstr "查看更多"
 
@@ -1918,7 +1918,7 @@ msgstr "查看更多"
 msgid "No popular songs to show."
 msgstr "沒有可顯示的熱門歌曲。"
 
-#: src/ui/artist.rs:100
+#: src/ui/artist.rs:100 src/ui/navidrome_artist.rs:222
 msgid "Discography"
 msgstr "音樂作品"
 
@@ -2449,7 +2449,7 @@ msgstr "關閉視窗"
 msgid "Quit"
 msgstr "結束"
 
-#: src/ui/library.rs:19 src/ui/navidrome_search.rs:230
+#: src/ui/library.rs:19 src/ui/navidrome_artist.rs:228
 msgid "No albums"
 msgstr "沒有專輯"
 
@@ -2526,17 +2526,47 @@ msgstr "Proxy 設定"
 msgid "Navifast {version} • not affiliated with Spotify"
 msgstr "Navifast {version} • 與 Spotify 無關"
 
-#: src/ui/mod.rs:515
+#: src/ui/mod.rs:527
 msgid "Minimize"
 msgstr "最小化"
 
-#: src/ui/mod.rs:521
+#: src/ui/mod.rs:533
 msgid "Restore"
 msgstr "還原"
 
-#: src/ui/mod.rs:523
+#: src/ui/mod.rs:535
 msgid "Maximize"
 msgstr "最大化"
+
+#: src/ui/navidrome_artist.rs:61
+msgid "No biography available."
+msgstr "暫無藝人簡介。"
+
+#: src/ui/navidrome_artist.rs:282
+msgid "EP"
+msgstr "EP"
+
+#: src/ui/navidrome_artist.rs:362
+msgid "Appears on"
+msgstr "參與作品"
+
+#: src/ui/navidrome_artist.rs:371
+msgid "No featured releases in your library."
+msgstr "你的音樂資料庫中沒有該藝人客串的作品。"
+
+#: src/ui/navidrome_artist.rs:452
+msgid "Similar artists"
+msgstr "相似藝人"
+
+#: src/ui/navidrome_artist.rs:461
+msgid "No similar artists in your library."
+msgstr "你的音樂資料庫中沒有相似藝人。"
+
+#: src/ui/navidrome_artist.rs:602
+#, rust-format
+msgid "{count} release"
+msgid_plural "{count} releases"
+msgstr[0] "{count} 張發行作品"
 
 #. Translators: {query} is the text the user searched for.
 #: src/ui/navidrome_search.rs:89 src/ui/search.rs:66
@@ -2547,10 +2577,6 @@ msgstr "找不到「{query}」的相關結果"
 #: src/ui/navidrome_search.rs:90 src/ui/search.rs:68
 msgid "Check the spelling, or try fewer words."
 msgstr "請檢查拼字，或減少字詞。"
-
-#: src/ui/navidrome_search.rs:293
-msgid "Similar artists"
-msgstr "相似藝人"
 
 #: src/ui/radio.rs:105
 msgid "Radio comes from playback on this computer. Turn it on in Settings."
@@ -3067,6 +3093,7 @@ msgstr "晚安"
 #: src/window.rs:12
 msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr "在 Wayland 上，請使用桌面環境的「最上層顯示」快捷鍵或視窗規則。"
+
 
 #~ msgid "Scroll left"
 #~ msgstr "向左捲動"

@@ -12,6 +12,7 @@ pub mod library;
 pub mod login;
 mod lyrics;
 pub mod navidrome;
+mod navidrome_artist;
 mod navidrome_search;
 pub mod player_bar;
 pub mod queue;
@@ -215,6 +216,9 @@ where
 
 fn page_tint(app: &mut App) -> Option<Color32> {
     let page = app.page().clone();
+    if app.navidrome_mode && matches!(page, Page::Artist(_)) {
+        return None;
+    }
     let image = match &page {
         Page::Playlist(id) => app
             .playlist_pages
@@ -316,7 +320,7 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                 Page::Artist(_) | Page::Playlist(_) => {
                     let state = &app.navidrome_search;
                     state.collection.is_loading()
-                        || state.artist_album.is_loading()
+                        || state.appearances.is_loading()
                         || state.artist_info.is_loading()
                 }
                 _ => false,
@@ -325,10 +329,18 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                 area = area.vertical_scroll_offset(offset);
             }
             let scroll = crate::autoscroll::show(ui, area, egui::Vec2b::new(false, true), |ui| {
+                let gutter = if app.navidrome_mode
+                    && matches!(page, Page::Artist(_))
+                    && app.navidrome_search.collection.get().is_some()
+                {
+                    0
+                } else {
+                    widgets::PAGE_PADDING as i8
+                };
                 Frame::new()
                     .inner_margin(Margin {
-                        left: widgets::PAGE_PADDING as i8,
-                        right: widgets::PAGE_PADDING as i8,
+                        left: gutter,
+                        right: gutter,
                         top: 4,
                         bottom: 48,
                     })

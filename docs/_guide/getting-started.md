@@ -38,11 +38,15 @@ stay available.
 
 Select an artist credit in search, on an album or playlist, or in the player
 bar to explore that artist. Navifast links each artist your server identifies.
-The first album opens with its songs visible. Select another album's arrow
-to see its songs, select a song to play it, or select the album title to open
-the full album. Back returns you to your place while playback continues.
-A biography and similar artists from your library appear when your server
-provides them.
+Select a sleeve in Discography to open the full release. Use **See more**
+to browse the whole catalogue. The **Albums** and **Singles & EPs** filters appear
+when the library has both kinds of release.
+
+Below Discography, **About** shows the artist biography. **Similar artists**
+links to artists on your server. **Appears on** shows other artists’ releases
+that credit this artist on a track. Select a cover in either release shelf,
+then double-click a song on its album page to play it. Back returns to your place on the
+artist page while playback continues.
 
 Clear the box to see your ten most recent submitted searches for this server
 and account. Pressing Enter, choosing a result, or reusing a recent term

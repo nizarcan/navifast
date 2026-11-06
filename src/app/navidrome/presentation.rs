@@ -201,6 +201,23 @@ impl ImageLoader for Artwork {
     }
 }
 
+pub(super) fn artwork_uri(session: u64, id: &str, size: CoverSize) -> String {
+    let variant = if size == CoverSize::Portrait {
+        "portrait:"
+    } else {
+        ""
+    };
+    format!("navifast-art:{session}:{variant}{}", encode(id))
+}
+
+fn artwork_request(session: u64, uri: &str) -> Option<(String, CoverSize)> {
+    let key = uri.strip_prefix(&format!("navifast-art:{session}:"))?;
+    let (id, size) = key
+        .strip_prefix("portrait:")
+        .map_or((key, CoverSize::Sleeve), |id| (id, CoverSize::Portrait));
+    Some((decode(id)?, size))
+}
+
 pub(crate) fn encode(id: &str) -> String {
     use std::fmt::Write;
     let mut encoded = String::new();
@@ -273,26 +290,18 @@ impl App {
             }
         }
         for uri in self.artwork.drain() {
-            if let Some(id) = uri
-                .strip_prefix(&format!("navifast-art:{}:", self.session))
-                .and_then(decode)
-            {
-                self.apply(Action::Cover(id));
+            if let Some((id, size)) = artwork_request(self.session, &uri) {
+                self.apply(Action::Cover(id, size));
             }
         }
         for uri in self.artwork.evict(ui.ctx()) {
-            if let Some(id) = uri
-                .strip_prefix(&format!("navifast-art:{}:", self.session))
-                .and_then(decode)
-            {
-                self.requested_covers.remove(&id);
-                self.presentation.accents.remove(&uri);
-            }
+            self.requested_covers.remove(&uri);
+            self.presentation.accents.remove(&uri);
         }
         self.sync_presentation();
     }
     pub(super) fn cover_uri(&self, id: &str) -> String {
-        format!("navifast-art:{}:{}", self.session, encode(id))
+        artwork_uri(self.session, id, CoverSize::Sleeve)
     }
     fn view_album(&self, album: &Album) -> view::Album {
         let id = encode(&album.id);
@@ -1235,5 +1244,13 @@ mod tests {
             ctx.try_load_texture(visible, Default::default(), Default::default()),
             Ok(egui::load::TexturePoll::Pending { .. })
         ));
+    }
+    #[test]
+    fn artwork_sizes_and_sessions_round_trip_opaque_service_ids_separately() {
+        for size in [CoverSize::Sleeve, CoverSize::Portrait] {
+            let uri = artwork_uri(7, "portrait:/λ", size);
+            assert_eq!(artwork_request(7, &uri), Some(("portrait:/λ".into(), size)));
+            assert_eq!(artwork_request(8, &uri), None);
+        }
     }
 }
