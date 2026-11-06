@@ -1,4 +1,4 @@
-//! Durable Spotify grants and proxy passwords in the platform credential store.
+//! Durable sign-ins and proxy passwords in the platform credential store.
 //!
 //! All native calls run on one dedicated thread. A locked store cannot hold
 //! the UI, command loop, or runtime shutdown hostage. Generation checks reject
@@ -30,11 +30,18 @@ pub enum Slot {
     Personal,
     Playback,
     Proxy,
+    Navidrome,
 }
 
 impl Slot {
     pub const SPOTIFY: [Self; 3] = [Self::Shared, Self::Personal, Self::Playback];
-    pub const ALL: [Self; 4] = [Self::Shared, Self::Personal, Self::Playback, Self::Proxy];
+    pub const ALL: [Self; 5] = [
+        Self::Shared,
+        Self::Personal,
+        Self::Playback,
+        Self::Proxy,
+        Self::Navidrome,
+    ];
     pub(crate) fn index(self) -> usize {
         self as usize
     }
@@ -44,6 +51,7 @@ impl Slot {
             Self::Personal => "personal-web",
             Self::Playback => "playback",
             Self::Proxy => "proxy-password",
+            Self::Navidrome => "navidrome",
         }
     }
 }
@@ -54,6 +62,16 @@ pub enum Grant {
     Web(StoredToken),
     Playback(Credentials),
     Proxy(ProxyPassword),
+    Navidrome(NavidromePassword),
+}
+
+/// The secret is bound to its server and account, never to editable preferences.
+/// Deliberately has no Debug implementation.
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+pub struct NavidromePassword {
+    pub server: String,
+    pub username: String,
+    pub password: String,
 }
 
 /// No Debug implementation: the password is usable, and the username is private.
@@ -97,6 +115,11 @@ impl Grant {
                     && !credentials.auth_data.is_empty()
             }
             (Slot::Proxy, Self::Proxy(password)) => password.valid(),
+            (Slot::Navidrome, Self::Navidrome(login)) => {
+                crate::navidrome::api::server_url(&login.server).is_ok()
+                    && !login.username.trim().is_empty()
+                    && !login.password.is_empty()
+            }
             _ => false,
         }
     }
@@ -121,7 +144,7 @@ pub enum Error {
     Locked,
     #[error("The system credential store did not respond. This sign-in cannot be remembered yet.")]
     Timeout,
-    #[error("The stored Spotify grant is invalid. Sign in again.")]
+    #[error("The stored sign-in is invalid. Sign in again.")]
     Invalid,
     #[error(
         "Unable to update credential-storage state. Check the application state directory's permissions."
@@ -251,7 +274,7 @@ type Job = Box<dyn FnOnce(&mut dyn ProtectedStore) + Send>;
 struct Inner {
     dirs: AppDirs,
     profile: String,
-    generations: [AtomicU64; 4],
+    generations: [AtomicU64; Slot::ALL.len()],
     // Held only around the tiny local marker files, never a native store call.
     markers: Mutex<()>,
     jobs: mpsc::SyncSender<Job>,
@@ -299,7 +322,7 @@ impl Store {
         let (jobs, receiver) = mpsc::sync_channel::<Job>(16);
         let runtime = tokio::runtime::Handle::try_current().ok();
         let _ = std::thread::Builder::new()
-            .name("spotify-credentials".into())
+            .name("navifast-credentials".into())
             .spawn(move || {
                 let _entered = runtime.as_ref().map(tokio::runtime::Handle::enter);
                 while let Ok(job) = receiver.recv() {
@@ -414,6 +437,7 @@ impl Store {
             Slot::Personal => dirs.personal_web_token_file(),
             Slot::Playback => dirs.credentials_dir().join("credentials.json"),
             Slot::Proxy => unreachable!("proxy legacy paths handled above"),
+            Slot::Navidrome => return Vec::new(),
         };
         let mut paths = vec![path.clone(), path.with_extension("json.tmp")];
         if slot != Slot::Playback {
@@ -815,12 +839,104 @@ mod tests {
         })
     }
 
+    fn navidrome_password() -> Grant {
+        Grant::Navidrome(NavidromePassword {
+            server: "https://music.example.com/library/".into(),
+            username: "dummy-listener".into(),
+            password: " dummy-navidrome-password\n".into(),
+        })
+    }
+
+    #[tokio::test]
+    async fn navidrome_login_survives_restart_and_signout_cannot_restore_it() {
+        let f = Fixture::new();
+        let grant = navidrome_password();
+        f.store
+            .lease(Slot::Navidrome)
+            .save(grant.clone())
+            .await
+            .unwrap();
+        assert!(
+            f.restart()
+                .lease(Slot::Navidrome)
+                .load()
+                .await
+                .unwrap()
+                .grant
+                == Some(grant)
+        );
+        let marker = std::fs::read_to_string(f.store.marker_path(Slot::Navidrome)).unwrap();
+        assert!(!marker.contains("dummy"));
+        assert!(!marker.contains("music.example.com"));
+        assert!(f.store.legacy_paths(Slot::Navidrome).is_empty());
+
+        f.fake.lock().unwrap().delete_error = Some(Error::Locked);
+        f.store.revoke(Slot::Navidrome).unwrap();
+        assert_eq!(
+            f.store.lease(Slot::Navidrome).delete().await,
+            Err(Error::Locked)
+        );
+        f.fake.lock().unwrap().read_error = Some(Error::Locked);
+        assert!(
+            f.restart()
+                .lease(Slot::Navidrome)
+                .load()
+                .await
+                .unwrap()
+                .grant
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn navidrome_locked_store_has_no_plaintext_fallback() {
+        let f = Fixture::new();
+        f.fake.lock().unwrap().write_error = Some(Error::Locked);
+        assert_eq!(
+            f.store
+                .lease(Slot::Navidrome)
+                .save(navidrome_password())
+                .await,
+            Err(Error::Locked)
+        );
+        assert!(f.fake.lock().unwrap().values.is_empty());
+        assert_eq!(std::fs::read_dir(&f.dirs.config).unwrap().count(), 0);
+        assert_eq!(std::fs::read_dir(&f.dirs.state).unwrap().count(), 0);
+    }
+
+    #[tokio::test]
+    async fn navidrome_late_save_cannot_undo_signout() {
+        let f = Fixture::new();
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        {
+            let mut fake = f.fake.lock().unwrap();
+            fake.entered = Some(entered_tx);
+            fake.release = Some(release_rx);
+        }
+        let saving = f.store.lease(Slot::Navidrome).save(navidrome_password());
+        entered_rx.await.unwrap();
+        f.store.revoke(Slot::Navidrome).unwrap();
+        release_tx.send(()).unwrap();
+        assert_eq!(saving.await, Err(Error::Stale));
+        assert!(
+            f.restart()
+                .lease(Slot::Navidrome)
+                .load()
+                .await
+                .unwrap()
+                .grant
+                .is_none()
+        );
+    }
+
     fn write_legacy(path: &Path, grant: &Grant) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let bytes = match grant {
             Grant::Web(token) => serde_json::to_vec(token).unwrap(),
             Grant::Playback(credentials) => serde_json::to_vec(credentials).unwrap(),
             Grant::Proxy(password) => password.password.as_bytes().to_vec(),
+            Grant::Navidrome(_) => panic!("Navidrome has no plaintext legacy credentials"),
         };
         std::fs::write(path, bytes).unwrap();
     }
@@ -987,6 +1103,7 @@ mod tests {
             web("dummy-personal-client"),
             playback(),
             proxy_password(),
+            navidrome_password(),
         ];
         for (slot, grant) in Slot::ALL.into_iter().zip(grants.iter()) {
             store.lease(slot).save(grant.clone()).await.unwrap();
@@ -997,6 +1114,7 @@ mod tests {
         }
         store.revoke_spotify().unwrap();
         store.revoke(Slot::Proxy).unwrap();
+        store.revoke(Slot::Navidrome).unwrap();
         for slot in Slot::ALL {
             let lease = store.lease(slot);
             lease.delete().await.unwrap();

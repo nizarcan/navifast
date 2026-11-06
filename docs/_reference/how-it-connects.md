@@ -24,7 +24,12 @@ session/request generations. IDs are opaque strings. Album pages use
 
 `navidrome::api::Client` uses salted Subsonic authentication and supports
 server base paths. It does not follow redirects or persist request URLs.
-Preferences are atomically written outside drawing. Passwords are session-only.
+Preferences are atomically written outside drawing. After a successful `ping`,
+the login is saved in the platform credential store. Startup restores the
+server, account and password together, then checks `ping` before loading the
+library. Credential-store operations run on a dedicated worker; a locked store
+does not delay playback or shutdown. Sign-out revokes restoration before
+deleting the secret. Demo mode never restores or saves a login.
 
 `navidrome::player` owns local transport. Output and decoding have separate
 workers. A download worker reads original audio using 256 KiB HTTP byte ranges

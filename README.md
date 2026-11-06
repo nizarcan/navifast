@@ -69,7 +69,10 @@ Enter your server's final base URL, username and password. Open an album and
 press **Play**, or double-click a song. Space toggles playback when a text
 field is not focused. Use the transport bar to seek and adjust volume.
 
-Passwords stay in memory for this stage. Sign in again after restarting.
+Navifast remembers a successful login in the system credential store and signs
+you in automatically on launch. **Sign out** forgets it. If the store is locked
+or unavailable, playback still works and a message explains why the login could
+not be saved. Passwords are never written to the settings files.
 The server URL, username and playback preferences are saved in `navidrome.json`;
 the existing interface and theme preferences use `settings.json`, both under
 Navifast's config directory. Spotify profiles and

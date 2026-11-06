@@ -248,7 +248,10 @@ impl App {
         let tap = presentation.winamp.tap.clone();
         let artwork = Arc::new(Artwork::default());
         cc.egui_ctx.add_image_loader(artwork.clone());
-        let backend = Backend::spawn(cc.egui_ctx.clone());
+        let backend = Backend::spawn(cc.egui_ctx.clone(), dirs.clone());
+        if !demo {
+            backend.send(Request::Restore { session: 0 });
+        }
         // System proxy honors normal desktop configuration. Advanced proxy UI
         // is retained in the old modules until the full settings migration.
         let proxy = crate::settings::ProxyConfig::System;
@@ -283,7 +286,7 @@ impl App {
                 username: preferences.username.clone(),
                 password: String::new(),
             },
-            connecting: false,
+            connecting: !demo,
             connected: false,
             preferences,
             albums: Vec::new(),
@@ -326,7 +329,12 @@ impl App {
 
     pub fn apply(&mut self, action: Action) {
         match action {
-            Action::EditLogin(login) => self.login = login,
+            Action::EditLogin(mut login) => {
+                if login.server != self.login.server || login.username != self.login.username {
+                    login.password.clear();
+                }
+                self.login = login;
+            }
             Action::Login => {
                 if self.demo {
                     self.connected = true;
@@ -356,6 +364,11 @@ impl App {
             Action::SignOut => {
                 self.session = self.session.wrapping_add(1);
                 self.backend.send(Request::Cancel);
+                if !self.demo {
+                    self.backend.send(Request::Forget {
+                        session: self.session,
+                    });
+                }
                 self.player.send(player::Command::Stop);
                 self.client = None;
                 self.connected = false;
@@ -589,9 +602,40 @@ impl App {
         }
     }
 
+    fn restore_login(
+        &mut self,
+        session: u64,
+        result: Result<Option<crate::credentials::NavidromePassword>, String>,
+    ) {
+        if session != self.session {
+            return;
+        }
+        self.connecting = false;
+        match result {
+            Ok(Some(login)) => {
+                self.login = Login {
+                    server: login.server,
+                    username: login.username,
+                    password: login.password,
+                };
+                self.apply(Action::Login);
+            }
+            Ok(None) => {}
+            Err(error) => self.error = Some(error),
+        }
+    }
+
     fn poll(&mut self, ctx: &egui::Context) {
         for event in self.backend.events.try_iter().collect::<Vec<_>>() {
             match event {
+                Event::Restored { session, result } => self.restore_login(session, result),
+                Event::CredentialError { session, message } if session == self.session => {
+                    if self.connected {
+                        self.presentation.toast_error(message);
+                    } else {
+                        self.error = Some(message);
+                    }
+                }
                 Event::Login { session, result } if session == self.session => {
                     self.connecting = false;
                     match result {
@@ -1090,6 +1134,60 @@ mod tests {
         assert!(!json.contains("password"));
         let old: Preferences = serde_json::from_str("{}").unwrap();
         assert_eq!(old.volume, 0.7);
+    }
+
+    #[test]
+    fn restored_login_is_bound_to_its_account_and_cancel_discards_late_results() {
+        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
+        let root =
+            std::env::temp_dir().join(format!("navifast-restore-{:016x}", rand::random::<u64>()));
+        let mut app = App::new(
+            &cc,
+            crate::paths::AppDirs {
+                config: root.join("config"),
+                state: root.join("state"),
+                cache: root.join("cache"),
+            },
+            None,
+            true,
+        );
+        assert!(!app.connecting, "demo never restores a real credential");
+        app.login.server = "https://edited-preferences.example.com".into();
+        app.login.username = "different-account".into();
+        let saved = crate::credentials::NavidromePassword {
+            server: "https://music.example.com/library/".into(),
+            username: "listener".into(),
+            password: "dummy-password".into(),
+        };
+        app.restore_login(app.session, Ok(Some(saved.clone())));
+        assert!(app.connected, "restoration signs in automatically");
+        assert_eq!(app.login.server, saved.server);
+        assert_eq!(app.login.username, saved.username);
+        let mut edited = app.login.clone();
+        edited.server = "https://another-server.example.com".into();
+        app.apply(Action::EditLogin(edited));
+        assert!(app.login.password.is_empty());
+        app.login.password = saved.password.clone();
+        let mut edited = app.login.clone();
+        edited.username = "another-account".into();
+        app.apply(Action::EditLogin(edited));
+        assert!(app.login.password.is_empty());
+
+        let old_session = app.session;
+        app.apply(Action::Cancel);
+        app.connected = false;
+        app.restore_login(old_session, Ok(Some(saved.clone())));
+        assert!(!app.connected);
+        assert!(app.login.password.is_empty());
+        app.restore_login(app.session, Err("Unlock the credential store.".into()));
+        assert!(!app.connecting);
+        assert_eq!(app.error.as_deref(), Some("Unlock the credential store."));
+        let old_session = app.session;
+        app.apply(Action::SignOut);
+        app.restore_login(old_session, Ok(Some(saved)));
+        assert!(!app.connected);
+        drop(app);
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

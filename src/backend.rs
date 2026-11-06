@@ -2072,7 +2072,7 @@ impl Worker {
         lease: CredentialLease,
         result: Result<crate::credentials::Loaded, crate::credentials::Error>,
     ) {
-        if slot == CredentialSlot::Proxy {
+        if matches!(slot, CredentialSlot::Proxy | CredentialSlot::Navidrome) {
             return;
         }
         if !lease.current() {
@@ -2124,7 +2124,7 @@ impl Worker {
                     }
                 }
             }
-            None | Some(StoredGrant::Proxy(_)) => {}
+            None | Some(StoredGrant::Proxy(_) | StoredGrant::Navidrome(_)) => {}
         }
         if slot != CredentialSlot::Playback && self.web_tokens[slot.index()].is_none() {
             self.api.clear(if slot == CredentialSlot::Shared {

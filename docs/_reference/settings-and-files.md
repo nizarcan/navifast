@@ -23,8 +23,18 @@ live in the config directory's `themes/` folder. Both settings files are written
 atomically on the background worker and contain no password. Spotify-specific
 settings are inactive, and automatic update checks remain disabled.
 
-Inherited Spotify session caches and credential migration helpers are unused by
-normal Navidrome startup. In-memory artwork and album metadata
+A successful Navidrome login is stored separately in Keychain on macOS,
+Credential Manager on Windows, or Secret Service on Linux. The protected record
+contains the server URL, username and password together. Editing the server or
+username in the login form clears its password field. There is no plaintext
+fallback if the credential store is locked or unavailable.
+
+**Sign out** removes the saved login. Non-secret revocation markers under
+`credential-storage/` in the state directory prevent automatic sign-in even if
+the system store cannot delete the password immediately.
+
+Inherited Spotify session caches and credentials are unused by normal Navidrome
+startup. In-memory artwork and album metadata
 are cleared on sign-out. Preferences are local; queues are not saved yet.
 
 ## Custom themes

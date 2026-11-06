@@ -13,7 +13,7 @@ finish-args:
   - --device=dri
   - --socket=pulseaudio
   - --share=network
-  # Reserved for future protected Navidrome credential storage.
+  # Remember the Navidrome login in the desktop credential store.
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.kde.StatusNotifierWatcher
   - --own-name=org.mpris.MediaPlayer2.navifast

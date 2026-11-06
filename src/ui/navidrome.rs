@@ -68,7 +68,7 @@ pub fn login(app: &App, ui: &mut egui::Ui) -> Vec<Action> {
                                     actions.push(Action::Login);
                                 }
                                 ui.add_space(12.0);
-                                ui.add(egui::Label::new(egui::RichText::new("Your password stays in memory for this session. Use HTTPS for a remote server.")
+                                ui.add(egui::Label::new(egui::RichText::new("Your login is saved in the system credential store. Use HTTPS for a remote server.")
                                     .size(12.0).color(palette.secondary)).wrap());
                             });
                     });

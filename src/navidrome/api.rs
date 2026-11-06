@@ -120,6 +120,14 @@ impl Client {
         &self.username
     }
 
+    pub(super) fn saved_login(&self) -> crate::credentials::NavidromePassword {
+        crate::credentials::NavidromePassword {
+            server: self.base_url().into(),
+            username: self.username.clone(),
+            password: self.password.as_ref().clone(),
+        }
+    }
+
     pub(super) fn url(&self, endpoint: &str, params: &[(&str, String)]) -> reqwest::Url {
         let mut url = self
             .base

@@ -3,8 +3,15 @@
 use std::sync::{Arc, mpsc};
 
 use super::api::{Album, Client};
+use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Restore {
+        session: u64,
+    },
+    Forget {
+        session: u64,
+    },
     Login {
         session: u64,
         server: String,
@@ -41,6 +48,14 @@ pub enum Request {
 }
 
 pub enum Event {
+    Restored {
+        session: u64,
+        result: Result<Option<NavidromePassword>, String>,
+    },
+    CredentialError {
+        session: u64,
+        message: String,
+    },
     Login {
         session: u64,
         result: Result<Client, String>,
@@ -78,21 +93,61 @@ pub struct Backend {
 }
 
 impl Backend {
-    pub fn spawn(ctx: egui::Context) -> Self {
+    pub fn spawn(ctx: egui::Context, dirs: crate::paths::AppDirs) -> Self {
+        Self::with_store(ctx, move || {
+            #[cfg(not(test))]
+            let credentials = Store::new(dirs);
+            #[cfg(test)]
+            let credentials = Store::in_memory(dirs);
+            credentials
+        })
+    }
+
+    fn with_store(
+        ctx: egui::Context,
+        create_store: impl FnOnce() -> Store + Send + 'static,
+    ) -> Self {
         let (send, mut requests) = tokio::sync::mpsc::unbounded_channel();
         let (events, receive) = mpsc::channel();
         let thread = std::thread::Builder::new().name("navifast-library".into()).spawn(move || {
             let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().expect("create Navidrome runtime");
             runtime.block_on(async move {
+                let credentials = create_store();
                 let permits = Arc::new(tokio::sync::Semaphore::new(4));
                 let mut tasks = tokio::task::JoinSet::new();
+                let mut deletions = tokio::task::JoinSet::new();
                 loop {
                     tokio::select! {
                         request = requests.recv() => {
                             let Some(request) = request else { break; };
                             match request {
                                 Request::Shutdown => break,
-                                Request::Cancel => tasks.abort_all(),
+                                Request::Cancel => {
+                                    credentials.invalidate(Slot::Navidrome);
+                                    tasks.abort_all();
+                                }
+                                Request::Forget { session } => {
+                                    // Persist revocation off the UI thread before queuing deletion.
+                                    // A locked keyring must not restore a signed-out account.
+                                    let revoked = credentials.revoke(Slot::Navidrome);
+                                    let deletion = credentials.lease(Slot::Navidrome).delete();
+                                    let events = events.clone();
+                                    let ctx = ctx.clone();
+                                    deletions.spawn(async move {
+                                        let deleted = deletion.await;
+                                        if revoked.is_err() || deleted.is_err() {
+                                            let _ = events.send(Event::CredentialError {
+                                                session,
+                                                message: if revoked.is_err() {
+                                                    "The saved sign-in could not be forgotten. Check the application state directory permissions and unlock the system credential store before closing Navifast."
+                                                } else {
+                                                    "Automatic sign-in is disabled, but the saved password could not be removed. Unlock the system credential store and sign out again to remove it."
+                                                }.into(),
+                                            });
+                                            ctx.request_repaint();
+                                        }
+                                    });
+                                }
                                 Request::OpenThemesFolder(path) => {
                                     tokio::task::spawn_blocking(move || {
                                         if std::fs::create_dir_all(&path).is_ok() { let _ = open::that(path); }
@@ -113,15 +168,32 @@ impl Backend {
                                     let events = events.clone();
                                     let ctx = ctx.clone();
                                     let permits = permits.clone();
+                                    let lease = credentials.lease(Slot::Navidrome);
                                     tasks.spawn(async move {
                                         let Ok(_permit) = permits.acquire().await else { return; };
-                                        let event = execute(request).await;
+                                        let event = execute(request, &lease).await;
+                                        // Queue persistence before showing success, without making
+                                        // the library wait for an unlocked system credential store.
+                                        let saving = match &event {
+                                            Some(Event::Login { session, result: Ok(client) }) => {
+                                                Some((*session, lease.save(Grant::Navidrome(client.saved_login()))))
+                                            }
+                                            _ => None,
+                                        };
                                         if let Some(event) = event { let _ = events.send(event); ctx.request_repaint(); }
+                                        if let Some((session, saving)) = saving
+                                            && let Err(error) = saving.await
+                                            && lease.current()
+                                        {
+                                            let _ = events.send(Event::CredentialError { session, message: error.to_string() });
+                                            ctx.request_repaint();
+                                        }
                                     });
                                 }
                             }
                         }
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
+                        _ = deletions.join_next(), if !deletions.is_empty() => {}
                     }
                 }
                 tasks.abort_all();
@@ -149,8 +221,20 @@ impl Drop for Backend {
     }
 }
 
-async fn execute(request: Request) -> Option<Event> {
+async fn execute(request: Request, lease: &Lease) -> Option<Event> {
     Some(match request {
+        Request::Restore { session } => Event::Restored {
+            session,
+            result: lease
+                .load()
+                .await
+                .map_err(|error| error.to_string())
+                .and_then(|loaded| match loaded.grant {
+                    Some(Grant::Navidrome(login)) => Ok(Some(login)),
+                    None => Ok(None),
+                    _ => Err("The stored sign-in is invalid. Sign in again.".into()),
+                }),
+        },
         Request::Login {
             session,
             server,
@@ -211,6 +295,7 @@ async fn execute(request: Request) -> Option<Event> {
             }
         }
         Request::Save { .. }
+        | Request::Forget { .. }
         | Request::OpenThemesFolder(_)
         | Request::Cancel
         | Request::Shutdown => return None,
@@ -250,8 +335,144 @@ fn decode_cover(bytes: Arc<[u8]>) -> Result<Cover, String> {
 mod tests {
     use super::*;
 
+    struct Fixture {
+        root: std::path::PathBuf,
+        store: Store,
+    }
+
+    impl Fixture {
+        fn new() -> Self {
+            let root =
+                std::env::temp_dir().join(format!("navifast-login-{:016x}", rand::random::<u64>()));
+            let dirs = crate::paths::AppDirs {
+                config: root.join("config"),
+                state: root.join("state"),
+                cache: root.join("cache"),
+            };
+            dirs.ensure().unwrap();
+            Self {
+                root,
+                store: Store::in_memory(dirs),
+            }
+        }
+
+        fn backend(&self) -> Backend {
+            let store = self.store.clone();
+            Backend::with_store(egui::Context::default(), move || store)
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn receive(backend: &Backend) -> Event {
+        backend
+            .events
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap()
+    }
+
+    #[test]
+    fn successful_login_is_restored_after_restart_and_forgotten_on_signout() {
+        let fixture = Fixture::new();
+        let server = crate::navidrome::test_server::Server::spawn(|request| {
+            assert!(request.starts_with("GET /music/rest/ping.view?"));
+            assert!(!request.contains("dummy-password"));
+            crate::navidrome::test_server::response(
+                "200 OK",
+                "",
+                br#"{"subsonic-response":{"status":"ok"}}"#,
+            )
+        });
+        let backend = fixture.backend();
+        backend.send(Request::Login {
+            session: 1,
+            server: format!("{}/music", server.url),
+            username: " listener ".into(),
+            password: "dummy-password".into(),
+            proxy: crate::settings::ProxyConfig::Off,
+        });
+        assert!(matches!(
+            receive(&backend),
+            Event::Login {
+                session: 1,
+                result: Ok(_)
+            }
+        ));
+        // Stopping the API runtime must not cancel the queued credential save.
+        drop(backend);
+        let backend = fixture.backend();
+        backend.send(Request::Restore { session: 2 });
+        let Event::Restored {
+            session: 2,
+            result: Ok(Some(login)),
+        } = receive(&backend)
+        else {
+            panic!("the verified login should survive restart");
+        };
+        assert_eq!(login.server, format!("{}/music/", server.url));
+        assert_eq!(login.username, "listener");
+        assert_eq!(login.password, "dummy-password");
+        backend.send(Request::Cancel);
+        backend.send(Request::Forget { session: 3 });
+        drop(backend);
+        let backend = fixture.backend();
+        backend.send(Request::Restore { session: 4 });
+        assert!(matches!(
+            receive(&backend),
+            Event::Restored {
+                session: 4,
+                result: Ok(None)
+            }
+        ));
+    }
+
+    #[test]
+    fn failed_login_does_not_replace_the_saved_account() {
+        let fixture = Fixture::new();
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let original = Grant::Navidrome(NavidromePassword {
+            server: "https://music.example.com/".into(),
+            username: "listener".into(),
+            password: "dummy-original-password".into(),
+        });
+        runtime
+            .block_on(fixture.store.lease(Slot::Navidrome).save(original.clone()))
+            .unwrap();
+        let server = crate::navidrome::test_server::Server::spawn(|_| {
+            crate::navidrome::test_server::response("200 OK", "", br#"{"subsonic-response":{"status":"failed","error":{"code":40,"message":"private server text"}}}"#)
+        });
+        let backend = fixture.backend();
+        backend.send(Request::Login {
+            session: 1,
+            server: server.url.clone(),
+            username: "other-account".into(),
+            password: "dummy-wrong-password".into(),
+            proxy: crate::settings::ProxyConfig::Off,
+        });
+        let Event::Login {
+            session: 1,
+            result: Err(message),
+        } = receive(&backend)
+        else {
+            panic!("invalid credentials must fail");
+        };
+        assert!(!message.contains("private server text"));
+        assert!(
+            runtime
+                .block_on(fixture.store.lease(Slot::Navidrome).load())
+                .unwrap()
+                .grant
+                == Some(original)
+        );
+    }
+
     #[tokio::test]
     async fn cached_cover_restores_without_a_server_and_preserves_aspect_ratio() {
+        let fixture = Fixture::new();
         let mut encoded = std::io::Cursor::new(Vec::new());
         image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
             600,
@@ -273,12 +494,15 @@ mod tests {
             session,
             id,
             result: Ok(cover),
-        }) = execute(Request::Cover {
-            session: 42,
-            client,
-            id: "cover:/🌍".into(),
-            cached: Some(bytes.clone()),
-        })
+        }) = execute(
+            Request::Cover {
+                session: 42,
+                client,
+                id: "cover:/🌍".into(),
+                cached: Some(bytes.clone()),
+            },
+            &fixture.store.lease(Slot::Navidrome),
+        )
         .await
         else {
             panic!("cached artwork should decode without contacting the server");
