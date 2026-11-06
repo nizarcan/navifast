@@ -246,6 +246,13 @@ pub fn virtual_rows(
     ui.spacing_mut().item_spacing = previous_spacing;
 }
 
+pub fn card_columns(width: f32) -> usize {
+    let spacing = CARD_GAP / 2.0;
+    ((width + spacing) / (CARD_WIDTH + spacing))
+        .floor()
+        .max(1.0) as usize
+}
+
 /// A wrapping grid of cards, laid out row by row so only visible cards are
 /// measured and painted.
 pub fn virtual_wrapped_cards(
@@ -259,9 +266,7 @@ pub fn virtual_wrapped_cards(
     }
     let spacing = CARD_GAP / 2.0;
     let row_width = ui.available_width().max(CARD_WIDTH);
-    let cards_per_row = ((row_width + spacing) / (CARD_WIDTH + spacing))
-        .floor()
-        .max(1.0) as usize;
+    let cards_per_row = card_columns(row_width);
     let row_count = count.div_ceil(cards_per_row);
     // CARD_GAP is already in the row height. Do not also inherit item_spacing.y.
     let previous_spacing = ui.spacing().item_spacing;
@@ -2302,6 +2307,8 @@ pub fn ellipsized(
 }
 
 pub struct CardResponse {
+    pub image_rect: Rect,
+    pub subtitle_rect: Rect,
     /// Give attached menus an item-based ID: hovering a Play button can shift
     /// later cards' automatic response IDs.
     pub response: egui::Response,
@@ -2330,7 +2337,7 @@ pub fn card_row_height(ui: &mut Ui) -> f32 {
 /// A cover-and-title card for grids and shelves.
 pub fn card(
     ui: &mut Ui,
-    app: &mut App,
+    app: &App,
     image: Option<&str>,
     title: &str,
     subtitle: &str,
@@ -2363,12 +2370,24 @@ pub fn card(
         egui::WidgetInfo::labeled(
             egui::WidgetType::Button,
             ui.is_enabled(),
-            format!("{title}, {subtitle}"),
+            if subtitle.is_empty() {
+                title.to_owned()
+            } else {
+                format!("{title}, {subtitle}")
+            },
         )
     });
     if response.gained_focus() {
         response.scroll_to_me(None);
     }
+    let image_rect = Rect::from_min_size(rect.min + vec2(PAD, PAD), Vec2::splat(image_size));
+    let subtitle_rect = Rect::from_min_size(
+        pos2(
+            image_rect.left(),
+            image_rect.bottom() + TITLE_GAP + title_row + SUBTITLE_GAP,
+        ),
+        vec2(text_width, 2.0 * subtitle_row),
+    );
     let mut play = false;
     if ui.is_rect_visible(rect) {
         let hovered = ui.rect_contains_pointer(rect);
@@ -2381,7 +2400,7 @@ pub fn card(
                     .gamma_multiply(if palette.dark { 0.8 } else { 1.0 }),
             );
         }
-        let image_rect = Rect::from_min_size(rect.min + vec2(PAD, PAD), Vec2::splat(image_size));
+
         let radius = if round { image_size / 2.0 } else { 6.0 };
         paint_shadow(ui, &palette, image_rect, radius);
         paint_cover(
@@ -2412,10 +2431,6 @@ pub fn card(
             palette.secondary,
             text_width,
             2,
-        );
-        let subtitle_rect = Rect::from_min_size(
-            pos2(text_left, title_rect.bottom() + SUBTITLE_GAP),
-            vec2(text_width, 2.0 * subtitle_row),
         );
         let subtitle_pos = match subtitle_galley.job.halign {
             Align::RIGHT => pos2(subtitle_rect.right(), subtitle_rect.top()),
@@ -2450,6 +2465,8 @@ pub fn card(
     crate::autoscroll::row(ui, &response);
     theme::focus_ring(ui, &response);
     CardResponse {
+        image_rect,
+        subtitle_rect,
         clicked: response.clicked() && !play,
         response,
         play,

@@ -594,6 +594,7 @@ impl App {
 
     fn set_client(&mut self, client: Client) {
         self.remember_account(client.base_url(), client.username());
+        self.presentation.navidrome_search.session = self.session;
         self.login.password.clear();
         self.presentation.navidrome_search.recent = self
             .preferences
@@ -1078,11 +1079,16 @@ impl App {
         self.transport.songs = self.albums[0].song.clone();
         self.transport.select(0, 83.0, false);
         self.transport.loading = false;
-        self.populate_demo_favorites(page, &flags);
+        let favorite_page = page.and_then(|p| match p {
+            "favorites" => Some(crate::model::Page::LikedSongs),
+            _ => crate::model::Page::decode(p).filter(crate::model::Page::is_favorites),
+        });
+        self.populate_demo_favorites(favorite_page.is_some(), &flags);
         if flags.contains(&"no-art") {
             self.artwork.forget_all();
         }
-        let library_state = !matches!(page, Some("search" | "favorites"))
+        let library_state = favorite_page.is_none()
+            && page != Some("search")
             && !page.is_some_and(|p| p.starts_with("artist:"));
         if library_state && flags.contains(&"empty") {
             self.albums.clear();
@@ -1102,8 +1108,11 @@ impl App {
             self.presentation.settings.theme = crate::settings::ThemeChoice::Light;
         }
         ctx.set_theme(self.presentation.theme_preference());
-        if page == Some("favorites") {
+        if let Some(page) = favorite_page {
             self.presentation.history = vec![crate::model::Page::LikedSongs];
+            if page != crate::model::Page::LikedSongs {
+                self.presentation.open(page);
+            }
         } else if page == Some("search") {
             self.populate_demo_search(&flags, ctx);
         } else if let Some(id) = page.and_then(|p| p.strip_prefix("artist:")) {

@@ -516,7 +516,7 @@ impl App {
         }
     }
     pub(super) fn ui_action(&mut self, action: UiAction, ctx: &egui::Context) {
-        let was_favorites = self.presentation.page() == &Page::LikedSongs;
+        let was_favorites = self.presentation.page().is_favorites();
         match action {
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
             UiAction::RetryFavorite(uri) if self.connected => self.retry_favorite(&uri),
@@ -526,10 +526,12 @@ impl App {
                     self.play_search_songs(songs.clone(), index);
                 }
             }
-            UiAction::Open(Page::LikedSongs) if self.connected => {
-                self.presentation.open(Page::LikedSongs)
+            UiAction::Open(page) if self.connected && page.is_favorites() => {
+                self.presentation.open(page)
             }
-            UiAction::Reload(Page::LikedSongs) if self.connected => self.refresh_favorites(),
+            UiAction::Reload(page) if self.connected && page.is_favorites() => {
+                self.refresh_favorites()
+            }
             UiAction::NavidromeSearch(action) if self.connected => self.search_action(action, ctx),
             UiAction::Search(query) if self.connected => {
                 self.presentation.search.focus_requested = true;
@@ -713,7 +715,7 @@ impl App {
             }
             _ => {}
         }
-        if !was_favorites && self.presentation.page() == &Page::LikedSongs {
+        if !was_favorites && self.presentation.page().is_favorites() {
             self.refresh_favorites();
         }
         let collection = match self.presentation.page() {

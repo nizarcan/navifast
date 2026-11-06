@@ -3639,6 +3639,7 @@ impl App {
             Page::TopSongs => self.load_top_songs(false),
             Page::Search => {}
             Page::LikedSongs => self.ensure_liked_songs(),
+            Page::FavoriteGroup(_) => {}
             Page::Albums => {
                 if !self.library.albums.loaded_once {
                     self.load_more(Page::Albums);

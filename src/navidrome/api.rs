@@ -117,9 +117,11 @@ pub struct Album {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NamedItem {
     pub id: String,
     pub name: String,
+    pub cover_art: Option<String>,
 }
 
 #[derive(Default, Deserialize)]
@@ -132,7 +134,7 @@ pub struct Catalogue {
     pub artist: Vec<NamedItem>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FavoriteKind {
     Song,
     Album,
@@ -694,7 +696,7 @@ mod tests {
             let body = match url.path() {
                 "/rest/getStarred2.view" => serde_json::json!({"status":"ok","starred2":{
                     "song":[{"id":"s:/α","title":"Song","userRating":1}],
-                    "album":[{"id":"a:/α","name":"Album"}], "artist":[{"id":"r:/α","name":"Artist"}]
+                    "album":[{"id":"a:/α","name":"Album"}], "artist":[{"id":"r:/α","name":"Artist","coverArt":"portrait:/α"}]
                 }}),
                 "/rest/star.view" | "/rest/unstar.view" => {
                     let params: Vec<_> = url
@@ -730,6 +732,8 @@ mod tests {
         assert_eq!(list.song[0].title, "Song");
         assert_eq!(list.album[0].name, "Album");
         assert_eq!(list.artist[0].name, "Artist");
+        assert_eq!(list.artist[0].cover_art.as_deref(), Some("portrait:/α"));
+        assert!(list.album[0].cover_art.is_none());
         for (kind, id) in [
             (FavoriteKind::Song, &list.song[0].id),
             (FavoriteKind::Album, &list.album[0].id),

@@ -846,7 +846,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             &palette,
             Icon::Star,
             &gettext(locale, "Favorites"),
-            page == Page::LikedSongs,
+            page.is_favorites(),
         )
         .clicked()
     {

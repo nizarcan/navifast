@@ -359,7 +359,10 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                             }
                             Page::Search => search::show(app, ui),
                             Page::LikedSongs if app.navidrome_mode => {
-                                navidrome_favorites::show(app, ui)
+                                navidrome_favorites::show(app, ui, None)
+                            }
+                            Page::FavoriteGroup(kind) => {
+                                navidrome_favorites::show(app, ui, Some(kind))
                             }
                             Page::LikedSongs => collection::liked(app, ui),
                             Page::Albums | Page::Artists | Page::Podcasts | Page::Episodes => {

@@ -33,6 +33,7 @@ fn overlapping_searches_ignore_both_old_responses_even_during_debounce() {
             result: Ok(vec![NamedItem {
                 id: name.into(),
                 name: name.into(),
+                cover_art: None,
             }]),
         };
         app.search_event(catalogue(first, "stale"));

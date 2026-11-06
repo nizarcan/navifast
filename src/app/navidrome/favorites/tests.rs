@@ -17,6 +17,7 @@ fn snapshot(starred: bool) -> Catalogue {
         artist: vec![NamedItem {
             id: song().id,
             name: "The artist".into(),
+            cover_art: None,
         }],
         ..Default::default()
     }
@@ -178,6 +179,57 @@ fn signing_out_during_refresh_discards_old_account_reads_writes_and_retries() {
     });
 }
 
+fn controls(
+    app: &mut App,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    events: Vec<egui::Event>,
+) -> Vec<(String, egui::Pos2)> {
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            events,
+            ..Default::default()
+        },
+        |ui| app.draw(ui),
+    );
+    output.textures_delta.clear();
+    output
+        .platform_output
+        .accesskit_update
+        .unwrap()
+        .nodes
+        .into_iter()
+        .filter_map(|(_, node)| {
+            let bounds = node.bounds()?;
+            let center = egui::pos2(
+                (bounds.x0 + bounds.x1) as f32 * 0.5,
+                (bounds.y0 + bounds.y1) as f32 * 0.5,
+            );
+            Some((node.label()?.to_owned(), center))
+        })
+        .collect()
+}
+
+fn click_at(app: &mut App, ctx: &egui::Context, size: egui::Vec2, pos: egui::Pos2) {
+    for pressed in [true, false] {
+        controls(
+            app,
+            ctx,
+            size,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ],
+        );
+    }
+}
+
 #[test]
 fn one_click_updates_both_album_occurrences_the_player_and_favorites() {
     with_app(|app, ctx| {
@@ -191,58 +243,96 @@ fn one_click_updates_both_album_occurrences_the_player_and_favorites() {
         app.presentation.history = vec![Page::Album(encode(&album.id))];
         app.apply(Action::Play(0));
         let generation = app.transport.generation;
-        let frame = |app: &mut App, events| {
-            let mut output = ctx.run_ui(
-                egui::RawInput {
-                    screen_rect: Some(egui::Rect::from_min_size(
-                        egui::Pos2::ZERO,
-                        egui::vec2(1280.0, 800.0),
-                    )),
-                    events,
-                    ..Default::default()
-                },
-                |ui| app.draw(ui),
-            );
-            output.textures_delta.clear();
-            output.platform_output.accesskit_update.unwrap()
-        };
-        frame(app, vec![]);
-        let controls = frame(app, vec![]);
-        let bounds = controls
-            .nodes
-            .iter()
-            .filter(|(_, n)| n.label() == Some("Add to Favorites"))
-            .filter_map(|(_, n)| n.bounds())
-            .max_by(|a, b| a.y1.total_cmp(&b.y1))
+        let size = egui::vec2(1280.0, 800.0);
+        controls(app, ctx, size, vec![]);
+        let (_, player_star) = controls(app, ctx, size, vec![])
+            .into_iter()
+            .filter(|(name, _)| name == "Add to Favorites")
+            .max_by(|(_, a), (_, b)| a.y.total_cmp(&b.y))
             .unwrap();
-        let pos = egui::pos2(
-            (bounds.x0 + bounds.x1) as f32 * 0.5,
-            (bounds.y0 + bounds.y1) as f32 * 0.5,
-        );
-        for pressed in [true, false] {
-            frame(
-                app,
-                vec![
-                    egui::Event::PointerMoved(pos),
-                    egui::Event::PointerButton {
-                        pos,
-                        button: egui::PointerButton::Primary,
-                        pressed,
-                        modifiers: Default::default(),
-                    },
-                ],
-            );
-        }
-        let controls = frame(app, vec![]);
+        click_at(app, ctx, size, player_star);
         assert_eq!(
-            controls
-                .nodes
+            controls(app, ctx, size, vec![])
                 .iter()
-                .filter(|(_, n)| n.label() == Some("Remove from Favorites"))
+                .filter(|(name, _)| name == "Remove from Favorites")
                 .count(),
             3
         );
         assert_eq!(app.presentation.navidrome_favorites.list.song[0].id, id);
         assert_eq!(app.transport.generation, generation);
     });
+}
+
+#[test]
+fn favorite_grid_previews_two_rows_and_see_all_opens_every_album() {
+    for (width, preview_count) in [(760.0, 4), (1280.0, 10)] {
+        with_app(|app, ctx| {
+            ctx.enable_accesskit();
+            let albums = (0..14)
+                .map(|i| Album {
+                    id: i.to_string(),
+                    name: format!("Favorite release {i}"),
+                    artist: "Credited musician".into(),
+                    credits: crate::navidrome::api::ArtistCredits {
+                        artist_id: Some("musician".into()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .collect();
+            app.presentation.navidrome_favorites.received(
+                0,
+                Ok(Catalogue {
+                    album: albums,
+                    ..Default::default()
+                }),
+            );
+            app.ui_action(UiAction::Open(Page::LikedSongs), ctx);
+            let size = egui::vec2(width, 2300.0);
+            let frame = |app: &mut App| controls(app, ctx, size, vec![]);
+            let click = |app: &mut App, label: &str| {
+                frame(app);
+                let pos = frame(app)
+                    .into_iter()
+                    .filter(|(name, _)| name == label)
+                    .min_by(|(_, a), (_, b)| a.y.total_cmp(&b.y).then(a.x.total_cmp(&b.x)))
+                    .unwrap()
+                    .1;
+                click_at(app, ctx, size, pos);
+            };
+            let cards = |app: &mut App| {
+                frame(app);
+                frame(app)
+                    .into_iter()
+                    .filter(|(name, _)| name.starts_with("Favorite release "))
+                    .collect::<Vec<_>>()
+            };
+            let preview = cards(app);
+            assert_eq!(preview.len(), preview_count);
+            assert_eq!(
+                preview
+                    .iter()
+                    .map(|(_, p)| p.y.round() as i32)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len(),
+                2
+            );
+            click(app, "See all");
+            let group = Page::FavoriteGroup(FavoriteKind::Album);
+            assert_eq!(app.presentation.page(), &group);
+            assert_eq!(Page::decode(&group.encode()), Some(group.clone()));
+            assert_eq!(cards(app).len(), 14);
+            app.ui_action(UiAction::Back, ctx);
+            assert_eq!(cards(app).len(), preview_count);
+            app.ui_action(UiAction::Forward, ctx);
+            click(app, "Credited musician");
+            assert_eq!(app.presentation.page(), &Page::Artist(encode("musician")));
+            app.ui_action(UiAction::Back, ctx);
+            click(app, "Remove from Favorites");
+            assert_eq!(app.presentation.page(), &group);
+            assert_eq!(cards(app).len(), 13);
+            click(app, "Favorite release 13");
+            assert_eq!(app.presentation.page(), &Page::Album(encode("13")));
+        });
+    }
 }

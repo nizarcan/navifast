@@ -3415,7 +3415,7 @@ mod tests {
                             }
                             card(
                                 ui,
-                                &mut app,
+                                &app,
                                 None,
                                 &format!("Album {index}"),
                                 "Artist",

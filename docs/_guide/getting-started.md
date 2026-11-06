@@ -32,7 +32,9 @@ paused keeps playback paused. Space toggles play/pause outside text fields.
 Use the star in search results, an album or artist header, a song row, or
 the player bar to add or remove a favorite. For a library album or an
 artist-page cover, open its context menu. Choose **Favorites** in the sidebar
-to play a song or open a saved album or artist. Stars update across the app
+to browse up to two rows each of saved songs, albums and artists. Choose
+**See all** beside a heading to open the full artwork grid for that group.
+Select a cover to play a song or open an album or artist. Stars update across the app
 as soon as you click. If a change fails, **Retry** repeats it for that item.
 Open Favorites again or select **Refresh** to fetch changes from another client.
 

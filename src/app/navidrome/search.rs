@@ -38,7 +38,7 @@ pub struct State {
     pub artist_info: Loadable<ArtistInfo>,
     pub appearances: Loadable<Vec<Album>>,
     pub artist_cover: Option<String>,
-    session: u64,
+    pub(super) session: u64,
     pub(super) collection_page: Option<Page>,
     collection_request: u64,
 }
@@ -303,7 +303,6 @@ impl App {
 
     pub(super) fn fetch_collection(&mut self, page: &Page) {
         let state = &mut self.presentation.navidrome_search;
-        state.session = self.session;
         self.backend.send(Request::CancelCollection);
         state.collection_request = state.collection_request.wrapping_add(1);
         state.collection_page = None;
@@ -411,6 +410,7 @@ impl App {
                         artists.push(NamedItem {
                             id: id.clone(),
                             name: album.artist.clone(),
+                            cover_art: album.cover_art.clone(),
                         });
                     }
                 }
@@ -435,6 +435,7 @@ impl App {
                         .then(|| NamedItem {
                             id: "mix".into(),
                             name: name.into(),
+                            cover_art: None,
                         })
                         .into_iter()
                         .collect(),

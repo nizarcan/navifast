@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::api::models::*;
+use crate::navidrome::api::FavoriteKind;
 
 /// One table row: the playable, when it was added, who added it.
 pub type TableItem = (PlayableItem, Option<String>, Option<String>);
@@ -112,6 +113,7 @@ pub enum Page {
     TopSongs,
     Search,
     LikedSongs,
+    FavoriteGroup(FavoriteKind),
     Albums,
     Artists,
     Podcasts,
@@ -128,12 +130,19 @@ pub enum Page {
 }
 
 impl Page {
+    pub fn is_favorites(&self) -> bool {
+        matches!(self, Page::LikedSongs | Page::FavoriteGroup(_))
+    }
+
     pub fn encode(&self) -> String {
         match self {
             Page::Home => "home".into(),
             Page::TopSongs => "top-songs".into(),
             Page::Search => "search".into(),
             Page::LikedSongs => "liked".into(),
+            Page::FavoriteGroup(FavoriteKind::Song) => "favorite-songs".into(),
+            Page::FavoriteGroup(FavoriteKind::Album) => "favorite-albums".into(),
+            Page::FavoriteGroup(FavoriteKind::Artist) => "favorite-artists".into(),
             Page::Albums => "albums".into(),
             Page::Artists => "artists".into(),
             Page::Podcasts => "podcasts".into(),
@@ -154,6 +163,9 @@ impl Page {
             "top-songs" => Page::TopSongs,
             "search" => Page::Search,
             "liked" => Page::LikedSongs,
+            "favorite-songs" => Page::FavoriteGroup(FavoriteKind::Song),
+            "favorite-albums" => Page::FavoriteGroup(FavoriteKind::Album),
+            "favorite-artists" => Page::FavoriteGroup(FavoriteKind::Artist),
             "albums" => Page::Albums,
             "artists" => Page::Artists,
             "podcasts" => Page::Podcasts,

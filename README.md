@@ -20,7 +20,8 @@ The first migration stage supports:
   player bar. Artist pages show Discography, About, Similar artists from your
   library, and Appears on for guest releases. Open a release cover to pick a song.
 - Starring songs, albums and artists on your Navidrome account. Open **Favorites**
-  in the sidebar to play a starred song or open a starred album or artist.
+  in the sidebar for two-row artwork previews. Choose **See all** to browse
+  the full grid of favorite songs, albums or artists.
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,

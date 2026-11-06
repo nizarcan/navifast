@@ -121,14 +121,20 @@ pub(super) fn write_errors(app: &mut App, ui: &mut egui::Ui) {
         });
 }
 
-pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
+pub(super) fn show(app: &mut App, ui: &mut egui::Ui, group: Option<FavoriteKind>) {
+    let page = app.page().clone();
     let state = &app.navidrome_favorites;
     let palette = &app.palette;
     let locale = app.locale;
     ui.horizontal(|ui| {
         theme::text(
             ui,
-            gettext(locale, "Favorites"),
+            match group {
+                None => gettext(locale, "Favorites"),
+                Some(FavoriteKind::Song) => gettext(locale, "Favorite Songs"),
+                Some(FavoriteKind::Album) => gettext(locale, "Favorite Albums"),
+                Some(FavoriteKind::Artist) => gettext(locale, "Favorite Artists"),
+            },
             theme::bold(28.0),
             palette.text,
         );
@@ -146,7 +152,7 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
             .inner
             .clicked()
         {
-            app.actions.push(Action::Reload(Page::LikedSongs));
+            app.actions.push(Action::Reload(page.clone()));
         }
     });
     if state.loading {
@@ -155,7 +161,7 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
     if let Some(error) = &state.error
         && navidrome_search::retry(ui, palette, locale, error)
     {
-        app.actions.push(Action::Reload(Page::LikedSongs));
+        app.actions.push(Action::Reload(page.clone()));
     }
     if !state.ready {
         return;
@@ -165,69 +171,149 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui) {
         FavoriteKind::Album,
         FavoriteKind::Artist,
     ] {
-        let (section, empty, icon, count) = match kind {
+        if group.is_some_and(|selected| selected != kind) {
+            continue;
+        }
+        let (section, empty, count) = match kind {
             FavoriteKind::Song => (
                 gettext(locale, "Songs"),
                 gettext(locale, "Songs you favorite appear here."),
-                Icon::Music,
-                state.list.song.len(),
+                app.navidrome_favorites.list.song.len(),
             ),
             FavoriteKind::Album => (
                 gettext(locale, "Albums"),
                 gettext(locale, "Albums you favorite appear here."),
-                Icon::Disc,
-                state.list.album.len(),
+                app.navidrome_favorites.list.album.len(),
             ),
             FavoriteKind::Artist => (
                 gettext(locale, "Artists"),
                 gettext(locale, "Artists you favorite appear here."),
-                Icon::User,
-                state.list.artist.len(),
+                app.navidrome_favorites.list.artist.len(),
             ),
         };
         ui.add_space(14.0);
-        theme::section_title(ui, palette, &section);
-        if count == 0 {
-            theme::subtle(ui, palette, &empty);
-        }
-        widgets::virtual_rows(ui, count, 32.0, |ui, index| {
-            let (id, name, by) = match kind {
-                FavoriteKind::Song => {
-                    let s = &state.list.song[index];
-                    (&s.id, &s.title, Some((s.artist.as_str(), &s.credits)))
-                }
-                FavoriteKind::Album => {
-                    let a = &state.list.album[index];
-                    (&a.id, &a.name, Some((a.artist.as_str(), &a.credits)))
-                }
-                FavoriteKind::Artist => {
-                    let a = &state.list.artist[index];
-                    (&a.id, &a.name, None)
-                }
-            };
-            let uri = kind.uri(id);
-            if ui
-                .push_id(&uri, |ui| {
-                    row(
-                        ui,
-                        state,
-                        &mut app.actions,
-                        (palette, locale),
-                        Some(&uri),
-                        |ui, actions| {
-                            navidrome_search::row(ui, actions, palette, icon, name, by, false)
-                        },
-                    )
-                })
-                .inner
-                .clicked()
-            {
-                app.actions.push(match kind {
-                    FavoriteKind::Song => Action::PlayFavorite(id.clone()),
-                    FavoriteKind::Album => Action::Open(Page::Album(encode(id))),
-                    FavoriteKind::Artist => Action::Open(Page::Artist(encode(id))),
+        ui.push_id(kind, |ui| {
+            let count = if group.is_none() {
+                ui.horizontal(|ui| {
+                    theme::section_title(ui, &app.palette, &section);
+                    if count > 0 {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if theme::link(
+                                ui,
+                                gettext(locale, "See all"),
+                                theme::semibold(13.0),
+                                app.palette.secondary,
+                            )
+                            .clicked()
+                            {
+                                app.actions.push(Action::Open(Page::FavoriteGroup(kind)));
+                            }
+                        });
+                    }
                 });
+                count.min(2 * widgets::card_columns(ui.available_width()))
+            } else {
+                count
+            };
+            if count == 0 {
+                theme::subtle(ui, &app.palette, &empty);
+                return;
             }
+            let height = widgets::card_row_height(ui);
+            widgets::virtual_wrapped_cards(ui, count, height, |ui, index| {
+                if let Some(action) = favorite_card(ui, app, kind, index) {
+                    app.actions.push(action);
+                }
+            });
         });
     }
+}
+
+fn favorite_card(ui: &mut egui::Ui, app: &App, kind: FavoriteKind, index: usize) -> Option<Action> {
+    let list = &app.navidrome_favorites.list;
+    let (id, name, cover, credits) = match kind {
+        FavoriteKind::Song => {
+            let s = &list.song[index];
+            (&s.id, &s.title, &s.cover_art, Some((&s.artist, &s.credits)))
+        }
+        FavoriteKind::Album => {
+            let a = &list.album[index];
+            (&a.id, &a.name, &a.cover_art, Some((&a.artist, &a.credits)))
+        }
+        FavoriteKind::Artist => {
+            let a = &list.artist[index];
+            (&a.id, &a.name, &a.cover_art, None)
+        }
+    };
+    let cover = app.navidrome_search.artwork_uri(cover.as_deref());
+    let artist = kind == FavoriteKind::Artist;
+    let subtitle = if artist {
+        gettext(app.locale, "Artist")
+    } else {
+        "".into()
+    };
+    ui.push_id(id, |ui| {
+        let card = widgets::card(ui, app, cover.as_deref(), name, &subtitle, artist, !artist);
+        if ui.is_rect_visible(card.response.rect) {
+            let rect = egui::Rect::from_center_size(
+                card.image_rect.right_top() + egui::vec2(-17.0, 17.0),
+                egui::Vec2::splat(26.0),
+            );
+            // The hover-only play button can change automatic IDs between press and release.
+            let mut button = ui.new_child(
+                egui::UiBuilder::new()
+                    .id(card.response.id.with("star"))
+                    .max_rect(rect)
+                    .layout(egui::Layout::centered_and_justified(
+                        egui::Direction::LeftToRight,
+                    )),
+            );
+            if theme::circle_button(
+                &mut button,
+                Icon::StarFilled,
+                26.0,
+                app.palette.panel,
+                app.palette.surface_hover,
+                app.palette.accent,
+                &gettext(app.locale, "Remove from Favorites"),
+            )
+            .clicked()
+            {
+                return Some(Action::ToggleSaved(kind.uri(id)));
+            }
+            if let Some((name, credits)) = credits {
+                let mut labels = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id(card.response.id.with("credits"))
+                        .max_rect(card.subtitle_rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(true)),
+                );
+                labels.set_clip_rect(card.subtitle_rect.intersect(ui.clip_rect()));
+                let mut actions = Vec::new();
+                widgets::artist_links(
+                    &mut labels,
+                    &mut actions,
+                    &crate::app::navidrome::view_artists(credits, name),
+                    theme::regular(12.5),
+                    app.palette.secondary,
+                );
+                if let Some(action) = actions.pop() {
+                    return Some(action);
+                }
+            }
+        }
+        if card.play && kind == FavoriteKind::Album {
+            return Some(Action::PlayContext {
+                uri: kind.uri(id),
+                offset_index: None,
+                offset_uri: None,
+            });
+        }
+        (card.clicked || card.play).then(|| match kind {
+            FavoriteKind::Song => Action::PlayFavorite(id.clone()),
+            FavoriteKind::Album => Action::Open(Page::Album(encode(id))),
+            FavoriteKind::Artist => Action::Open(Page::Artist(encode(id))),
+        })
+    })
+    .inner
 }

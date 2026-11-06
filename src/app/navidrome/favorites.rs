@@ -303,25 +303,26 @@ impl App {
                 Some(Item::Album(album))
             }
             FavoriteKind::Artist => {
-                let name = match collection {
-                    Some(Collection::Artist { name, .. })
-                        if self.presentation.page() == &Page::Artist(encoded.into()) =>
-                    {
-                        name
+                let (name, cover_art) = match collection {
+                    Some(Collection::Artist {
+                        name, cover_art, ..
+                    }) if self.presentation.page() == &Page::Artist(encoded.into()) => {
+                        (name, cover_art)
                     }
                     _ => {
-                        &search
+                        let artist = search
                             .artist_info
                             .get()?
                             .similar_artist
                             .iter()
-                            .find(|a| a.id.as_deref() == Some(&id))?
-                            .name
+                            .find(|a| a.id.as_deref() == Some(&id))?;
+                        (&artist.name, &artist.cover_art)
                     }
                 };
                 Some(Item::Artist(NamedItem {
                     id,
                     name: name.clone(),
+                    cover_art: cover_art.clone(),
                 }))
             }
         }
@@ -429,11 +430,11 @@ impl App {
 
 #[cfg(feature = "demo")]
 impl App {
-    pub(super) fn populate_demo_favorites(&mut self, page: Option<&str>, flags: &[&str]) {
+    pub(super) fn populate_demo_favorites(&mut self, on_favorites: bool, flags: &[&str]) {
         let mut list = Catalogue::default();
         let album = &self.albums[0];
         let state = &mut self.presentation.navidrome_favorites;
-        if page == Some("favorites") {
+        if on_favorites {
             if flags.contains(&"loading") {
                 state.loading = true;
                 return;
@@ -443,16 +444,30 @@ impl App {
                 return;
             }
         }
-        if page != Some("favorites") || !flags.contains(&"empty") {
-            list.song.extend(album.song.iter().take(2).cloned());
-            let mut sleeve = album.clone();
-            sleeve.song.clear();
-            list.album.push(sleeve);
-            if let Some(id) = &album.credits.artist_id {
-                list.artist.push(NamedItem {
-                    id: id.clone(),
-                    name: album.artist.clone(),
-                });
+        if !on_favorites || !flags.contains(&"empty") {
+            let many = flags.contains(&"many-favorites");
+            for song in album.song.iter().take(if many { usize::MAX } else { 2 }) {
+                let mut song = song.clone();
+                song.cover_art = self
+                    .albums
+                    .iter()
+                    .find(|a| a.name == song.album)
+                    .and_then(|a| a.cover_art.clone());
+                list.song.push(song);
+            }
+            for album in self.albums.iter().take(if many { usize::MAX } else { 1 }) {
+                let mut sleeve = album.clone();
+                sleeve.song.clear();
+                list.album.push(sleeve);
+                if let Some(id) = &album.credits.artist_id
+                    && !list.artist.iter().any(|artist| &artist.id == id)
+                {
+                    list.artist.push(NamedItem {
+                        id: id.clone(),
+                        name: album.artist.clone(),
+                        cover_art: album.cover_art.clone(),
+                    });
+                }
             }
         }
         state.received(0, Ok(list));
