@@ -963,6 +963,9 @@ impl App {
             };
             *slot.lock().unwrap_or_else(|p| p.into_inner()) = value;
         }
+        let Some(media) = &mut self.media else {
+            return;
+        };
         let state = crate::media::MediaState {
             playback: if song.is_none() {
                 crate::player::Playback::Stopped
@@ -987,9 +990,7 @@ impl App {
             repeat: crate::player::RepeatMode::Off,
             can_control: song.is_some(),
         };
-        if let Some(media) = &mut self.media {
-            media.update(state);
-        }
+        media.update(state);
     }
 }
 

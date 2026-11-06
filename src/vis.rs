@@ -118,18 +118,24 @@ impl AudioTap {
     /// The `count` samples ending `lag` samples before the newest, with
     /// silence where there is less than that.
     pub fn window(&self, count: usize, lag: usize) -> Vec<f32> {
+        let mut out = Vec::new();
+        self.window_into(count, lag, &mut out);
+        out
+    }
+
+    /// Reuse the display's scratch buffer and copy both halves of a wrapped tap.
+    pub(crate) fn window_into(&self, count: usize, lag: usize, out: &mut Vec<f32>) {
+        out.clear();
+        out.reserve(count);
         let samples = self.samples.lock().unwrap_or_else(|p| p.into_inner());
         let end = samples.len().saturating_sub(lag);
         let start = end.saturating_sub(count);
-        let mut out = vec![0.0; count];
-        let taken = end - start;
-        for (slot, sample) in out[count - taken..]
-            .iter_mut()
-            .zip(samples.range(start..end))
-        {
-            *slot = *sample;
-        }
-        out
+        out.resize(count - (end - start), 0.);
+        let (head, tail) = samples.as_slices();
+        out.extend_from_slice(&head[start.min(head.len())..end.min(head.len())]);
+        out.extend_from_slice(
+            &tail[start.saturating_sub(head.len())..end.saturating_sub(head.len())],
+        );
     }
 
     pub fn clear(&self) {
@@ -654,6 +660,23 @@ mod tests {
         assert_eq!(tap.window(2, 1), [0.0, 1.0]);
         tap.clear();
         assert_eq!(tap.window(2, 0), [0.0, 0.0]);
+    }
+
+    #[test]
+    fn a_reused_display_window_follows_the_wrapped_tap_and_discards_old_samples() {
+        let tap = AudioTap::new();
+        let frames: Vec<_> = (0..KEPT + 3).flat_map(|i| [i as f64; 2]).collect();
+        tap.push(&frames, 1.);
+        let mut scratch = Vec::new();
+        tap.window_into(6, 1, &mut scratch);
+        assert_eq!(
+            scratch,
+            ((KEPT - 4)..(KEPT + 2))
+                .map(|i| i as f32)
+                .collect::<Vec<_>>()
+        );
+        tap.window_into(2, usize::MAX, &mut scratch);
+        assert_eq!(scratch, [0., 0.]);
     }
 
     #[test]

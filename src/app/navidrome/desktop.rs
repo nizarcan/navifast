@@ -121,6 +121,8 @@ pub(crate) struct State {
     history_tables: HashMap<Page, tracks::Tracks>,
     pub(crate) offsets: HashMap<Page, Live<f32>>,
     analyser: crate::vis::WideAnalyser,
+    samples: Vec<f32>,
+    next_visual_frame: Option<(crate::settings::PlayerBarVis, std::time::Instant)>,
     pub(crate) trace: Vec<f32>,
     pub(crate) caps: [Live<[f32; 4]>; crate::vis::WIDE_BANDS],
     pub(crate) bars: [Live<[f32; 4]>; crate::vis::WIDE_BANDS],
@@ -203,6 +205,8 @@ impl State {
             history_tables: Default::default(),
             offsets: HashMap::from([(page, Live::new(0.))]),
             analyser: Default::default(),
+            samples: Vec::new(),
+            next_visual_frame: None,
             trace: Vec::new(),
             caps: std::array::from_fn(|_| Live::new([0.; 4])),
             bars: std::array::from_fn(|_| Live::new([0.; 4])),
@@ -373,14 +377,24 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
         let sounding = !s.app.transport.paused && s.app.transport.song().is_some();
         let mode = s.app.presentation.settings.player_bar_vis;
         use crate::{settings::PlayerBarVis, vis};
+        let now = std::time::Instant::now();
+        if let Some((previous, deadline)) = s.next_visual_frame
+            && previous == mode
+            && now < deadline
+        {
+            tx.wake_after(deadline - now);
+            return changed;
+        }
+        s.next_visual_frame = None;
         match mode {
             PlayerBarVis::Spectrum if sounding || !s.analyser.settled() => {
-                let samples = if sounding {
-                    s.app.tap.window(vis::WIDE_SAMPLES, vis::LAG)
-                } else {
-                    Vec::new()
-                };
-                let levels = s.analyser.step(&samples, std::time::Instant::now());
+                s.samples.clear();
+                if sounding {
+                    s.app
+                        .tap
+                        .window_into(vis::WIDE_SAMPLES, vis::LAG, &mut s.samples);
+                }
+                let levels = s.analyser.step(&s.samples, now);
                 let peaks = s.analyser.peaks();
                 let stride = (s.plot_width + 2.) / vis::WIDE_BANDS as f32;
                 let height = crate::theme::PLAYER_BAR_HEIGHT;
@@ -396,14 +410,16 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
                         if peak >= 2. { 2. } else { 0. },
                     ]);
                 }
+                s.next_visual_frame = Some((mode, now + crate::ui::player_bar::VIS_FRAME));
                 tx.wake_after(crate::ui::player_bar::VIS_FRAME);
             }
             PlayerBarVis::Waveform if sounding => {
                 let points = (s.plot_width / 8.).clamp(75., 320.) as usize;
-                s.trace = vis::scope_line(
-                    &s.app.tap.window(points * vis::SCOPE_STEP, vis::LAG),
-                    points,
-                );
+                s.app
+                    .tap
+                    .window_into(points * vis::SCOPE_STEP, vis::LAG, &mut s.samples);
+                s.trace = vis::scope_line(&s.samples, points);
+                s.next_visual_frame = Some((mode, now + crate::ui::player_bar::VIS_FRAME));
                 tx.wake_after(crate::ui::player_bar::VIS_FRAME);
                 changed = true;
             }
