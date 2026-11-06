@@ -261,7 +261,9 @@ impl App {
         let tap = presentation.winamp.tap.clone();
         let artwork = Arc::new(Artwork::default());
         cc.egui_ctx.add_image_loader(artwork.clone());
-        let backend = Backend::spawn(cc.egui_ctx.clone(), dirs.clone());
+        let ctx = cc.egui_ctx.clone();
+        let wake: Arc<dyn Fn() + Send + Sync> = Arc::new(move || ctx.request_repaint());
+        let backend = Backend::spawn(wake.clone(), dirs.clone());
         if !demo {
             backend.send(Request::Restore { session: 0 });
         }
@@ -269,20 +271,18 @@ impl App {
         // is retained in the old modules until the full settings migration.
         let proxy = crate::settings::ProxyConfig::System;
         let (events, player_events) = mpsc::channel();
-        let ctx = cc.egui_ctx.clone();
+        let wake_player = wake.clone();
         let player = Player::spawn(
             proxy.clone(),
             eq.clone(),
             tap.clone(),
             Arc::new(move |event| {
                 let _ = events.send(event);
-                ctx.request_repaint();
+                wake_player();
             }),
         );
         player.send(player::Command::Volume(preferences.volume));
-        let ctx = cc.egui_ctx.clone();
-        let media = (!demo)
-            .then(|| crate::media_controls::MediaService::spawn(move || ctx.request_repaint()));
+        let media = (!demo).then(|| crate::media_controls::MediaService::spawn(move || wake()));
         let newest = presentation
             .settings
             .library_sort
@@ -1047,20 +1047,16 @@ impl App {
                 [110, 65, 96],
             ];
             let base = colors[index % colors.len()];
-            let pixels = (0..128 * 128)
-                .map(|n| {
-                    let x = (n % 128) as f32;
-                    let y = (n / 128) as f32;
-                    let stripe =
-                        ((x * 0.04 + y * 0.03 + index as f32).sin() * 0.3 + 0.7).clamp(0.0, 1.0);
-                    egui::Color32::from_rgb(
-                        (f32::from(base[0]) * stripe) as u8,
-                        (f32::from(base[1]) * stripe) as u8,
-                        (f32::from(base[2]) * stripe) as u8,
-                    )
-                })
-                .collect();
-            let image = egui::ColorImage::new([128, 128], pixels);
+            let image = image::RgbaImage::from_fn(128, 128, |x, y| {
+                let stripe = ((x as f32 * 0.04 + y as f32 * 0.03 + index as f32).sin() * 0.3 + 0.7)
+                    .clamp(0.0, 1.0);
+                image::Rgba([
+                    (f32::from(base[0]) * stripe) as u8,
+                    (f32::from(base[1]) * stripe) as u8,
+                    (f32::from(base[2]) * stripe) as u8,
+                    255,
+                ])
+            });
             self.artwork.insert(
                 ctx,
                 self.cover_uri(&id),

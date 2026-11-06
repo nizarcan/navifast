@@ -42,6 +42,12 @@ impl Artwork {
     ) {
         // A returning row may already have a preview texture. Replace it on
         // the next paint, without discarding the downloaded bytes or preview.
+        let to_egui = |image: image::RgbaImage| {
+            Arc::new(egui::ColorImage::from_rgba_unmultiplied(
+                [image.width() as usize, image.height() as usize],
+                image.as_raw(),
+            ))
+        };
         Self::forget_textures(ctx, &uri);
         self.images
             .lock()
@@ -49,8 +55,8 @@ impl Artwork {
             .insert(
                 uri,
                 CachedCover {
-                    image: Some(Arc::new(cover.image)),
-                    preview: Arc::new(cover.preview),
+                    image: Some(to_egui(cover.image)),
+                    preview: to_egui(cover.preview),
                     bytes: cover.bytes,
                     used: Instant::now(),
                 },
@@ -1088,8 +1094,8 @@ mod tests {
 
     fn cover_fixture() -> crate::navidrome::backend::Cover {
         crate::navidrome::backend::Cover {
-            image: egui::ColorImage::filled([300, 300], egui::Color32::RED),
-            preview: egui::ColorImage::filled([64, 64], egui::Color32::RED),
+            image: image::RgbaImage::from_pixel(300, 300, image::Rgba([255, 0, 0, 255])),
+            preview: image::RgbaImage::from_pixel(64, 64, image::Rgba([255, 0, 0, 255])),
             bytes: Arc::from([1, 2, 3]),
             color: None,
         }

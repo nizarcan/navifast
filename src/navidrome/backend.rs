@@ -163,9 +163,10 @@ pub enum Event {
     SaveFailed,
 }
 
+/// Decoded straight-alpha sRGB, plus the source used to restore an evicted full image.
 pub struct Cover {
-    pub image: egui::ColorImage,
-    pub preview: egui::ColorImage,
+    pub image: image::RgbaImage,
+    pub preview: image::RgbaImage,
     pub bytes: Arc<[u8]>,
     pub color: Option<[u8; 3]>,
 }
@@ -177,8 +178,8 @@ pub struct Backend {
 }
 
 impl Backend {
-    pub fn spawn(ctx: egui::Context, dirs: crate::paths::AppDirs) -> Self {
-        Self::with_store(ctx, move || {
+    pub fn spawn(wake: Arc<dyn Fn() + Send + Sync>, dirs: crate::paths::AppDirs) -> Self {
+        Self::with_store(wake, move || {
             #[cfg(not(test))]
             let credentials = Store::new(dirs);
             #[cfg(test)]
@@ -188,7 +189,7 @@ impl Backend {
     }
 
     fn with_store(
-        ctx: egui::Context,
+        wake: Arc<dyn Fn() + Send + Sync>,
         create_store: impl FnOnce() -> Store + Send + 'static,
     ) -> Self {
         let (send, mut requests) = tokio::sync::mpsc::unbounded_channel();
@@ -222,7 +223,7 @@ impl Backend {
                                     let revoked = credentials.revoke(Slot::Navidrome);
                                     let deletion = credentials.lease(Slot::Navidrome).delete();
                                     let events = events.clone();
-                                    let ctx = ctx.clone();
+                                    let wake = wake.clone();
                                     deletions.spawn(async move {
                                         let deleted = deletion.await;
                                         if revoked.is_err() || deleted.is_err() {
@@ -234,7 +235,7 @@ impl Backend {
                                                     "Automatic sign-in is disabled, but the saved password could not be removed. Unlock the system credential store and sign out again to remove it."
                                                 }.into(),
                                             });
-                                            ctx.request_repaint();
+                                            wake();
                                         }
                                     });
                                 }
@@ -252,11 +253,11 @@ impl Backend {
                                         std::fs::write(&temporary, json)?;
                                         crate::util::replace_file(&temporary, &path)
                                     }).await;
-                                    if !matches!(result, Ok(Ok(()))) { let _=events.send(Event::SaveFailed); ctx.request_repaint(); }
+                                    if !matches!(result, Ok(Ok(()))) { let _=events.send(Event::SaveFailed); wake(); }
                                 }
                                 request => {
                                     let events = events.clone();
-                                    let ctx = ctx.clone();
+                                    let wake = wake.clone();
                                     let permits = permits.clone();
                                     let lease = credentials.lease(Slot::Navidrome);
                                     let group = match request {
@@ -275,13 +276,13 @@ impl Backend {
                                             }
                                             _ => None,
                                         };
-                                        if let Some(event) = event { let _ = events.send(event); ctx.request_repaint(); }
+                                        if let Some(event) = event { let _ = events.send(event); wake(); }
                                         if let Some((session, saving)) = saving
                                             && let Err(error) = saving.await
                                             && lease.current()
                                         {
                                             let _ = events.send(Event::CredentialError { session, message: error.to_string() });
-                                            ctx.request_repaint();
+                                            wake();
                                         }
                                     });
                                 }
@@ -497,14 +498,8 @@ fn decode_cover(bytes: Arc<[u8]>, size: CoverSize) -> Result<Cover, String> {
     let preview = image.thumbnail(64, 64).into_rgba8();
     let image = image.into_rgba8();
     Ok(Cover {
-        image: egui::ColorImage::from_rgba_unmultiplied(
-            [image.width() as usize, image.height() as usize],
-            image.as_raw(),
-        ),
-        preview: egui::ColorImage::from_rgba_unmultiplied(
-            [preview.width() as usize, preview.height() as usize],
-            preview.as_raw(),
-        ),
+        image,
+        preview,
         color: crate::images::accent_color(&bytes),
         bytes,
     })
@@ -537,7 +532,7 @@ mod tests {
 
         fn backend(&self) -> Backend {
             let store = self.store.clone();
-            Backend::with_store(egui::Context::default(), move || store)
+            Backend::with_store(Arc::new(|| {}), move || store)
         }
     }
 
@@ -690,13 +685,47 @@ mod tests {
         };
         assert_eq!(session, 42);
         assert_eq!(id, "cover:/🌍");
-        assert_eq!(cover.image.size, [300, 150]);
-        assert_eq!(cover.preview.size, [64, 32]);
+        assert_eq!(cover.image.dimensions(), (300, 150));
+        assert_eq!(cover.preview.dimensions(), (64, 32));
         assert!(Arc::ptr_eq(&bytes, &cover.bytes));
         assert!(cover.color.is_some());
         let portrait = decode_cover(bytes, CoverSize::Portrait).unwrap();
-        assert_eq!(portrait.image.size, [600, 300]);
-        assert_eq!(portrait.preview.size, [64, 32]);
+        assert_eq!(portrait.image.dimensions(), (600, 300));
+        assert_eq!(portrait.preview.dimensions(), (64, 32));
+    }
+
+    #[test]
+    fn decoded_art_preserves_straight_alpha_for_the_renderer() {
+        let rgba = image::Rgba([220, 70, 10, 64]);
+        let image = image::RgbaImage::from_pixel(2, 2, rgba);
+        let mut png = std::io::Cursor::new(Vec::new());
+        image.write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let cover = decode_cover(png.into_inner().into(), CoverSize::Sleeve).unwrap();
+        assert_eq!(cover.image.get_pixel(0, 0), &rgba);
+    }
+
+    #[test]
+    fn worker_wakes_the_host_after_enqueuing_its_event() {
+        let fixture = Fixture::new();
+        let store = fixture.store.clone();
+        let (send, wakes) = mpsc::channel();
+        let backend = Backend::with_store(
+            Arc::new(move || {
+                let _ = send.send(());
+            }),
+            move || store,
+        );
+        backend.send(Request::Restore { session: 42 });
+        wakes
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        assert!(matches!(
+            backend.events.try_recv(),
+            Ok(Event::Restored {
+                session: 42,
+                result: Ok(None)
+            })
+        ));
     }
 
     #[test]
