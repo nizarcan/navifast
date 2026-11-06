@@ -118,7 +118,7 @@ jobs:
           sudo apt-get update
           # The AppImage bundles no libraries, so it needs what the DEB depends on.
           sudo apt-get install -y --no-install-recommends \
-            libdbus-1-3 libgl1 libegl1 libxkbcommon0 libxkbcommon-x11-0 \
+            libdbus-1-3 libgl1 libegl1 libvulkan1 libxkbcommon0 libxkbcommon-x11-0 \
             libwayland-client0 libwayland-cursor0 libwayland-egl1 libx11-6 \
             libx11-xcb1 libxcursor1 libxi6 libxrandr2 libasound2t64 libpulse0
           set -- dist/native-packages/packages/"$TARGET"/appimage/navifast-*-"$ARCH".AppImage

@@ -57,6 +57,8 @@ Install the Rust toolchain pinned in `rust-toolchain.toml`. On macOS, install
 Xcode command-line tools, CMake and Python 3. On Debian/Ubuntu, install `build-essential`,
 `pkg-config`, `cmake`, `clang`, `libclang-dev`, `libasound2-dev`, `libdbus-1-dev`,
 `libpulse-dev`, `libxkbcommon-dev`, `libwayland-dev` and `libgl1-mesa-dev`.
+The Linux desktop renderer also needs `libvulkan1` and a Vulkan driver for the
+graphics device.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for platform checks and optional MilkDrop
 dependencies. Then run:
 

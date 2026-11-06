@@ -59,6 +59,7 @@
               alsa-lib
               libpulseaudio
               libxkbcommon
+              vulkan-loader
               wayland
               libGL
               libx11
@@ -66,13 +67,14 @@
               libxi
               libxrandr
             ];
-          # The GUI dlopens its Wayland, X11 and GL libraries at run time.
+          # The GUI dlopens its Wayland, X11, Vulkan and GL libraries at run time.
           LD_LIBRARY_PATH = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux (
             pkgs.lib.makeLibraryPath (
               with pkgs;
               [
                 dbus
                 libxkbcommon
+                vulkan-loader
                 wayland
                 libGL
                 libx11
@@ -100,6 +102,7 @@
                 [
                   dbus
                   libxkbcommon
+                  vulkan-loader
                   wayland
                   libGL
                   libx11
@@ -120,7 +123,7 @@
                 pname = "navifast";
                 version = (pkgs.lib.importTOML ./Cargo.toml).package.version;
                 src = self;
-                hash = "sha256-/2/h/X/OdslNUFnk+PWBkD+NVZpmSzXy5hImuhYRyP8=";
+                hash = "sha256-obBIcZpXaiTIdkQ94ddtp21BBgl5JeaWK1knhgg4OtU=";
               };
               # projectm-sys only searches lib, while CMake may otherwise install to lib64.
               postPatch = ''
@@ -151,6 +154,7 @@
                 pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux (
                   with pkgs;
                   [
+                    libxkbcommon
                     alsa-lib
                     libpulseaudio
                     # libprojectM links OpenGL directly and its GL loader needs
@@ -169,7 +173,7 @@
                 export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               '';
 
-              # The GUI dlopens its Wayland, X11 and GL libraries at run time.
+              # The GUI dlopens its Wayland, X11, Vulkan and GL libraries at run time.
               postFixup =
                 pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
                   wrapProgram $out/bin/navifast \

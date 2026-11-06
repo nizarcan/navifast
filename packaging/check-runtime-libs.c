@@ -1,4 +1,4 @@
-/* The GUI loads these through winit, wayland-sys, glutin and rfd at runtime.
+/* The GUI loads these through Rune, wgpu, winit, wayland-sys, glutin and rfd at runtime.
  * --version and ELF DT_NEEDED inspection alone cannot detect their absence.
  * Compile outside the test container so build tools cannot supply missing deps.
  */
@@ -8,7 +8,7 @@
 int main(void) {
     const char *libraries[] = {
         "libdbus-1.so.3",
-        "libGL.so.1", "libEGL.so.1",
+        "libGL.so.1", "libEGL.so.1", "libvulkan.so.1",
         "libwayland-client.so.0", "libwayland-cursor.so.0", "libwayland-egl.so.1",
         "libxkbcommon.so.0", "libxkbcommon-x11.so.0",
         "libX11.so.6", "libX11-xcb.so.1", "libXcursor.so.1", "libXi.so.6", "libXrandr.so.2",
