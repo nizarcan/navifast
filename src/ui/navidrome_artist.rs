@@ -517,7 +517,7 @@ impl ArtistPage<'_> {
 
 const TILE_GAP: f32 = 14.0;
 
-fn grid_size(width: f32, target: f32) -> (usize, f32) {
+pub(super) fn grid_size(width: f32, target: f32) -> (usize, f32) {
     let cols = ((width + TILE_GAP) / (target + TILE_GAP)).round().max(1.0) as usize;
     (
         cols,
@@ -599,14 +599,14 @@ fn tile(
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
-enum ReleaseGroup {
+pub(crate) enum ReleaseGroup {
     #[default]
     All,
     Album,
     Short,
 }
 
-fn release_group(album: &Album) -> ReleaseGroup {
+pub(super) fn release_group(album: &Album) -> ReleaseGroup {
     if album
         .release_types
         .iter()
@@ -624,7 +624,7 @@ fn release_group(album: &Album) -> ReleaseGroup {
     }
 }
 
-fn release_summary(locale: Locale, albums: &[Album]) -> String {
+pub(super) fn release_summary(locale: Locale, albums: &[Album]) -> String {
     let count = albums.len() as u32;
     let mut text = ngettext(locale, "{count} release", "{count} releases", count)
         .replace("{count}", &count.to_string());

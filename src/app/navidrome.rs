@@ -13,7 +13,7 @@ use host::Host;
 mod presentation;
 pub mod search;
 use presentation::Artwork;
-pub(crate) use presentation::{encode, view_artists};
+pub(crate) use presentation::{decode, encode, view_artists};
 
 type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, bool, Option<String>);
 

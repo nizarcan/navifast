@@ -60,7 +60,7 @@ impl<'a> RowText<'a> {
 }
 
 /// The guide to writing a palette file for the themes folder.
-const THEMES_GUIDE_URL: &str =
+pub(super) const THEMES_GUIDE_URL: &str =
     "https://nizarcan.github.io/navifast/settings-and-files/#custom-themes";
 
 fn section_matches(needle: &str, title: &str, rows: &[RowText<'_>]) -> bool {
@@ -1967,7 +1967,7 @@ fn language_picker(app: &mut App, ui: &mut egui::Ui) {
     });
 }
 
-fn hertz(hz: f32) -> String {
+pub(super) fn hertz(hz: f32) -> String {
     if hz >= 1000.0 {
         format!("{}K", (hz / 1000.0).round() as u32)
     } else {

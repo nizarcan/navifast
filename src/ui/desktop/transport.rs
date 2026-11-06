@@ -1,13 +1,13 @@
 use super::*;
 use crate::{app::navidrome::Action as Service, settings::PlayerBarVis};
 
-pub(super) fn slider(
+fn slider(
     v: &Paint<'_>,
     name: &str,
     value: f64,
     range: [f64; 2],
     step: f64,
-    apply: impl Fn(&mut State, f64) + Copy + 'static,
+    apply: impl Fn(&mut State, f64, Option<rune::Phase>) + Copy + 'static,
 ) -> El {
     let [low, high] = range;
     let extent = (high - low).max(f64::EPSILON);
@@ -22,16 +22,25 @@ pub(super) fn slider(
         .range_value(value, low, high)
         .range_step(step)
         .on_step(move |s: &mut State, dir, _| {
-            apply(s, (value + f64::from(dir) * step).clamp(low, high))
+            apply(
+                s,
+                (value + f64::from(dir) * step).clamp(low, high),
+                Some(rune::Phase::Up),
+            )
         })
-        .on_step_limit(move |s: &mut State, end, _| apply(s, if end { high } else { low }))
+        .on_step_limit(move |s: &mut State, end, _| {
+            apply(s, if end { high } else { low }, Some(rune::Phase::Up))
+        })
         .on_drag(move |s: &mut State, d, _| {
-            if d.phase == rune::Phase::Up {
-                apply(
-                    s,
-                    low + extent * f64::from((d.x / d.w.max(1.)).clamp(0., 1.)),
-                );
+            if d.phase == rune::Phase::Down {
+                d.data = value as f32;
             }
+            let position = if d.cancelled() {
+                f64::from(d.data)
+            } else {
+                low + extent * f64::from((d.x / d.w.max(1.)).clamp(0., 1.))
+            };
+            apply(s, position, (!d.cancelled()).then_some(d.phase));
         })
         .child(
             el().w_full().h(4.).radius(2.).fill(color(v.p.dim)).child(
@@ -121,6 +130,10 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 .disabled(true),
         );
     let duration = song.map_or(0., |s| s.duration);
+    let position =
+        v.s.seek_preview
+            .filter(|(generation, _)| *generation == a.transport.generation)
+            .map_or(a.transport.position, |(_, s)| s);
     let elapsed = |t: f64| crate::util::format_duration_ms((t * 1000.) as u32);
     let center = col()
         .grow(1.)
@@ -133,24 +146,36 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 .w_full()
                 .items_center()
                 .gap(8.)
-                .child(label(
-                    elapsed(a.transport.position),
-                    11.,
-                    400.,
-                    v.p.secondary,
-                ))
+                .child(label(elapsed(position), 11., 400., v.p.secondary))
                 .child(
                     slider(
                         v,
                         &v.tr("Playback position (%)"),
                         if duration > 0. {
-                            100. * a.transport.position / duration
+                            100. * position / duration
                         } else {
                             0.
                         },
                         [0., 100.],
                         1.,
-                        move |s, p| s.app.apply(Service::Seek(p * duration / 100.)),
+                        move |s, p, phase| {
+                            let t = p * duration / 100.;
+                            let generation = s.app.transport.generation;
+                            match phase {
+                                None => s.seek_preview = None,
+                                Some(rune::Phase::Up) => {
+                                    if s.seek_preview.take().is_none_or(|(g, _)| g == generation) {
+                                        s.app.apply(Service::Seek(t));
+                                    }
+                                }
+                                Some(rune::Phase::Down) => s.seek_preview = Some((generation, t)),
+                                Some(rune::Phase::Move) => {
+                                    if let Some((_, seconds)) = &mut s.seek_preview {
+                                        *seconds = t;
+                                    }
+                                }
+                            }
+                        },
                     )
                     .disabled(duration <= 0.),
                 )
@@ -194,7 +219,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             f64::from(a.preferences.volume) * 100.,
             [0., 100.],
             5.,
-            |s, x| s.app.apply(Service::Volume((x / 100.) as f32)),
+            |s, x, _| s.app.apply(Service::Volume((x / 100.) as f32)),
         )));
     let height = crate::theme::PLAYER_BAR_HEIGHT;
     let tint = song

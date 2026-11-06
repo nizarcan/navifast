@@ -9192,15 +9192,7 @@ impl App {
                     ));
                 }
             }
-            Action::OpenUrl(url) => {
-                // Open links off the UI thread with the platform-specific
-                // launcher used elsewhere in the app.
-                std::thread::spawn(move || {
-                    if let Err(error) = crate::opener::open(&url) {
-                        log::warn!("unable to open {url}: {error}");
-                    }
-                });
-            }
+            Action::OpenUrl(url) => crate::opener::open_url(url),
             Action::ClearPlayHistory => {
                 self.plays.clear();
                 self.plays.save(&self.dirs.history_file());

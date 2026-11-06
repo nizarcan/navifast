@@ -10,6 +10,7 @@ use egui::Color32;
 use rune::{Color, ScrollSpec, TextStyle, col, el, row, text, text_input};
 use rune::{Cx, El, Tx};
 
+pub(crate) mod artist;
 mod library;
 mod preferences;
 mod transport;
@@ -74,6 +75,16 @@ impl Paint<'_> {
         size: f32,
         action: impl Fn(&mut State, &mut Tx) + 'static,
     ) -> El {
+        self.tinted_button(name, icon, size, self.p.secondary, action)
+    }
+    fn tinted_button(
+        &self,
+        name: &str,
+        icon: Icon,
+        size: f32,
+        ink: Color32,
+        action: impl Fn(&mut State, &mut Tx) + 'static,
+    ) -> El {
         el().size(32., 32.)
             .center()
             .radius(16.)
@@ -82,7 +93,7 @@ impl Paint<'_> {
             .role("button")
             .label(name)
             .focusable(true)
-            .child(self.icon(icon, size, self.p.secondary))
+            .child(self.icon(icon, size, ink))
             .on_press_tx(action)
     }
     fn button(
@@ -144,16 +155,33 @@ impl Paint<'_> {
             tx.live_only();
         })
     }
-    fn signin(&self) -> El {
-        let app = &self.s.app;
-        let width = (self.width - 40.).clamp(240., 430.);
-        let pixels = (64. * self.scale * self.zoom).round() as u32 + 4;
+    fn logo(&self, edge: f32) -> El {
+        let pixels = (edge * self.scale * self.zoom).round() as u32 + 4;
         let mut logos = self.s.logos.borrow_mut();
         let logo = logos.entry(pixels).or_insert_with(|| {
             let p = rune::Pixels::new();
             p.set(pixels, pixels, crate::util::app_icon_rgba(pixels as usize));
             p
         });
+        el().size(edge, edge).pixels(logo).a11y_hidden()
+    }
+    fn menu(&self, trigger: &'static str) -> El {
+        col()
+            .key(format!("{trigger}-menu"))
+            .role("menu")
+            .w(208.)
+            .min_h(0.)
+            .padding(6.)
+            .gap(2.)
+            .radius(8.)
+            .fill(color(self.p.overlay))
+            .border(1., color(self.p.outline))
+            .anchored_fit(trigger, rune::Side::Bottom, rune::Align::End, 4.)
+            .modal(true, |s: &mut State| s.menu = None)
+    }
+    fn signin(&self) -> El {
+        let app = &self.s.app;
+        let width = (self.width - 40.).clamp(240., 430.);
         let mut form = col()
             .w(width)
             .padding(37.)
@@ -165,7 +193,7 @@ impl Paint<'_> {
                     .w_full()
                     .items_center()
                     .gap(14.)
-                    .child(el().size(64., 64.).pixels(logo))
+                    .child(self.logo(64.))
                     .child(label("Navifast", 34., 700., self.p.text)),
             )
             .child(
@@ -235,6 +263,7 @@ impl Paint<'_> {
         let top = ((self.height - 430.) * 0.35).max(12.) + 14.;
         col()
             .key("login")
+            .window_drag()
             .w_full()
             .h_full()
             .items_center()
@@ -304,10 +333,43 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
     }
     let editing = matches!(
         tx.focused(),
-        Some("query" | "filter" | "server" | "user" | "password")
+        Some("query" | "filter" | "library-filter" | "server" | "user" | "password")
     );
     let action = match &k.key {
+        Key::Command('+' | '=') => {
+            preferences::zoom(s, 0.1);
+            return true;
+        }
+        Key::Command('-') => {
+            preferences::zoom(s, -0.1);
+            return true;
+        }
+        Key::Command('0') => {
+            preferences::zoom(s, 0.);
+            return true;
+        }
         Key::Command(',') => Action::Open(Page::Settings),
+        Key::Command('b') if k.mods.shift => {
+            let Some(album) = &s.app.playing_album else {
+                return false;
+            };
+            Action::Open(Page::Album(navidrome::encode(&album.id)))
+        }
+        Key::Command('a') if k.mods.shift => {
+            let Some(id) = s
+                .app
+                .transport
+                .song()
+                .and_then(|t| t.credits.artist_id.as_deref())
+            else {
+                return false;
+            };
+            Action::Open(Page::Artist(navidrome::encode(id)))
+        }
+        Key::Command('h') if k.mods.shift == cfg!(target_os = "macos") => {
+            Action::Open(Page::Albums)
+        }
+        Key::Command('l') => Action::Open(Page::LikedSongs),
         Key::Command('b') if !editing => Action::ToggleSidebar,
         Key::Command('f') => {
             s.query.focused = true;

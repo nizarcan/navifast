@@ -232,7 +232,7 @@ pub(crate) fn encode(id: &str) -> String {
     }
     encoded
 }
-pub(super) fn decode(id: &str) -> Option<String> {
+pub(crate) fn decode(id: &str) -> Option<String> {
     let (pairs, tail) = id.as_bytes().as_chunks::<2>();
     if !tail.is_empty() {
         return None;
@@ -688,12 +688,12 @@ impl App {
                     ));
                 }
             }
+            UiAction::OpenUrl(url) => crate::opener::open_url(url),
             // Local interface/settings actions can keep their existing implementation.
             action @ (UiAction::SetTheme(_)
             | UiAction::SetCustomTheme(_)
             | UiAction::ReloadThemes
             | UiAction::SetLanguage(_)
-            | UiAction::OpenUrl(_)
             | UiAction::SettingsChanged
             | UiAction::ToggleSidebar
             | UiAction::SetLibraryGrid(_)

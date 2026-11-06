@@ -50,3 +50,12 @@ pub fn open(target: impl AsRef<OsStr>) -> io::Result<()> {
         Err(io::Error::last_os_error())
     }
 }
+
+/// Launch an external link without blocking the desktop event loop.
+pub(crate) fn open_url(url: String) {
+    std::thread::spawn(move || {
+        if let Err(error) = open(&url) {
+            log::warn!("unable to open link: {error}");
+        }
+    });
+}

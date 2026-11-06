@@ -127,6 +127,9 @@ pub(crate) struct State {
     pub(crate) caps: [Live<[f32; 4]>; crate::vis::WIDE_BANDS],
     pub(crate) bars: [Live<[f32; 4]>; crate::vis::WIDE_BANDS],
     pub(crate) plot_width: f32,
+    pub(crate) seek_preview: Option<(u64, f64)>,
+    pub(crate) artist_views: HashMap<Page, views::artist::Options>,
+    pub(crate) favorite_menu: Option<(String, [f32; 2])>,
     pub(crate) menu: Option<&'static str>,
 }
 
@@ -211,6 +214,9 @@ impl State {
             caps: std::array::from_fn(|_| Live::new([0.; 4])),
             bars: std::array::from_fn(|_| Live::new([0.; 4])),
             plot_width: 0.,
+            seek_preview: None,
+            artist_views: Default::default(),
+            favorite_menu: None,
             menu: None,
         };
         state.sync_tracks();
@@ -244,10 +250,12 @@ impl State {
         let session = self.app.session;
         self.app.ui_action(action, &self.window);
         self.menu = None;
+        self.favorite_menu = None;
         if session != self.app.session {
             self.window.covers.replace(Default::default());
             self.offsets.clear();
             self.history_tables.clear();
+            self.artist_views.clear();
             self.table = Default::default();
             self.library_filter.clear();
             self.library_search = false;
@@ -341,6 +349,9 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     if restoring && !s.app.restoring_login {
         s.server.replace_text(&s.app.login.server);
         s.user.replace_text(&s.app.login.username);
+        if !s.app.connected {
+            s.password.replace_text(&s.app.login.password);
+        }
     }
     if s.app.presentation.custom_themes.needs_reload() {
         s.window.local_action(&mut s.app, Action::ReloadThemes);
@@ -475,7 +486,11 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
             views::view,
         )
     };
-    rune::set_app_id("io.github.nizarcan.Navifast");
+    #[cfg(target_os = "linux")]
+    {
+        static DESKTOP_ENTRY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        rune::set_app_id(DESKTOP_ENTRY.get_or_init(crate::media_controls::desktop_entry));
+    }
     let app = rune::App::new(spec).chrome(rune::Chrome {
         drag_regions: true,
         ..rune::Chrome::DEFAULT
@@ -593,6 +608,29 @@ mod tests {
         rt.update(|s, tx| s.dispatch(Action::Back, tx));
         rt.frame(0.);
         assert_eq!(rt.state.table.cursor, Some(77));
+    }
+
+    #[test]
+    fn a_filtered_equalizer_exposes_controls_and_updates_the_playback_filter() {
+        let mut rt = runtime("settings", "");
+        rt.update(|s, _| s.filter.replace_text("Equalizer"));
+        rt.frame(0.);
+        let tree = rt.accessibility_json().to_string();
+        assert!(tree.contains("Pre"));
+        assert!(!tree.contains("Open themes folder"));
+        assert!(rt.accessibility_action("eq-1", rune::accesskit::Action::Increment, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.presentation.settings.eq_bands_db[0], 0.1);
+        assert_eq!(rt.state.app.eq.lock().unwrap().bands_db[0], 0.1);
+    }
+
+    #[test]
+    fn transport_accessibility_press_toggles_real_controller_state() {
+        let mut rt = runtime("album:alb0", "");
+        let previous = rt.state.app.transport.paused;
+        assert!(rt.accessibility_action("toggle", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_ne!(rt.state.app.transport.paused, previous);
     }
 
     #[test]
