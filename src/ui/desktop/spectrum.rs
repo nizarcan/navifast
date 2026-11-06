@@ -11,12 +11,17 @@ pub(super) const MARK: u32 = 1;
 #[derive(Default)]
 pub(crate) struct Spectrum {
     instances: Vec<Instance>,
+    backdrop: Option<super::backdrop::Backdrop>,
     next_frame: Option<std::time::Instant>,
 }
 
 impl Compositor<State> for Spectrum {
     fn render(&mut self, f: &mut Frame<'_, State>) {
         self.next_frame = None;
+        if !f.rt.state.app.connected && !f.rt.state.app.restoring_login {
+            super::backdrop::Backdrop::draw(&mut self.backdrop, f);
+            return;
+        }
         let Some(index) =
             f.rt.instances
                 .iter()

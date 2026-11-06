@@ -123,7 +123,7 @@
                 pname = "navifast";
                 version = (pkgs.lib.importTOML ./Cargo.toml).package.version;
                 src = self;
-                hash = "sha256-obBIcZpXaiTIdkQ94ddtp21BBgl5JeaWK1knhgg4OtU=";
+                hash = "sha256-oT0Bsp0CtaojAY0PP3IXXNksVC4iNB3WnW+shsMw5qI=";
               };
               # projectm-sys only searches lib, while CMake may otherwise install to lib64.
               postPatch = ''

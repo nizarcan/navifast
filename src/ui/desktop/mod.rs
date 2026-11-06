@@ -11,6 +11,7 @@ use rune::{Color, ScrollSpec, TextStyle, col, el, row, text, text_input};
 use rune::{Cx, El, Tx};
 
 pub(crate) mod artist;
+mod backdrop;
 mod library;
 mod preferences;
 pub(crate) mod spectrum;
@@ -193,7 +194,13 @@ impl Paint<'_> {
             p.set(pixels, pixels, crate::util::app_icon_rgba(pixels as usize));
             p
         });
-        el().size(edge, edge).pixels(logo).a11y_hidden()
+        // The reference reserves the requested diameter but paints the four
+        // extra backing pixels around the mark at their native scale.
+        let side = pixels as f32 / (self.scale * self.zoom);
+        let inset = (edge - side) / 2.;
+        el().size(edge, edge)
+            .child(el().absolute(inset, inset).size(side, side).pixels(logo))
+            .a11y_hidden()
     }
     fn menu_item(
         &self,
@@ -239,7 +246,8 @@ impl Paint<'_> {
         let app = &self.s.app;
         let width = (self.width - 40.).clamp(240., 430.);
         let mut form = col()
-            .w(width)
+            .w(width + 2.)
+            .offset(1., 0.)
             .padding(37.)
             .radius(16.)
             .border(1., color(self.p.outline))
@@ -248,7 +256,7 @@ impl Paint<'_> {
                 col()
                     .w_full()
                     .items_center()
-                    .gap(14.)
+                    .gap(16.)
                     .child(self.logo(64.))
                     .child(label("Navifast", 34., 700., self.p.text)),
             )
@@ -259,7 +267,7 @@ impl Paint<'_> {
                     400.,
                     self.p.secondary,
                 )
-                .mt(20.),
+                .mt(22.),
             );
         for (key, name, field) in [
             ("server", "Server URL", &self.s.server),
@@ -295,9 +303,9 @@ impl Paint<'_> {
             }
             form = form
                 .child(label(name, 14., 400., self.p.text).mt(if key == "server" {
-                    24.
+                    25.5
                 } else {
-                    14.
+                    13.5
                 }))
                 .child(input.mt(6.));
         }
@@ -318,7 +326,7 @@ impl Paint<'_> {
         };
         form=form.child(buttons.mt(22.)).child(label("Your login is saved in the system credential store. Use HTTPS for a remote server.",12.,400.,self.p.secondary).wrap().mt(16.));
         let top = ((self.height - 430.) * 0.35).max(12.) + 14.;
-        col()
+        let scroll = col()
             .key("login")
             .window_drag()
             .w_full()
@@ -329,11 +337,18 @@ impl Paint<'_> {
             .scroll(ScrollSpec {
                 stick_bottom: false,
             })
-            .gradient(
-                color(crate::ui::blend(self.p.window, self.p.accent, 0.1)),
-                color(self.p.window),
+            .child(form);
+        col()
+            .w_full()
+            .h_full()
+            .child(
+                rune::effect(backdrop::MARK)
+                    .absolute(0., 0.)
+                    .w_full()
+                    .h_full()
+                    .a11y_hidden(),
             )
-            .child(form)
+            .child(scroll)
     }
 }
 

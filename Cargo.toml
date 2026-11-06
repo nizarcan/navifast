@@ -26,6 +26,8 @@ path = "src/main.rs"
 [dependencies]
 # Native window, renderer and accessible controls for the Navidrome presentation.
 rune = { git = "https://github.com/anomalyco/rune", rev = "7ead7d63fcf6f9dd9669385a8b90e2ae80015d7b", default-features = false, features = ["accessibility", "metal-backend", "dbus", "svg"] }
+# Use Rune's existing GPU device for the dithered native backdrop.
+wgpu = { version = "~30.0.1", default-features = false, features = ["wgsl"] }
 anyhow = "1"
 thiserror = "2"
 clap = { version = "4.5", features = ["derive"] }
@@ -38,8 +40,7 @@ directories = "6"
 # One protected-store API, with only each target's native provider below.
 # Durable Spotify grants must not be copied into ordinary state JSON.
 keyring-core = "1"
-# The whole UI. glow keeps the binary and the dependency tree small; wgpu is
-# not needed for a 2D music client.
+# The legacy client and the frozen reference use the original glow renderer.
 # AccessKit connects egui's control names, states, and actions to native screen readers.
 eframe = { version = "0.36", default-features = false, features = ["accesskit", "glow", "default_fonts", "links", "wayland", "x11", "persistence"] }
 egui = "0.36"
