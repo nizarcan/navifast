@@ -29,6 +29,7 @@ pub enum Request {
         session: u64,
         client: Client,
         id: String,
+        cached: Option<Arc<[u8]>>,
     },
     Save {
         path: std::path::PathBuf,
@@ -58,9 +59,16 @@ pub enum Event {
     Cover {
         session: u64,
         id: String,
-        result: Result<(egui::ColorImage, Option<[u8; 3]>), String>,
+        result: Result<Cover, String>,
     },
     SaveFailed,
+}
+
+pub struct Cover {
+    pub image: egui::ColorImage,
+    pub preview: egui::ColorImage,
+    pub bytes: Arc<[u8]>,
+    pub color: Option<[u8; 3]>,
 }
 
 pub struct Backend {
@@ -184,13 +192,16 @@ async fn execute(request: Request) -> Option<Event> {
             session,
             client,
             id,
+            cached,
         } => {
-            let result = match client.cover(&id).await {
-                Ok(bytes) => tokio::task::spawn_blocking(move || {
-                    decode_cover(&bytes).map(|image| (image, crate::images::accent_color(&bytes)))
-                })
-                .await
-                .unwrap_or_else(|_| Err("Artwork could not be decoded.".into())),
+            let bytes = match cached {
+                Some(bytes) => Ok(bytes),
+                None => client.cover(&id).await.map(Arc::from),
+            };
+            let result = match bytes {
+                Ok(bytes) => tokio::task::spawn_blocking(move || decode_cover(bytes))
+                    .await
+                    .unwrap_or_else(|_| Err("Artwork could not be decoded.".into())),
                 Err(error) => Err(error),
             };
             Event::Cover {
@@ -206,8 +217,8 @@ async fn execute(request: Request) -> Option<Event> {
     })
 }
 
-fn decode_cover(bytes: &[u8]) -> Result<egui::ColorImage, String> {
-    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
+fn decode_cover(bytes: Arc<[u8]>) -> Result<Cover, String> {
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(&*bytes))
         .with_guessed_format()
         .map_err(|_| "Invalid artwork.")?;
     let mut limits = image::Limits::default();
@@ -218,10 +229,70 @@ fn decode_cover(bytes: &[u8]) -> Result<egui::ColorImage, String> {
     let image = reader
         .decode()
         .map_err(|_| "Unsupported or oversized artwork.")?
-        .thumbnail(300, 300)
-        .into_rgba8();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        [image.width() as usize, image.height() as usize],
-        image.as_raw(),
-    ))
+        .thumbnail(300, 300);
+    let preview = image.thumbnail(64, 64).into_rgba8();
+    let image = image.into_rgba8();
+    Ok(Cover {
+        image: egui::ColorImage::from_rgba_unmultiplied(
+            [image.width() as usize, image.height() as usize],
+            image.as_raw(),
+        ),
+        preview: egui::ColorImage::from_rgba_unmultiplied(
+            [preview.width() as usize, preview.height() as usize],
+            preview.as_raw(),
+        ),
+        color: crate::images::accent_color(&bytes),
+        bytes,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn cached_cover_restores_without_a_server_and_preserves_aspect_ratio() {
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(
+            600,
+            300,
+            image::Rgb([120, 40, 20]),
+        ))
+        .write_to(&mut encoded, image::ImageFormat::Png)
+        .unwrap();
+        let bytes: Arc<[u8]> = Arc::from(encoded.into_inner());
+        // Nothing is listening here. A repeated getCoverArt request would fail.
+        let client = Client::new(
+            "http://127.0.0.1:1",
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        let Some(Event::Cover {
+            session,
+            id,
+            result: Ok(cover),
+        }) = execute(Request::Cover {
+            session: 42,
+            client,
+            id: "cover:/🌍".into(),
+            cached: Some(bytes.clone()),
+        })
+        .await
+        else {
+            panic!("cached artwork should decode without contacting the server");
+        };
+        assert_eq!(session, 42);
+        assert_eq!(id, "cover:/🌍");
+        assert_eq!(cover.image.size, [300, 150]);
+        assert_eq!(cover.preview.size, [64, 32]);
+        assert!(Arc::ptr_eq(&bytes, &cover.bytes));
+        assert!(cover.color.is_some());
+    }
+
+    #[test]
+    fn invalid_artwork_is_not_retained() {
+        assert!(decode_cover(Arc::from(&b"not an image"[..])).is_err());
+    }
 }

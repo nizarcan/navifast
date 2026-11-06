@@ -5,45 +5,123 @@ use crate::api::models as view;
 use crate::model::{Action as UiAction, Loadable, Page, RowContext};
 use egui::load::{ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint};
 
+const FULL_ART_BYTES: usize = 32 * 1024 * 1024;
+const CACHED_ART_BYTES: usize = 64 * 1024 * 1024;
+
+struct CachedCover {
+    image: Option<Arc<egui::ColorImage>>,
+    preview: Arc<egui::ColorImage>,
+    bytes: Arc<[u8]>,
+    used: Instant,
+}
+
+impl CachedCover {
+    fn full_bytes(&self) -> usize {
+        self.image
+            .as_ref()
+            .map_or(0, |image| image.pixels.len() * 4)
+    }
+
+    fn cached_bytes(&self) -> usize {
+        self.preview.pixels.len() * 4 + self.bytes.len()
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Artwork {
-    images: Mutex<HashMap<String, (Arc<egui::ColorImage>, Instant)>>,
+    images: Mutex<HashMap<String, CachedCover>>,
     requests: Mutex<HashSet<String>>,
 }
 
 impl Artwork {
-    pub fn insert(&self, uri: String, image: egui::ColorImage) {
+    pub fn insert(
+        &self,
+        ctx: &egui::Context,
+        uri: String,
+        cover: crate::navidrome::backend::Cover,
+    ) {
+        // A returning row may already have a preview texture. Replace it on
+        // the next paint, without discarding the downloaded bytes or preview.
+        Self::forget_textures(ctx, &uri);
         self.images
             .lock()
             .unwrap_or_else(|p| p.into_inner())
-            .insert(uri, (Arc::new(image), Instant::now()));
+            .insert(
+                uri,
+                CachedCover {
+                    image: Some(Arc::new(cover.image)),
+                    preview: Arc::new(cover.preview),
+                    bytes: cover.bytes,
+                    used: Instant::now(),
+                },
+            );
     }
+
+    pub fn cached_bytes(&self, uri: &str) -> Option<Arc<[u8]>> {
+        self.images
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(uri)
+            .map(|cover| cover.bytes.clone())
+    }
+
     pub fn evict(&self, ctx: &egui::Context) -> Vec<String> {
+        self.evict_to(ctx, FULL_ART_BYTES, CACHED_ART_BYTES)
+    }
+
+    fn evict_to(
+        &self,
+        ctx: &egui::Context,
+        full_budget: usize,
+        cached_budget: usize,
+    ) -> Vec<String> {
         let mut images = self.images.lock().unwrap_or_else(|p| p.into_inner());
-        let mut bytes: usize = images
-            .values()
-            .map(|(image, _)| image.pixels.len() * 4)
-            .sum();
+        let mut full_bytes: usize = images.values().map(CachedCover::full_bytes).sum();
+        let mut cached_bytes: usize = images.values().map(CachedCover::cached_bytes).sum();
+        if full_bytes <= full_budget && cached_bytes <= cached_budget {
+            return Vec::new();
+        }
+        let mut oldest: Vec<_> = images
+            .iter()
+            .map(|(uri, cover)| (uri.clone(), cover.used))
+            .collect();
+        oldest.sort_by_key(|(_, used)| *used);
+        let mut demoted = Vec::new();
         let mut forgotten = Vec::new();
-        while images.len() > 120 || bytes > 32 * 1024 * 1024 {
-            let Some(uri) = images
-                .iter()
-                .min_by_key(|(_, (_, used))| *used)
-                .map(|(uri, _)| uri.clone())
-            else {
+        for (uri, _) in oldest {
+            if full_bytes <= full_budget && cached_bytes <= cached_budget {
                 break;
-            };
-            if let Some((image, _)) = images.remove(&uri) {
-                bytes -= image.pixels.len() * 4;
             }
-            forgotten.push(uri);
+            if cached_bytes > cached_budget {
+                if let Some(cover) = images.remove(&uri) {
+                    full_bytes -= cover.full_bytes();
+                    cached_bytes -= cover.cached_bytes();
+                }
+                forgotten.push(uri);
+            } else if full_bytes > full_budget {
+                let cover = images.get_mut(&uri).unwrap();
+                full_bytes -= cover.full_bytes();
+                if cover.image.take().is_some() {
+                    demoted.push(uri);
+                }
+            }
         }
         drop(images);
-        // Forget GPU textures too, without calling loaders while holding our lock.
+        // GPU eviction must not also erase the small, immediately paintable
+        // preview and source bytes. Decoding a full cover happens on the worker.
+        for uri in demoted {
+            Self::forget_textures(ctx, &uri);
+        }
         for uri in &forgotten {
             ctx.forget_image(uri);
         }
         forgotten
+    }
+
+    fn forget_textures(ctx: &egui::Context, uri: &str) {
+        for loader in ctx.loaders().texture.lock().iter() {
+            loader.forget(uri);
+        }
     }
     pub fn clear(&self, ctx: &egui::Context) {
         let uris: Vec<_> = self
@@ -74,15 +152,21 @@ impl ImageLoader for Artwork {
         if !uri.starts_with("navifast-art:") {
             return Err(LoadError::NotSupported);
         }
-        if let Some(image) = self
+        if let Some(cover) = self
             .images
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .get_mut(uri)
         {
-            image.1 = Instant::now();
+            cover.used = Instant::now();
+            if cover.image.is_none() {
+                self.requests
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .insert(uri.into());
+            }
             return Ok(ImagePoll::Ready {
-                image: image.0.clone(),
+                image: cover.image.as_ref().unwrap_or(&cover.preview).clone(),
             });
         }
         self.requests
@@ -112,7 +196,7 @@ impl ImageLoader for Artwork {
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .values()
-            .map(|(image, _)| image.pixels.len() * 4)
+            .map(|cover| cover.full_bytes() + cover.cached_bytes())
             .sum()
     }
 }
@@ -823,30 +907,184 @@ mod tests {
         });
     }
 
+    fn cover_fixture() -> crate::navidrome::backend::Cover {
+        crate::navidrome::backend::Cover {
+            image: egui::ColorImage::filled([300, 300], egui::Color32::RED),
+            preview: egui::ColorImage::filled([64, 64], egui::Color32::RED),
+            bytes: Arc::from([1, 2, 3]),
+            color: None,
+        }
+    }
+
+    fn texture(ctx: &egui::Context, uri: &str) -> egui::load::SizedTexture {
+        let egui::load::TexturePoll::Ready { texture } = ctx
+            .try_load_texture(uri, Default::default(), Default::default())
+            .unwrap()
+        else {
+            panic!("cached artwork must be immediately paintable");
+        };
+        texture
+    }
+
     #[test]
-    fn artwork_eviction_keeps_recently_visible_covers_and_allows_reloading() {
+    fn scrolling_past_the_full_art_budget_keeps_returning_covers_paintable() {
         let ctx = egui::Context::default();
         let artwork = Arc::new(Artwork::default());
         ctx.add_image_loader(artwork.clone());
-        for index in 0..121 {
-            artwork.insert(
-                format!("navifast-art:1:{index}"),
-                egui::ColorImage::filled([1, 1], egui::Color32::WHITE),
-            );
+        // Three library pages exceed both the old 120-cover cap and the
+        // full-image memory budget. Each cover has really reached a texture.
+        for index in 0..180 {
+            let uri = format!("navifast-art:1:{index}");
+            artwork.insert(&ctx, uri.clone(), cover_fixture());
+            assert_eq!(texture(&ctx, &uri).size, egui::vec2(300.0, 300.0));
+            assert!(artwork.evict(&ctx).is_empty());
         }
+        assert!(artwork.byte_size() <= FULL_ART_BYTES + CACHED_ART_BYTES);
+        for index in 0..180 {
+            let uri = format!("navifast-art:1:{index}");
+            let shown = texture(&ctx, &uri);
+            assert!(shown.size.x == 64.0 || shown.size.x == 300.0);
+            assert_eq!(&*artwork.cached_bytes(&uri).unwrap(), &[1, 2, 3]);
+        }
+        assert!(
+            !artwork.drain().is_empty(),
+            "previews request local decoding"
+        );
+    }
+
+    #[test]
+    fn returning_cover_keeps_a_preview_until_the_full_texture_is_restored() {
+        let ctx = egui::Context::default();
+        let artwork = Arc::new(Artwork::default());
+        ctx.add_image_loader(artwork.clone());
+        let uri = "navifast-art:1:0";
+        artwork.insert(&ctx, uri.into(), cover_fixture());
+        let original = texture(&ctx, uri);
+        assert!(artwork.evict_to(&ctx, 0, CACHED_ART_BYTES).is_empty());
+        let preview = texture(&ctx, uri);
+        assert_eq!(preview.size, egui::vec2(64.0, 64.0));
+        assert_ne!(original.id, preview.id);
+        assert_eq!(artwork.drain(), vec![uri]);
+
+        artwork.insert(&ctx, uri.into(), cover_fixture());
+        let restored = texture(&ctx, uri);
+        assert_eq!(restored.size, original.size);
+        assert_ne!(restored.id, preview.id);
+        assert!(artwork.drain().is_empty());
+    }
+
+    #[cfg(feature = "demo")]
+    #[test]
+    fn demo_library_repaints_covers_after_scrolling_in_both_themes_and_sizes() {
+        fn painted_artwork(
+            app: &mut App,
+            ctx: &egui::Context,
+            uris: &[String],
+            width: f32,
+        ) -> usize {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(width, 800.0),
+                    )),
+                    ..Default::default()
+                },
+                |ui| app.draw(ui),
+            );
+            output.textures_delta.clear();
+            let ids: HashSet<_> = uris.iter().map(|uri| texture(ctx, uri).id).collect();
+            ctx.tessellate(output.shapes, output.pixels_per_point)
+                .iter()
+                .filter_map(|primitive| match &primitive.primitive {
+                    egui::epaint::Primitive::Mesh(mesh) if ids.contains(&mesh.texture_id) => {
+                        Some(mesh.indices.len())
+                    }
+                    _ => None,
+                })
+                .sum()
+        }
+
+        for light in [false, true] {
+            for width in [760.0, 1280.0] {
+                with_app(|app, ctx| {
+                    app.albums.clear();
+                    app.album = None;
+                    app.populate_demo(Some("albums"), light.then_some("light"), ctx);
+                    app.presentation.history = vec![Page::Albums];
+                    let uris: Vec<_> = app
+                        .albums
+                        .iter()
+                        .filter_map(|album| album.cover_art.as_ref())
+                        .map(|id| app.cover_uri(id))
+                        .collect();
+                    painted_artwork(app, ctx, &uris, width); // Settle the initial layout.
+                    let before = painted_artwork(app, ctx, &uris, width);
+                    assert!(before > 0);
+                    // Loading covers further down the collection evicts the
+                    // first page's full images before the user scrolls back.
+                    for index in 0..180 {
+                        app.artwork.insert(
+                            ctx,
+                            format!("navifast-art:0:offscreen-{index}"),
+                            cover_fixture(),
+                        );
+                    }
+                    assert!(app.artwork.evict(ctx).is_empty());
+                    assert!(
+                        uris.iter()
+                            .all(|uri| { app.artwork.images.lock().unwrap()[uri].image.is_none() })
+                    );
+                    // Draw again while the local restore is still pending.
+                    let after = painted_artwork(app, ctx, &uris, width);
+                    assert_eq!(after, before, "light={light}, width={width}");
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn artwork_budget_keeps_visible_textures_and_sign_out_clears_every_tier() {
+        let ctx = egui::Context::default();
+        let artwork = Arc::new(Artwork::default());
+        ctx.add_image_loader(artwork.clone());
         let visible = "navifast-art:1:0";
-        artwork.load(&ctx, visible, Default::default()).unwrap();
-        let forgotten = artwork.evict(&ctx);
-        assert_eq!(forgotten.len(), 1);
-        assert_ne!(forgotten[0], visible);
+        let older = "navifast-art:1:1";
+        for uri in [visible, older] {
+            artwork.insert(&ctx, uri.into(), cover_fixture());
+        }
+        let shown = texture(&ctx, visible);
+        // Paint through the actual widget after the texture exists, which
+        // must refresh recency even though egui skips its image loader.
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            crate::ui::widgets::cover(
+                ui,
+                &crate::theme::Palette::dark(),
+                Some(visible),
+                64.0,
+                0.0,
+                crate::theme::Icon::Music,
+            );
+        });
+        output.textures_delta.clear();
+        let cache_size = 64 * 64 * 4 + 3;
+        let forgotten = artwork.evict_to(&ctx, 300 * 300 * 4, cache_size);
+        assert_eq!(forgotten, vec![older]);
+        assert_eq!(texture(&ctx, visible).id, shown.id);
+        assert_eq!(artwork.byte_size(), 300 * 300 * 4 + cache_size);
         assert!(matches!(
-            artwork
-                .load(&ctx, &forgotten[0], Default::default())
-                .unwrap(),
+            artwork.load(&ctx, older, Default::default()).unwrap(),
             ImagePoll::Pending { .. }
         ));
         assert_eq!(artwork.drain(), forgotten);
+        assert!(artwork.evict_to(&ctx, 0, cache_size).is_empty());
+        texture(&ctx, visible);
         artwork.clear(&ctx);
         assert_eq!(artwork.byte_size(), 0);
+        assert!(artwork.drain().is_empty());
+        assert!(matches!(
+            ctx.try_load_texture(visible, Default::default(), Default::default()),
+            Ok(egui::load::TexturePoll::Pending { .. })
+        ));
     }
 }

@@ -512,6 +512,7 @@ impl App {
                     self.backend.send(Request::Cover {
                         session: self.session,
                         client: client.clone(),
+                        cached: self.artwork.cached_bytes(&self.cover_uri(&id)),
                         id,
                     });
                 }
@@ -647,14 +648,15 @@ impl App {
                 Event::Cover {
                     session,
                     id,
-                    result: Ok((image, color)),
+                    result: Ok(cover),
                 } if session == self.session => {
+                    self.requested_covers.remove(&id);
                     let uri = self.cover_uri(&id);
-                    if let Some(color) = color {
+                    if let Some(color) = cover.color {
                         let tint = self.presentation.palette.tint_from_art(color);
                         self.presentation.accents.insert(uri.clone(), tint);
                     }
-                    self.artwork.insert(uri, image);
+                    self.artwork.insert(ctx, uri, cover);
                     ctx.request_repaint();
                 }
                 Event::SaveFailed => self.error = Some(
@@ -927,7 +929,16 @@ impl App {
                 })
                 .collect();
             let image = egui::ColorImage::new([128, 128], pixels);
-            self.artwork.insert(self.cover_uri(&id), image);
+            self.artwork.insert(
+                ctx,
+                self.cover_uri(&id),
+                crate::navidrome::backend::Cover {
+                    preview: image.clone(),
+                    image,
+                    bytes: Arc::from([]),
+                    color: None,
+                },
+            );
         }
         if page.is_some_and(|page| page.starts_with("album:")) {
             self.album = self.albums.first().cloned();

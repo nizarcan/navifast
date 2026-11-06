@@ -24,7 +24,9 @@ Canceled in-flight audio reads may take up to their 15-second request deadline
 to release their session reference. No new keyring entries are created in this
 stage, and upstream Spotify profiles and credentials are not migrated.
 
-Artwork is bounded in memory; stream input downloads up to 4 MiB ahead in
+Artwork is bounded in memory. Recently viewed covers retain downloaded bytes
+and small previews for local restoration when scrolling back; they are cleared
+on sign-out and are not written to disk. Stream input downloads up to 4 MiB ahead in
 256 KiB byte ranges, plus the current block and one in-flight request. Pausing
 allows that bounded reserve to fill; stopping or signing out cancels further
 downloads and discards buffered audio. An in-flight request retains its existing

@@ -11,7 +11,8 @@ The first migration stage supports:
 
 - Signing in to a Navidrome server, including servers hosted under a URL path.
 - Browsing recently added or alphabetically sorted albums, with pagination,
-  artwork and album track lists.
+  artwork and album track lists. Recently viewed covers stay visible when
+  scrolling back, with full images restored from a bounded session cache.
 - Streaming original audio locally, with pause, resume, seeking, previous,
   next and automatic progression through an album.
 - The existing ten-band equalizer and a spectrum visualizer that follows the

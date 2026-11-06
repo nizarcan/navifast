@@ -11,7 +11,13 @@ Navidrome albums and transport state into the original `ui/` views and routes
 their actions after drawing. `ui::navidrome` supplies the server sign-in form.
 The inherited Spotify backend stays offline and does not restore credentials.
 Artwork uses opaque, session-scoped image-loader keys rather than authenticated
-URLs, with bounded CPU/GPU caching. `navidrome::backend`
+URLs, with bounded CPU/GPU caching. Full decoded covers have a 32 MiB memory
+budget. A separate 64 MiB cache retains downloaded bytes and small previews, so
+scrolling back paints a preview immediately while the worker restores the full
+cover without another server request. Both caches evict the least recently
+viewed artwork; only a cover evicted from the second cache needs downloading
+again. GPU textures are released with their corresponding images. Sign-out
+clears both caches, and no artwork is written to disk. `navidrome::backend`
 executes API requests on a dedicated Tokio runtime with cancellation and
 session/request generations. IDs are opaque strings. Album pages use
 `getAlbumList2` and `getAlbum`; artwork is fetched and decoded off the UI.
