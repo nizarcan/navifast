@@ -277,6 +277,7 @@ impl App {
     ) {
         self.playing_album = None;
         self.playing_playlist = None;
+        self.transport.album_rows.clear();
         self.transport.songs = songs;
         self.load(index, 0.0, false);
     }

@@ -91,6 +91,8 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Transport {
+    /// For a sorted album, the original occurrence key of each item in playback order.
+    album_rows: Vec<String>,
     pub songs: Vec<Song>,
     pub index: Option<usize>,
     pub position: f64,
@@ -672,6 +674,7 @@ impl App {
             self.presentation.recent_contexts.truncate(100);
             self.mark_dirty();
         }
+        self.transport.album_rows.clear();
         self.transport.songs = songs;
         self.load(index, 0.0, false);
     }
@@ -1158,7 +1161,7 @@ impl App {
         self.populate_demo_favorites(favorite_page.is_some(), &flags);
         let library_state = favorite_page.is_none()
             && page != Some("search")
-            && !page.is_some_and(|p| p.starts_with("artist:"));
+            && !page.is_some_and(|p| p.starts_with("artist:") || p.starts_with("playlist:"));
         if library_state && flags.contains(&"empty") {
             self.albums.clear();
             self.album = None;
@@ -1185,6 +1188,23 @@ impl App {
             self.populate_demo_search(&flags, host);
         } else if let Some(id) = page.and_then(|p| p.strip_prefix("artist:")) {
             self.populate_demo_artist(id, &flags);
+        } else if let Some(id) = page.and_then(|p| p.strip_prefix("playlist:")) {
+            self.presentation.history =
+                vec![crate::model::Page::Playlist(presentation::encode(id))];
+            self.presentation.navidrome_search.collection = if flags.contains(&"loading") {
+                crate::model::Loadable::Loading
+            } else if flags.contains(&"error") {
+                crate::model::Loadable::Failed("The server did not respond in time.".into())
+            } else {
+                crate::model::Loadable::Loaded(crate::navidrome::api::Collection::Playlist {
+                    name: "Evening drive".into(),
+                    songs: if flags.contains(&"empty") {
+                        Vec::new()
+                    } else {
+                        self.albums[0].song.clone()
+                    },
+                })
+            };
         } else if page == Some("settings") || self.show_eq {
             self.presentation.history = vec![crate::model::Page::Settings];
         } else if page.is_some_and(|p| p.starts_with("album:")) {

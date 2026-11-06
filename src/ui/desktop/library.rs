@@ -51,7 +51,8 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     }
     let page = s.app.presentation.page();
     let content = match page {
-        Page::Album(_) | Page::Playlist(_) => songs(v),
+        Page::Album(_) => songs(v),
+        Page::Playlist(_) => playlist(v),
         Page::Search => search(v),
         Page::Artist(_) => collection(v),
         Page::LikedSongs | Page::FavoriteGroup(_) => favorites(v),
@@ -921,8 +922,85 @@ fn open_song(s: &mut State, i: usize, tx: &mut Tx) {
     if matches!(s.app.presentation.page(), Page::Playlist(_)) {
         s.dispatch(Action::NavidromeSearch(Search::PlayEntry(i)), tx);
     } else {
-        s.app.apply(Service::Play(i));
+        s.play_album_row(i);
     }
+}
+fn album_columns(v: &Paint<'_>) -> El {
+    use crate::model::SortColumn;
+    let sort = v.s.album_sort();
+    let title = crate::i18n::pgettext(v.s.app.presentation.locale, "column heading", "TITLE");
+    let button = |column, name: String, width, text: &str| {
+        let active = sort
+            .filter(|s| s.column == column)
+            .map(|s| s.ascending)
+            .or_else(|| (sort.is_none() && column == SortColumn::Index).then_some(true));
+        let ink = if active.is_some() {
+            v.p.accent
+        } else {
+            v.p.secondary
+        };
+        let content = if column == SortColumn::Duration {
+            v.icon(Icon::Clock, 15., ink)
+        } else {
+            label(text, 12., 400., ink)
+        };
+        let mut head = row()
+            .key(format!("sort-{column:?}"))
+            .h(32.)
+            .w(width)
+            .items_center()
+            .gap(2.)
+            .role("button")
+            .focusable(true)
+            .label(name)
+            .child(content)
+            .on_press_tx(move |s: &mut State, tx| {
+                s.sort_album(column);
+                tx.instant();
+            });
+        if let Some(ascending) = active {
+            head = head.child(v.icon(
+                if ascending {
+                    Icon::ChevronUp
+                } else {
+                    Icon::ChevronDown
+                },
+                10.,
+                ink,
+            ));
+        }
+        head
+    };
+    col()
+        .w_full()
+        .child(
+            row()
+                .w_full()
+                .h(33.)
+                .pl(22.)
+                .pr(40.)
+                .items_center()
+                .child(button(
+                    SortColumn::Index,
+                    v.tr("Sort by playlist order"),
+                    30.,
+                    "#",
+                ))
+                .child(button(
+                    SortColumn::Title,
+                    v.tr("Sort by {column}").replace("{column}", &title),
+                    88.,
+                    &title,
+                ))
+                .child(el().grow(1.))
+                .child(button(
+                    SortColumn::Duration,
+                    v.tr("Sort by duration"),
+                    38.,
+                    "",
+                )),
+        )
+        .child(el().w_full().h(1.).fill(color(v.p.outline)))
 }
 fn songs(v: &Paint<'_>) -> El {
     let p = v.p;
@@ -955,15 +1033,7 @@ fn songs(v: &Paint<'_>) -> El {
         }
         _ => false,
     };
-    let current_key = if context_playing {
-        let t = &v.s.app.transport;
-        t.song().zip(t.index).map(|(song, i)| {
-            let occurrence = t.songs[..i].iter().filter(|s| s.id == song.id).count();
-            format!("song-{occurrence}:{}", song.id)
-        })
-    } else {
-        None
-    };
+    let current_key = context_playing.then(|| v.s.playing_row()).flatten();
     grid.virtual_rows(
         list_songs(v.s).len() + 1,
         h,
@@ -984,26 +1054,15 @@ fn songs(v: &Paint<'_>) -> El {
                 height: bounds.1,
             };
             if r == 0 {
-                let header = if matches!(s.app.presentation.page(), Page::Playlist(_)) {
-                    collection(&v)
-                } else {
-                    album(&v)
-                };
-                return col().w_full().child(header).child(
-                    row()
-                        .h(36.)
-                        .gap(12.)
-                        .items_center()
-                        .child(label("#", 13., 500., p.secondary).w(28.))
-                        .child(label(v.tr("Title"), 13., 500., p.secondary)),
-                );
+                return col().w_full().child(album(&v)).child(album_columns(&v));
             }
             let i = r - 1;
-            let song = &list_songs(s)[i];
+            let source = s.table.source(i);
+            let song = &list_songs(s)[source];
             let key = s.table.key(i).to_owned();
             let playing = current_key.as_ref() == Some(&key);
             let selected = s.table.selection.rows.contains(&i);
-            let mut line = row()
+            let line = row()
                 .key(key.clone())
                 .w_full()
                 .h(h)
@@ -1013,7 +1072,7 @@ fn songs(v: &Paint<'_>) -> El {
                 .radius(6.)
                 .role("row")
                 .focus_selected(selected)
-                .label(format!("{} {} {}", i + 1, song.title, song.artist))
+                .label(format!("{} {} {}", source + 1, song.title, song.artist))
                 .fill(if selected {
                     color(p.surface_active)
                 } else {
@@ -1027,16 +1086,13 @@ fn songs(v: &Paint<'_>) -> El {
                             v.icon(Icon::AudioLines, 17., p.accent)
                         } else {
                             label(
-                                (i + 1).to_string(),
+                                (source + 1).to_string(),
                                 14.,
                                 400.,
                                 if playing { p.accent } else { p.secondary },
                             )
                         }),
                 );
-            if h > 36. && matches!(s.app.presentation.page(), Page::Playlist(_)) {
-                line = line.child(v.cover(song.cover_art.as_deref(), CoverSize::Sleeve, 40., 4.));
-            }
             line.child(
                 col()
                     .grow(1.)
@@ -1131,6 +1187,117 @@ fn failed<T>(state: &Loadable<T>) -> Option<&str> {
         None
     }
 }
+fn catalogue_button(
+    v: &Paint<'_>,
+    name: &str,
+    icon: Icon,
+    artist: Option<(&str, &crate::navidrome::api::ArtistCredits)>,
+    selected: bool,
+) -> El {
+    let mut hit_row = row()
+        .grow(1.)
+        .min_w(0.)
+        .h(32.)
+        .gap(6.)
+        .px(6.)
+        .items_center()
+        .radius(5.)
+        .role("button")
+        .focusable(true)
+        .label(name)
+        .focus_selected(selected)
+        .fill(if selected {
+            color(v.p.surface_hover)
+        } else {
+            Color::TRANSPARENT
+        })
+        .hover(color(v.p.surface_hover))
+        .child(v.icon(icon, 16., if selected { v.p.accent } else { v.p.secondary }))
+        .child(label(name, 14., 500., v.p.text).truncate());
+    if let Some((by, details)) = artist
+        && !by.is_empty()
+    {
+        hit_row = hit_row
+            .child(label("·", 13., 400., v.p.dim))
+            .child(credits(v, by, details));
+    }
+    hit_row
+}
+fn playlist(v: &Paint<'_>) -> El {
+    let Some(Collection::Playlist { name, songs }) =
+        v.s.app.presentation.navidrome_search.collection.get()
+    else {
+        return collection(v);
+    };
+    let title = name.clone();
+    let empty = songs.is_empty();
+    let (p, scale, zoom, width, height) = (v.p, v.scale, v.zoom, v.width, v.height);
+    col()
+        .w_full()
+        .key("tracks")
+        .role("list")
+        .label(v.tr("Songs"))
+        .focusable(true)
+        .on_key(|s: &mut State, k, tx| track_key(s, k, tx))
+        .growth(rune::GrowthSpec::default())
+        .virtual_rows(
+            1 + songs.len(),
+            36.,
+            |s: &State, r| {
+                if r == 0 {
+                    "playlist-heading".into()
+                } else {
+                    Cow::Borrowed(s.table.key(r - 1))
+                }
+            },
+            move |s: &State, r| {
+                let v = Paint {
+                    s,
+                    p,
+                    scale,
+                    zoom,
+                    width,
+                    height,
+                };
+                if r == 0 {
+                    let mut head = col()
+                        .w_full()
+                        .gap(6.)
+                        .pb(4.)
+                        .child(heading(&v, &title))
+                        .child(label(v.tr("Songs"), 14., 400., p.secondary));
+                    if empty {
+                        head = head.child(label(v.tr("Nothing here yet."), 14., 400., p.secondary));
+                    }
+                    return head;
+                }
+                let i = r - 1;
+                let song = &list_songs(s)[i];
+                let key = s.table.key(i).to_owned();
+                let button = catalogue_button(
+                    &v,
+                    &song.title,
+                    Icon::Music,
+                    Some((&song.artist, &song.credits)),
+                    s.table.cursor == Some(i),
+                )
+                .key(format!("play-{key}"))
+                .on_press_tx(move |s: &mut State, tx| {
+                    if let Some(i) = s.table.index(&key) {
+                        s.table.pick(i, crate::model::RowPick::Only);
+                        open_song(s, i, tx);
+                    }
+                });
+                row()
+                    .w_full()
+                    .h(36.)
+                    .items_center()
+                    .gap(6.)
+                    .child(button)
+                    .child(star(&v, FavoriteKind::Song, &song.id))
+            },
+        )
+}
 fn search(v: &Paint<'_>) -> El {
     let s = &v.s.app.presentation.navidrome_search;
     let mut list = col().w_full().gap(2.);
@@ -1191,34 +1358,7 @@ fn search(v: &Paint<'_>) -> El {
             Hit::Playlist(_) => Icon::ListMusic,
         };
         let selected = s.selected == Some(hit);
-        let mut hit_row = row()
-            .key(format!("hit-{hit:?}"))
-            .grow(1.)
-            .min_w(0.)
-            .h(32.)
-            .gap(6.)
-            .px(6.)
-            .items_center()
-            .radius(5.)
-            .role("button")
-            .focusable(true)
-            .label(name)
-            .focus_selected(selected)
-            .fill(if selected {
-                color(v.p.surface_hover)
-            } else {
-                Color::TRANSPARENT
-            })
-            .hover(color(v.p.surface_hover))
-            .child(v.icon(icon, 16., if selected { v.p.accent } else { v.p.secondary }))
-            .child(label(name, 14., 500., v.p.text).truncate());
-        if let Some((by, details)) = artist
-            && !by.is_empty()
-        {
-            hit_row = hit_row
-                .child(label("·", 13., 400., v.p.dim))
-                .child(credits(v, by, details));
-        }
+        let hit_row = catalogue_button(v, name, icon, artist, selected).key(format!("hit-{hit:?}"));
         let mut line = row()
             .w_full()
             .items_center()

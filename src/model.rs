@@ -848,6 +848,28 @@ pub struct TableSort {
     pub ascending: bool,
 }
 
+impl TableSort {
+    pub fn next(sort: Option<Self>, column: SortColumn) -> Option<Self> {
+        // Ascending, descending, back to the list's own order.
+        match sort {
+            Some(sort) if sort.column == column && sort.ascending => Some(TableSort {
+                column,
+                ascending: false,
+            }),
+            Some(sort) if sort.column == column => None,
+            // The # stands for the list's own order: from any other sort
+            // it returns there rather than layering a sort of its own.
+            Some(_) if column == SortColumn::Index => None,
+            // Ascending by # is the list's own order, a click that would
+            // change nothing; the first click on # reverses instead.
+            _ => Some(TableSort {
+                column,
+                ascending: column != SortColumn::Index,
+            }),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum SortColumn {
     Title,

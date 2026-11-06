@@ -257,8 +257,53 @@ impl State {
     }
     fn sync_tracks(&mut self) {
         if let Some(songs) = self.app.page_songs() {
-            self.table.update(songs);
+            self.table.update(songs, self.album_sort());
         }
+    }
+    pub(crate) fn album_sort(&self) -> Option<crate::model::TableSort> {
+        let page = self.app.presentation.page();
+        if matches!(page, Page::Album(_)) {
+            self.app.presentation.table_sorts.get(page).copied()
+        } else {
+            None
+        }
+    }
+    pub(crate) fn sort_album(&mut self, column: crate::model::SortColumn) {
+        let page = self.app.presentation.page().clone();
+        if let Some(sort) = crate::model::TableSort::next(self.album_sort(), column) {
+            self.app.presentation.table_sorts.insert(page, sort);
+        } else {
+            self.app.presentation.table_sorts.remove(&page);
+        }
+        self.app.presentation.note_session_change();
+        self.sync_tracks();
+    }
+    pub(crate) fn play_album_row(&mut self, index: usize) {
+        if self.album_sort().is_none() {
+            self.app.apply(super::Action::Play(index));
+            return;
+        }
+        let Some(mut album) = self.app.album.clone() else {
+            return;
+        };
+        let original = std::mem::take(&mut album.song);
+        let (songs, keys) = self
+            .table
+            .order()
+            .map(|(i, key)| (original[i].clone(), key.to_owned()))
+            .unzip();
+        self.app.play_album_songs(Some(album), songs, index);
+        self.app.transport.album_rows = keys;
+    }
+    pub(crate) fn playing_row(&self) -> Option<String> {
+        let t = &self.app.transport;
+        let i = t.index?;
+        if let Some(key) = t.album_rows.get(i) {
+            return Some(key.clone());
+        }
+        let song = t.song()?;
+        let occurrence = t.songs[..i].iter().filter(|s| s.id == song.id).count();
+        Some(format!("song-{occurrence}:{}", song.id))
     }
     pub(crate) fn dispatch(&mut self, action: Action, tx: &mut Tx) {
         let previous = self.app.presentation.page().clone();
@@ -653,6 +698,73 @@ mod tests {
         rt.update(|s, tx| s.dispatch(Action::Back, tx));
         rt.frame(0.);
         assert_eq!(rt.state.table.cursor, Some(77));
+    }
+
+    #[test]
+    fn playlist_click_starts_that_occurrence_and_the_empty_view_has_no_table() {
+        let mut rt = runtime("playlist:list0", "");
+        rt.update(|s, _| {
+            if let crate::model::Loadable::Loaded(crate::navidrome::api::Collection::Playlist {
+                songs,
+                ..
+            }) = &mut s.app.presentation.navidrome_search.collection
+            {
+                songs[1] = songs[0].clone();
+            }
+            s.sync_tracks();
+        });
+        rt.frame(0.);
+        let key = format!("play-{}", rt.state.table.key(1));
+        assert!(rt.accessibility_action(&key, rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.transport.index, Some(1));
+        assert!(rt.state.app.playing_playlist.is_some());
+        let empty = runtime("playlist:list0", "empty");
+        assert!(
+            empty
+                .accessibility_json()
+                .to_string()
+                .contains("Nothing here yet.")
+        );
+    }
+
+    #[test]
+    fn sorting_preserves_the_selected_occurrence_and_plays_in_display_order() {
+        let mut rt = runtime("album:alb0", "");
+        rt.update(|s, _| {
+            let album = s.app.album.as_mut().unwrap();
+            album.song.truncate(3);
+            album.song[2] = album.song[0].clone();
+            s.sync_tracks();
+            s.table.pick(2, crate::model::RowPick::Only);
+        });
+        rt.frame(0.);
+        let key = rt.state.table.key(2).to_owned();
+        assert!(rt.accessibility_action("sort-Index", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.table.cursor, Some(0));
+        assert_eq!(rt.state.table.key(0), key);
+        rt.update(|s, _| s.play_album_row(0));
+        assert_eq!(rt.state.playing_row(), Some(key.clone()));
+        rt.update(|s, _| s.app.apply(super::super::Action::Next));
+        assert_eq!(
+            rt.state.playing_row().as_deref(),
+            Some(rt.state.table.key(1))
+        );
+        assert!(rt.accessibility_action("sort-Index", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(rt.state.album_sort().is_none());
+        assert_eq!(rt.state.table.cursor, Some(2));
+        for (key, ascending) in [
+            ("sort-Title", Some(true)),
+            ("sort-Title", Some(false)),
+            ("sort-Title", None),
+            ("sort-Duration", Some(true)),
+        ] {
+            assert!(rt.accessibility_action(key, rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            assert_eq!(rt.state.album_sort().map(|s| s.ascending), ascending);
+        }
     }
 
     #[test]

@@ -604,23 +604,7 @@ pub fn table(app: &mut App, ui: &mut egui::Ui, table: Table<'_>) {
             sort,
         )
     {
-        // Ascending, descending, back to the list's own order.
-        let next = match sort {
-            Some(sort) if sort.column == column && sort.ascending => Some(TableSort {
-                column,
-                ascending: false,
-            }),
-            Some(sort) if sort.column == column => None,
-            // The # stands for the list's own order: from any other sort
-            // it returns there rather than layering a sort of its own.
-            Some(_) if column == SortColumn::Index => None,
-            // Ascending by # is the list's own order, a click that would
-            // change nothing; the first click on # reverses instead.
-            _ => Some(TableSort {
-                column,
-                ascending: column != SortColumn::Index,
-            }),
-        };
+        let next = TableSort::next(sort, column);
         match next {
             Some(sort) => {
                 app.table_sorts.insert(table.page.clone(), sort);
