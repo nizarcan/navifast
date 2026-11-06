@@ -461,10 +461,7 @@ impl App {
                 title: song.title.clone(),
                 artists: view_artists(&song.credits, &song.artist),
                 album: album.map_or(&song.album, |a| &a.name).clone(),
-                art_url: album
-                    .and_then(|a| a.cover_art.as_ref())
-                    .or(song.cover_art.as_ref())
-                    .map(|id| self.cover_uri(id)),
+                art_url: self.playing_cover().map(|id| self.cover_uri(id)),
                 duration_ms: (song.duration * 1000.0) as u32,
                 ..Default::default()
             }

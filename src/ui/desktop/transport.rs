@@ -72,7 +72,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 });
         }
         meta = meta
-            .child(v.cover(t.cover_art.as_deref(), CoverSize::Sleeve, 56., 6.))
+            .child(v.cover(a.playing_cover(), CoverSize::Sleeve, 56., 6.))
             .child(col().min_w(0.).gap(2.).child(title).child(library::credit(
                 v,
                 &t.artist,
@@ -222,11 +222,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             |s, x, _| s.app.apply(Service::Volume((x / 100.) as f32)),
         )));
     let height = crate::theme::PLAYER_BAR_HEIGHT;
-    let tint = song
-        .and_then(|t| t.cover_art.as_ref())
-        .and_then(|id| a.presentation.accents.get(&a.cover_uri(id)))
-        .copied()
-        .filter(|_| a.presentation.settings.accent_from_art);
+    let tint = v.s.playing_tint(v.p);
     let fill = tint.map_or(v.p.panel, |t| crate::ui::blend(v.p.panel, t, 0.12));
     let (low, high) = crate::ui::player_bar::vis_colours(tint.unwrap_or(v.p.accent), v.p.dark);
     let strength = if v.p.dark { 1. } else { 1.5 };

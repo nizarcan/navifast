@@ -37,15 +37,7 @@ impl Compositor<State> for Spectrum {
         // deadline, its timer asks the compositor for the next sampled frame.
         self.next_frame = s.spectrum_deadline();
         let p = s.palette(f.rt.env.system_dark);
-        let tint = s
-            .app
-            .transport
-            .song()
-            .and_then(|t| t.cover_art.as_ref())
-            .filter(|_| s.app.presentation.settings.accent_from_art)
-            .and_then(|id| s.app.presentation.accents.get(&s.app.cover_uri(id)))
-            .copied()
-            .unwrap_or(p.accent);
+        let tint = s.playing_tint(p).unwrap_or(p.accent);
         let palette = crate::ui::player_bar::vis_colours(tint, p.dark);
         let scale = slot.params[3];
         let [x, y, w, h] = slot.rect;

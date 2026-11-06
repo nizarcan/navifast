@@ -112,8 +112,7 @@ fn hero(
         .artist_cover
         .as_ref()
         .filter(|_| p.settings.accent_from_art)
-        .and_then(|uri| p.accents.get(uri))
-        .copied()
+        .and_then(|uri| v.s.cover_tint(uri, v.p))
         .unwrap_or(Color32::from_rgb(111, 81, 128));
     let ink = crate::ui::blend(Color32::from_rgb(12, 13, 28), tint, 0.16);
     let plum = crate::ui::blend(Color32::from_rgb(35, 26, 39), tint, 0.56);

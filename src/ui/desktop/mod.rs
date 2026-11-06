@@ -166,6 +166,31 @@ impl Paint<'_> {
         });
         el().size(edge, edge).pixels(logo).a11y_hidden()
     }
+    fn menu_item(
+        &self,
+        name: &str,
+        icon: Option<Icon>,
+        action: impl Fn(&mut State, &mut Tx) + 'static,
+    ) -> El {
+        row()
+            .w_full()
+            .h(30.)
+            .px(8.)
+            .gap(8.)
+            .items_center()
+            .radius(4.)
+            .hover(color(self.p.surface_hover))
+            .press(color(self.p.surface_active))
+            .role("menuitem")
+            .label(name)
+            .focusable(true)
+            .child(icon.map_or_else(
+                || el().size(16., 16.),
+                |icon| self.icon(icon, 16., self.p.secondary),
+            ))
+            .child(label(name, 13.5, 400., self.p.text))
+            .on_press_tx(action)
+    }
     fn menu(&self, trigger: &'static str) -> El {
         col()
             .key(format!("{trigger}-menu"))
@@ -177,6 +202,7 @@ impl Paint<'_> {
             .radius(8.)
             .fill(color(self.p.overlay))
             .border(1., color(self.p.outline))
+            .focus_return(trigger)
             .anchored_fit(trigger, rune::Side::Bottom, rune::Align::End, 4.)
             .modal(true, |s: &mut State| s.menu = None)
     }
@@ -399,6 +425,17 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
         Key::Right if !editing && k.mods.shift => Action::SeekBy(10000),
         Key::Text(v) if !editing && v == " " => Action::TogglePlay,
         Key::Text(v) if !editing && v.eq_ignore_ascii_case("m") => Action::ToggleMute,
+        _ if tx.focused().is_none()
+            && s.menu.is_none()
+            && s.app.presentation.dialog.is_none()
+            && matches!(
+                s.app.presentation.page(),
+                Page::Album(_) | Page::Playlist(_)
+            )
+            && s.table.cursor.is_some() =>
+        {
+            return library::track_key(s, k, tx);
+        }
         _ => return false,
     };
     s.dispatch(action, tx);

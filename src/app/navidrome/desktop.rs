@@ -120,6 +120,7 @@ pub(crate) struct State {
     pub(crate) table: tracks::Tracks,
     history_tables: HashMap<Page, tracks::Tracks>,
     pub(crate) offsets: HashMap<Page, Live<f32>>,
+    restore_scroll: Option<f32>,
     pub(crate) analyser: crate::vis::WideAnalyser,
     samples: Vec<f32>,
     next_visual_frame: Option<(crate::settings::PlayerBarVis, std::time::Instant)>,
@@ -205,6 +206,7 @@ impl State {
             table: Default::default(),
             history_tables: Default::default(),
             offsets: HashMap::from([(page, Live::new(0.))]),
+            restore_scroll: None,
             analyser: Default::default(),
             samples: Vec::new(),
             next_visual_frame: None,
@@ -223,6 +225,18 @@ impl State {
         self.next_visual_frame
             .filter(|(mode, _)| *mode == crate::settings::PlayerBarVis::Spectrum)
             .map(|(_, t)| t)
+    }
+    pub(crate) fn titlebar_inset(&self) -> f32 {
+        #[cfg(target_os = "macos")]
+        if !self
+            .native_window
+            .borrow()
+            .as_ref()
+            .is_some_and(placement::fullscreen)
+        {
+            return 28.;
+        }
+        0.
     }
     pub(crate) fn resized(&mut self, width: f32, height: f32) {
         let Some(placement) = &mut self.placement else {
@@ -277,15 +291,31 @@ impl State {
             self.history_tables
                 .retain(|p, _| self.app.presentation.history.contains(p));
             self.sync_tracks();
-            tx.scroll_to_y(
-                "page",
-                self.offsets
-                    .entry(page)
-                    .or_insert_with(|| Live::new(0.))
-                    .get(),
-            );
+            let offset = self
+                .offsets
+                .entry(page)
+                .or_insert_with(|| Live::new(0.))
+                .get();
+            self.restore_scroll = (offset > 0. && self.page_loading()).then_some(offset);
+            tx.scroll_to_y("page", offset);
         }
         tx.instant();
+    }
+
+    fn page_loading(&self) -> bool {
+        let app = &self.app;
+        match app.presentation.page() {
+            Page::Albums => app.list_loading,
+            Page::Album(_) => app.album_loading,
+            Page::Playlist(_) | Page::Artist(_) => matches!(
+                app.presentation.navidrome_search.collection,
+                crate::model::Loadable::Loading
+            ),
+            Page::FavoriteGroup(_) | Page::LikedSongs => {
+                app.presentation.navidrome_favorites.loading
+            }
+            _ => false,
+        }
     }
 
     pub(crate) fn palette(&self, system_dark: bool) -> Palette {
@@ -301,6 +331,20 @@ impl State {
         })
     }
 
+    pub(crate) fn cover_tint(&self, uri: &str, palette: Palette) -> Option<egui::Color32> {
+        self.window
+            .covers
+            .borrow()
+            .color(uri)
+            .map(|rgb| palette.tint_from_art(rgb))
+            .or_else(|| self.app.presentation.accents.get(uri).copied())
+    }
+    pub(crate) fn playing_tint(&self, palette: Palette) -> Option<egui::Color32> {
+        if !self.app.presentation.settings.accent_from_art {
+            return None;
+        }
+        self.cover_tint(&self.app.cover_uri(self.app.playing_cover()?), palette)
+    }
     pub(crate) fn cover_image(&self, id: &str, size: CoverSize) -> (String, Option<rune::Pixels>) {
         let uri = presentation::artwork_uri(self.app.session, id, size);
         let covers = self.window.covers.borrow();
@@ -337,6 +381,11 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     let mut changed = s.app.poll(&s.window);
     if changed {
         s.sync_tracks();
+        if !s.page_loading()
+            && let Some(y) = s.restore_scroll.take()
+        {
+            tx.scroll_to_y("page", y);
+        }
     }
     let (retry, deadline) = s
         .window
@@ -456,6 +505,11 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
         )
     });
     let position = placement.as_ref().and_then(placement::Placement::position);
+    let window_mode = placement
+        .as_ref()
+        .map(placement::Placement::mode)
+        .unwrap_or_default();
+    let demo_bounds = launch.size.map(|[w, h]| (w, h));
     let [w, h] = launch.size.or(restored).unwrap_or([1240., 800.]);
     let spec = AppSpec {
         poll: Some(poll),
@@ -488,9 +542,12 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
     let app = app
         .window_options(rune::WindowOptions {
             position,
+            min_size: demo_bounds,
+            max_size: demo_bounds,
             ..Default::default()
         })
         .on_window(move |handle| {
+            window_mode.restore(handle);
             *observe.borrow_mut() = Some(handle.clone());
         })
         .on_close(|s, _| s.save_placement())
@@ -596,6 +653,44 @@ mod tests {
         rt.update(|s, tx| s.dispatch(Action::Back, tx));
         rt.frame(0.);
         assert_eq!(rt.state.table.cursor, Some(77));
+    }
+
+    #[test]
+    fn favorites_shelves_and_full_groups_mount_in_the_page_viewport() {
+        for page in [
+            "favorites",
+            "favorite-songs",
+            "favorite-albums",
+            "favorite-artists",
+        ] {
+            let rt = runtime(page, "many-favorites");
+            assert!(
+                rt.accessibility_json().to_string().contains("Refresh"),
+                "{page}"
+            );
+        }
+    }
+
+    #[test]
+    fn account_menu_receives_clicks_over_the_album_grid() {
+        let mut rt = runtime("albums", "");
+        assert!(rt.accessibility_action("account", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        let [x, y, w, h] = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some("account-shortcuts"))
+            .unwrap()
+            .rect;
+        rt.pointer_down(x + w / 2., y + h / 2.);
+        rt.pointer_up(x + w / 2., y + h / 2.);
+        rt.frame(0.);
+        assert!(matches!(
+            rt.state.app.presentation.dialog,
+            Some(crate::model::Dialog::Shortcuts)
+        ));
+        assert_eq!(rt.state.app.presentation.page(), &Page::Albums);
     }
 
     #[test]

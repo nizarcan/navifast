@@ -84,7 +84,35 @@ fn choice(v: &Paint<'_>, key: &'static str, name: &str, current: &str) -> El {
         .on_press(move |s: &mut State| s.menu = Some(key))
 }
 
-fn choices(v: &Paint<'_>, key: &'static str, options: Vec<(String, Action)>) -> El {
+pub(super) fn choice_menu(v: &Paint<'_>, key: &'static str) -> El {
+    let p = &v.s.app.presentation;
+    let options = if key == "themes" {
+        let mut opts = vec![
+            (v.tr("Follow system"), Action::SetTheme(ThemeChoice::System)),
+            (v.tr("Light"), Action::SetTheme(ThemeChoice::Light)),
+            (v.tr("Dark"), Action::SetTheme(ThemeChoice::Dark)),
+        ];
+        opts.extend(p.custom_themes.themes().iter().map(|t| {
+            (
+                fastframe_theme::display_name(&t.filename).to_owned(),
+                Action::SetCustomTheme(t.filename.clone()),
+            )
+        }));
+        opts
+    } else {
+        let system = crate::i18n::pgettext(p.locale, "language", "System");
+        let mut opts = vec![(
+            system.into_owned(),
+            Action::SetLanguage(LanguageChoice::System),
+        )];
+        opts.extend(crate::i18n::LOCALES.iter().map(|l| {
+            (
+                l.native_name().to_owned(),
+                Action::SetLanguage(LanguageChoice::Locale(*l)),
+            )
+        }));
+        opts
+    };
     v.menu(key).child(
         col()
             .min_h(0.)
@@ -220,7 +248,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
                     ThemeChoice::System => "Follow system",
                 })
             });
-        let mut picker = col()
+        let picker = col()
             .items_end()
             .gap(6.)
             .child(choice(v, "themes", &theme, &current))
@@ -244,20 +272,6 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
                         .px(9.),
                     ),
             );
-        if v.s.menu == Some("themes") {
-            let mut opts = vec![
-                (v.tr("Follow system"), Action::SetTheme(ThemeChoice::System)),
-                (v.tr("Light"), Action::SetTheme(ThemeChoice::Light)),
-                (v.tr("Dark"), Action::SetTheme(ThemeChoice::Dark)),
-            ];
-            opts.extend(p.custom_themes.themes().iter().map(|t| {
-                (
-                    fastframe_theme::display_name(&t.filename).to_owned(),
-                    Action::SetCustomTheme(t.filename.clone()),
-                )
-            }));
-            picker = picker.child(choices(v, "themes", opts));
-        }
         rows.push(setting(v, &theme, &description, picker, 340.));
     }
     let lang = v.tr("Language");
@@ -269,20 +283,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             LanguageChoice::System => system.as_ref(),
             LanguageChoice::Locale(l) => l.native_name(),
         };
-        let mut picker = choice(v, "languages", &lang, current);
-        if v.s.menu == Some("languages") {
-            let mut opts = vec![(
-                system.into_owned(),
-                Action::SetLanguage(LanguageChoice::System),
-            )];
-            opts.extend(crate::i18n::LOCALES.iter().map(|l| {
-                (
-                    l.native_name().to_owned(),
-                    Action::SetLanguage(LanguageChoice::Locale(*l)),
-                )
-            }));
-            picker = picker.child(choices(v, "languages", opts));
-        }
+        let picker = choice(v, "languages", &lang, current);
         rows.push(setting(v, &lang, &description, picker, 200.));
     }
     let toggle = |name: &'static str,

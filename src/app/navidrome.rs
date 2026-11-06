@@ -205,6 +205,14 @@ pub struct App {
 }
 
 impl App {
+    /// The playing album supplies its sleeve even when a song omits its own art.
+    pub(crate) fn playing_cover(&self) -> Option<&str> {
+        let song = self.transport.song()?;
+        self.playing_album
+            .as_ref()
+            .and_then(|album| album.cover_art.as_deref())
+            .or(song.cover_art.as_deref())
+    }
     pub fn new(
         cc: &eframe::CreationContext<'_>,
         dirs: crate::paths::AppDirs,

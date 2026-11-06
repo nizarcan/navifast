@@ -12,6 +12,7 @@ struct Entry {
     full: Option<Pixels>,
     preview: Pixels,
     bytes: Arc<[u8]>,
+    color: Option<[u8; 3]>,
     used: Instant,
 }
 
@@ -46,6 +47,7 @@ impl Covers {
                 full: Some(pixels(cover.image)),
                 preview: pixels(cover.preview),
                 bytes: cover.bytes,
+                color: cover.color,
                 used: Instant::now(),
             },
         );
@@ -126,6 +128,10 @@ impl Covers {
             }
         }
         (ready, next)
+    }
+
+    pub fn color(&self, key: &str) -> Option<[u8; 3]> {
+        self.items.get(key)?.color
     }
 
     pub fn get(&self, key: &str) -> Option<Pixels> {
