@@ -109,7 +109,7 @@ impl State {
 }
 
 impl App {
-    pub(super) fn edit_search(&mut self, query: String, ctx: &egui::Context) {
+    pub(super) fn edit_search(&mut self, query: String, host: &impl super::Host) {
         let key = query.trim().to_owned();
         let search = &mut self.presentation.search;
         search.query = query;
@@ -124,17 +124,19 @@ impl App {
         state.selected = None;
         state.catalogue = Loadable::NotLoaded;
         state.playlists = Loadable::NotLoaded;
-        ctx.request_repaint();
+        host.repaint_after(Duration::ZERO);
     }
 
-    pub(super) fn poll_search(&mut self, ctx: &egui::Context) {
+    pub(super) fn poll_search(&mut self, host: &impl super::Host) -> bool {
         if let Some(typed) = self.presentation.search.typed_at {
             if typed.elapsed() >= DEBOUNCE {
                 self.start_search();
+                return true;
             } else {
-                ctx.request_repaint_after(DEBOUNCE.saturating_sub(typed.elapsed()));
+                host.repaint_after(DEBOUNCE.saturating_sub(typed.elapsed()));
             }
         }
+        false
     }
 
     fn start_search(&mut self) {
@@ -212,14 +214,14 @@ impl App {
         }
     }
 
-    pub(super) fn search_action(&mut self, action: Action, ctx: &egui::Context) {
-        ctx.request_repaint();
+    pub(super) fn search_action(&mut self, action: Action, host: &impl super::Host) {
+        host.repaint_after(Duration::ZERO);
         match action {
-            Action::Edit(query) => self.edit_search(query, ctx),
+            Action::Edit(query) => self.edit_search(query, host),
             Action::Move(down) => self.presentation.navidrome_search.move_selection(down),
             Action::Submit => {
                 if let Some(hit) = self.presentation.navidrome_search.selected {
-                    self.search_action(Action::Activate(hit), ctx);
+                    self.search_action(Action::Activate(hit), host);
                 } else {
                     self.submit_query();
                 }
@@ -251,7 +253,7 @@ impl App {
                         .map(|p| Page::Playlist(super::presentation::encode(&p.id))),
                 };
                 if let Some(page) = page {
-                    self.ui_action(crate::model::Action::Open(page), ctx);
+                    self.ui_action(crate::model::Action::Open(page), host);
                 }
             }
             Action::PlayEntry(index) => {
@@ -260,6 +262,9 @@ impl App {
                     && index < songs.len()
                 {
                     self.play_search_songs(songs.clone(), index);
+                    if let Page::Playlist(id) = self.presentation.page() {
+                        self.playing_playlist = Some(id.clone());
+                    }
                 }
             }
         }
@@ -271,6 +276,7 @@ impl App {
         index: usize,
     ) {
         self.playing_album = None;
+        self.playing_playlist = None;
         self.transport.songs = songs;
         self.load(index, 0.0, false);
     }
@@ -499,7 +505,7 @@ impl App {
         }
     }
 
-    pub(super) fn populate_demo_search(&mut self, flags: &[&str], ctx: &egui::Context) {
+    pub(super) fn populate_demo_search(&mut self, flags: &[&str], host: &impl super::Host) {
         self.presentation.history = vec![Page::Search];
         if flags.contains(&"recent") {
             self.presentation.navidrome_search.recent = vec!["Bonobo".into(), "Promises".into()];
@@ -512,7 +518,7 @@ impl App {
                 "Bonobo"
             }
             .into(),
-            ctx,
+            host,
         );
         self.start_search();
         let state = &mut self.presentation.navidrome_search;

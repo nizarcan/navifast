@@ -432,19 +432,6 @@ pub(crate) fn run() -> eframe::Result<()> {
     let guarded = !demo;
     #[cfg(not(feature = "demo"))]
     let guarded = true;
-    let instance = if guarded {
-        match single_instance::acquire(&waker, link.as_deref()) {
-            single_instance::Outcome::Only(guard) => Some(guard),
-            single_instance::Outcome::Surfaced => {
-                log::info!("Navifast is already running; asked it to show its window");
-                return Ok(());
-            }
-        }
-    } else {
-        None
-    };
-    // The normal launch is Navidrome-only. The inherited demo remains
-    // available for before/after evidence while the remaining views migrate.
     #[cfg(feature = "demo")]
     let navidrome = !demo || cli.demo_navidrome;
     #[cfg(not(feature = "demo"))]
@@ -461,56 +448,46 @@ pub(crate) fn run() -> eframe::Result<()> {
                 cache: base.join("cache"),
             })
             .unwrap_or(dirs);
-        let _ = dirs.ensure();
-        let _ = fastframe_log::Logging::new("navifast", env!("CARGO_PKG_VERSION"))
-            .filter(if cli.verbose {
-                "warn,navifast=debug"
-            } else {
-                "warn,navifast=info"
-            })
-            .file(dirs.log_file())
-            .init();
-        navifast::emoji::install(false);
         #[cfg(feature = "demo")]
-        let size = cli.demo_size;
+        let (page, flags, snapshot, size) =
+            (cli.demo_page, cli.demo_show, cli.demo_shot, cli.demo_size);
         #[cfg(not(feature = "demo"))]
-        let size = None;
-        let mut options = profile_options(native_options(false, None, size), "navifast");
-        #[cfg(feature = "demo")]
-        if demo {
-            options = demo_native_options(options, dirs.cache.join("navidrome-demo.ron"));
-        }
-        // Main-window geometry uses the same native shell policy as before.
-        options.viewport = options.viewport.with_title("Navifast");
-        return eframe::run_native(
-            "Navifast",
-            options,
-            Box::new(move |cc| {
-                #[cfg(not(feature = "demo"))]
-                let demo = false;
-                #[allow(unused_mut, reason = "Only the demo feature populates sample state")]
-                let mut app = app::navidrome::App::new(cc, dirs, instance, demo);
-                waker.attach(&cc.egui_ctx);
-                #[cfg(feature = "demo")]
-                if demo {
-                    app.populate_demo(
-                        cli.demo_page.as_deref(),
-                        cli.demo_show.as_deref(),
-                        &cc.egui_ctx,
-                    );
-                    app.shot = cli.demo_shot.map(|path| {
-                        (
-                            path,
-                            std::time::Instant::now()
-                                + std::time::Duration::from_millis(cli.demo_shot_delay),
-                            false,
-                        )
-                    });
-                }
-                Ok(Box::new(app))
-            }),
-        );
+        let (demo, page, flags, snapshot, size) = (false, None, None, None, None);
+        return app::navidrome::desktop::run(
+            app::navidrome::desktop::Launch {
+                dirs,
+                link,
+                demo,
+                page,
+                flags,
+                snapshot,
+                size,
+            },
+            |dirs| {
+                let _ = dirs.ensure();
+                let _ = fastframe_log::Logging::new("navifast", env!("CARGO_PKG_VERSION"))
+                    .filter(if cli.verbose {
+                        "warn,navifast=debug"
+                    } else {
+                        "warn,navifast=info"
+                    })
+                    .file(dirs.log_file())
+                    .init();
+            },
+        )
+        .map_err(|error| eframe::Error::AppCreation(error.into()));
     }
+    let instance = if guarded {
+        match single_instance::acquire(&waker, link.as_deref()) {
+            single_instance::Outcome::Only(guard) => Some(guard),
+            single_instance::Outcome::Surfaced => {
+                log::info!("Navifast is already running; asked it to show its window");
+                return Ok(());
+            }
+        }
+    } else {
+        None
+    };
     #[cfg(feature = "demo")]
     let migrate = guarded && cli.demo_data.is_none() && launch.receipt.is_none();
     #[cfg(not(feature = "demo"))]

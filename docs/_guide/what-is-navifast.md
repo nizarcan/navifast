@@ -4,7 +4,7 @@ description: A native Navidrome client in development.
 nav_order: 1
 ---
 
-Navifast is a Rust/egui desktop client for your own Navidrome server. It is a
+Navifast is a native desktop client written in Rust with Rune for your own Navidrome server. It is a
 fork of the upstream native Spotify client, retaining its UI foundation and
 audio DSP while replacing service-specific behavior.
 

@@ -28,7 +28,7 @@ const PEAK_HEIGHT: f32 = 2.0;
 const PEAK_GAP: f32 = 2.0;
 /// The waveform's line, as layers from the widest glow to the core, the
 /// shading under it, and its mirrored echo.
-const WAVE_LAYERS: [(f32, f32); 3] = [(9.0, 0.06), (4.0, 0.16), (1.6, 0.85)];
+pub(crate) const WAVE_LAYERS: [(f32, f32); 3] = [(9.0, 0.06), (4.0, 0.16), (1.6, 0.85)];
 const WAVE_FILL_ALPHA: f32 = 0.14;
 const WAVE_ECHO_ALPHA: f32 = 0.18;
 /// How much more strongly the visualizer paints over a light bar.
@@ -37,7 +37,7 @@ const LIGHT_STRENGTH: f32 = 1.5;
 const SPECTRUM_GAP: f32 = 2.0;
 /// How often a moving visualizer is drawn: sixty times a second, as the
 /// mini player's.
-const VIS_FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
+pub(crate) const VIS_FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
 
 /// Forget this bar's animation session while the sign-in screen is shown.
 pub(crate) fn end_tint_session(ctx: &egui::Context) {
@@ -174,7 +174,7 @@ fn visualizer(app: &mut App, ui: &egui::Ui, rect: Rect, now: Option<&NowPlaying>
 /// pass behind always stand out: no lighter than [`DARK_CEILING`] under the
 /// dark theme's white text, no darker than [`LIGHT_FLOOR`] under the light
 /// theme's dark text.
-fn vis_colours(base: Color32, dark: bool) -> (Color32, Color32) {
+pub(crate) fn vis_colours(base: Color32, dark: bool) -> (Color32, Color32) {
     let mut low = egui::ecolor::Hsva::from(base);
     low.s = low.s.max(0.55);
     low.v = 1.0;

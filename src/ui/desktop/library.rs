@@ -1,0 +1,1130 @@
+use super::*;
+use crate::app::navidrome::{Action as Service, search::Action as Search};
+use crate::model::Loadable;
+use crate::navidrome::api::{Album, Collection, FavoriteKind, SearchPart, Song};
+use std::borrow::Cow;
+
+pub(super) fn shell(v: &Paint<'_>) -> El {
+    let mut body = row().w_full().grow(1.).min_h(0.);
+    let s = v.s;
+    let side = if s.app.presentation.settings.sidebar_visible {
+        s.app
+            .presentation
+            .settings
+            .sidebar_width
+            .clamp(210., (v.width - 340.).max(210.))
+    } else {
+        0.
+    };
+    if side > 0. {
+        let max_width = (v.width - 340.).max(210.);
+        let zoom = v.zoom;
+        body = body.child(sidebar(v, side)).child(
+            el().key("resize-sidebar")
+                .w(3.)
+                .h_full()
+                .role("slider")
+                .label(v.tr("Library width"))
+                .range_value(f64::from(side), 210., f64::from(max_width))
+                .range_step(10.)
+                .on_step(move |s: &mut State, dir, _| {
+                    s.app.presentation.settings.sidebar_width =
+                        (s.app.presentation.settings.sidebar_width + 10. * dir as f32)
+                            .clamp(210., max_width);
+                    s.app.mark_dirty();
+                })
+                .on_drag(move |s: &mut State, d, tx| match d.phase {
+                    rune::Phase::Down => d.data = s.app.presentation.settings.sidebar_width,
+                    rune::Phase::Move => {
+                        s.app.presentation.settings.sidebar_width =
+                            (d.data + d.dx / zoom).clamp(210., max_width);
+                        tx.instant();
+                    }
+                    rune::Phase::Up => {
+                        if d.cancelled() {
+                            s.app.presentation.settings.sidebar_width = d.data;
+                        }
+                        s.app.mark_dirty();
+                    }
+                }),
+        );
+    }
+    let page = s.app.presentation.page();
+    let content = match page {
+        Page::Album(_) | Page::Playlist(_) => songs(v),
+        Page::Search => search(v),
+        Page::Artist(_) => collection(v),
+        Page::LikedSongs | Page::FavoriteGroup(_) => favorites(v),
+        Page::Settings => preferences::settings(v),
+        _ => albums(v, v.width - side),
+    };
+    let mut scroller = col()
+        .key("page")
+        .grow(1.)
+        .min_h(0.)
+        .w_full()
+        .px(24.)
+        .pt(22.)
+        .pb(48.)
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+        .child(content);
+    if let Some(offset) = s.offsets.get(page).cloned() {
+        scroller = scroller.on_scroll_offset(move |pos| {
+            offset.set(pos.offset[1]);
+        });
+    }
+    let center = col()
+        .min_w(0.)
+        .grow(1.)
+        .h_full()
+        .child(topbar(v))
+        .child(scroller);
+    let mut shell = col()
+        .w_full()
+        .h_full()
+        .fill(color(v.p.window))
+        .child(body.child(center))
+        .child(transport::player(v));
+    if let Some(msg) = s.app.presentation.toasts.last() {
+        shell = shell.child(
+            label(msg.message.clone(), 14., 500., v.p.text)
+                .padding(12.)
+                .radius(8.)
+                .fill(color(v.p.overlay))
+                .absolute(24., v.height - 145.),
+        );
+    }
+    if s.app.presentation.dialog.is_some() {
+        shell = shell.child(preferences::shortcuts(v));
+    }
+    shell
+}
+fn topbar(v: &Paint<'_>) -> El {
+    let mut bar = row()
+        .key("topbar")
+        .h(84.)
+        .pt(0.)
+        .px(24.)
+        .gap(8.)
+        .items_center()
+        .window_drag();
+    bar = bar
+        .child(
+            v.icon_button(&v.tr("Back"), Icon::ChevronLeft, 18., |s, tx| {
+                s.dispatch(Action::Back, tx)
+            })
+            .disabled(!v.s.app.presentation.can_go_back()),
+        )
+        .child(
+            v.icon_button(&v.tr("Forward"), Icon::ChevronRight, 18., |s, tx| {
+                s.dispatch(Action::Forward, tx)
+            })
+            .disabled(!v.s.app.presentation.can_go_forward()),
+        );
+    let input = text_input(&v.s.query, TextStyle::new(14., 400.))
+        .single_line()
+        .key("query")
+        .label(v.tr("Search"))
+        .grow(1.)
+        .min_w(0.)
+        .h(32.)
+        .color(color(v.p.text))
+        .placeholder(v.tr("What do you want to play?"), color(v.p.secondary))
+        .on_edit(|s: &mut State| &mut s.query)
+        .on_input_change(|s: &mut State, tx| {
+            if s.app.presentation.page() != &Page::Search {
+                s.dispatch(Action::Open(Page::Search), tx);
+            }
+            s.dispatch(
+                Action::NavidromeSearch(Search::Edit(s.query.text.clone())),
+                tx,
+            );
+        })
+        .on_input_key(|s: &mut State, ev, tx| {
+            let down = match ev.key {
+                rune::Key::Down => true,
+                rune::Key::Up => false,
+                _ => return false,
+            };
+            s.dispatch(Action::NavidromeSearch(Search::Move(down)), tx);
+            if let Some(hit) = s.app.presentation.navidrome_search.selected {
+                tx.scroll_into_view(format!("hit-{hit:?}"));
+            }
+            true
+        })
+        .on_submit(|s: &mut State, tx| s.dispatch(Action::NavidromeSearch(Search::Submit), tx));
+    bar.child(
+        row()
+            .grow(1.)
+            .max_w(440.)
+            .min_w(56.)
+            .h(34.)
+            .px(12.)
+            .gap(8.)
+            .items_center()
+            .radius(17.)
+            .fill(color(v.p.surface))
+            .child(v.icon(Icon::Search, 16., v.p.secondary))
+            .child(input),
+    )
+    .child(el().grow(1.))
+    .child(
+        v.icon_button(&v.tr("Settings"), Icon::Settings, 18., |s, tx| {
+            s.dispatch(Action::Open(Page::Settings), tx)
+        }),
+    )
+    .child(
+        v.button(
+            &v.s.app
+                .preferences
+                .username
+                .chars()
+                .next()
+                .unwrap_or('•')
+                .to_uppercase()
+                .to_string(),
+            true,
+            |s, _| s.menu = Some("account"),
+        ),
+    )
+    .child(if v.s.menu == Some("account") {
+        v.button(&v.tr("Sign out"), false, |s, tx| {
+            s.dispatch(Action::SignOut, tx)
+        })
+    } else {
+        el()
+    })
+}
+fn sidebar(v: &Paint<'_>, width: f32) -> El {
+    let app = &v.s.app;
+    let mut side = col()
+        .key("sidebar")
+        .w(width)
+        .h_full()
+        .fill(color(v.p.panel))
+        .px(12.)
+        .pt(40.);
+    for (name, icon, page) in [
+        ("Albums", Icon::House, Page::Albums),
+        ("Favorites", Icon::Star, Page::LikedSongs),
+    ] {
+        let ink = if &page == app.presentation.page() {
+            v.p.text
+        } else {
+            v.p.secondary
+        };
+        side = side.child(
+            row()
+                .h(46.)
+                .px(12.)
+                .gap(16.)
+                .items_center()
+                .role("button")
+                .label(v.tr(name))
+                .focusable(true)
+                .hover(color(v.p.surface_hover))
+                .child(v.icon(icon, 22., ink))
+                .child(label(v.tr(name), 15., 650., ink))
+                .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx)),
+        );
+    }
+    side = side
+        .child(el().w_full().h(1.).mt(12.).fill(color(v.p.outline)))
+        .child(
+            row()
+                .h(48.)
+                .items_center()
+                .gap(8.)
+                .child(v.icon(Icon::Library, 20., v.p.secondary))
+                .child(label(v.tr("Library"), 16., 650., v.p.text).grow(1.))
+                .child(v.icon_button(
+                    &v.tr("Search in Your Library"),
+                    Icon::Search,
+                    16.,
+                    |s, _| {
+                        s.library_search = !s.library_search;
+                        if s.library_search {
+                            s.library_filter.focused = true;
+                        } else {
+                            s.library_filter.clear();
+                        }
+                    },
+                ))
+                .child(
+                    v.icon_button(&v.tr("Grid"), Icon::LayoutGrid, 16., |s, tx| {
+                        s.dispatch(
+                            Action::SetLibraryGrid(!s.app.presentation.settings.sidebar_grid),
+                            tx,
+                        )
+                    }),
+                )
+                .child(v.icon_button(
+                    &v.tr("Show or hide the sidebar"),
+                    Icon::PanelLeft,
+                    16.,
+                    |s, tx| s.dispatch(Action::ToggleSidebar, tx),
+                )),
+        )
+        .child(row().child(v.button(&v.tr("Albums"), false, |s, tx| {
+            s.dispatch(Action::Open(Page::Albums), tx)
+        })))
+        .child(
+            row()
+                .mt(6.)
+                .child(v.button(&v.tr("Library order"), false, |s, _| {
+                    s.menu = if s.menu == Some("sort") {
+                        None
+                    } else {
+                        Some("sort")
+                    }
+                })),
+        );
+    if v.s.menu == Some("sort") {
+        for (name, sort) in [
+            (
+                "Recently added",
+                crate::settings::LibrarySort::RecentlyAdded,
+            ),
+            ("Name", crate::settings::LibrarySort::Name),
+            (
+                "Recently played",
+                crate::settings::LibrarySort::RecentlyPlayed,
+            ),
+        ] {
+            side = side.child(v.button(&v.tr(name), false, move |s, tx| {
+                s.dispatch(
+                    Action::SetLibrarySort {
+                        shelf: crate::settings::LibraryShelf::Albums,
+                        sort,
+                    },
+                    tx,
+                )
+            }));
+        }
+    }
+    if v.s.library_search {
+        side = side.child(
+            text_input(&v.s.library_filter, TextStyle::new(14., 400.))
+                .key("library-filter")
+                .single_line()
+                .label(v.tr("Search in Your Library"))
+                .placeholder(v.tr("Search in Your Library"), color(v.p.secondary))
+                .h(32.)
+                .px(8.)
+                .radius(8.)
+                .fill(color(v.p.surface))
+                .color(color(v.p.text))
+                .on_edit(|s: &mut State| &mut s.library_filter),
+        );
+    }
+    let filter = v.s.library_filter.text.to_lowercase();
+    let mut order: Vec<_> = app
+        .albums
+        .iter()
+        .enumerate()
+        .filter(|(_, a)| {
+            filter.is_empty()
+                || a.name.to_lowercase().contains(&filter)
+                || a.artist.to_lowercase().contains(&filter)
+        })
+        .map(|(i, _)| i)
+        .collect();
+    use crate::settings::{LibraryShelf, LibrarySort};
+    match app
+        .presentation
+        .settings
+        .library_sort
+        .get(&LibraryShelf::Albums)
+    {
+        Some(LibrarySort::Name) => order
+            .sort_by_cached_key(|&i| (app.albums[i].name.to_lowercase(), app.albums[i].id.clone())),
+        Some(LibrarySort::RecentlyPlayed) => order.sort_by_cached_key(|&i| {
+            let uri = format!("navidrome:album:{}", navidrome::encode(&app.albums[i].id));
+            app.presentation
+                .recent_contexts
+                .iter()
+                .position(|key| key == &uri)
+                .unwrap_or(usize::MAX)
+        }),
+        _ => {}
+    }
+    let grid = app.presentation.settings.sidebar_grid;
+    let compact = app.presentation.settings.sidebar_compact;
+    let layout = crate::ui::sidebar::grid_layout(width - 24.);
+    let columns = if grid { layout.columns } else { 1 };
+    let height = if grid {
+        layout.row_height
+    } else if compact {
+        34.
+    } else {
+        60.
+    };
+    let edge = (layout.card_width - 14.).max(1.);
+    let p = v.p;
+    let scale = v.scale;
+    let zoom = v.zoom;
+    let order = std::rc::Rc::new(order);
+    let keys = order.clone();
+    let list = col()
+        .key("sidebar-albums")
+        .grow(1.)
+        .min_h(0.)
+        .scroll(ScrollSpec {
+            stick_bottom: false,
+        })
+        .child(col().growth(rune::GrowthSpec::default()).virtual_rows(
+            order.len().div_ceil(columns),
+            height,
+            move |s: &State, i| Cow::Owned(format!("shelf-{}", s.app.albums[keys[i * columns]].id)),
+            move |s: &State, r| {
+                let v = Paint {
+                    s,
+                    p,
+                    scale,
+                    zoom,
+                    width,
+                    height: 0.,
+                };
+                let mut band = row().w_full().h(height);
+                for &i in order.iter().skip(r * columns).take(columns) {
+                    let a = &s.app.albums[i];
+                    let id = navidrome::encode(&a.id);
+                    let playing = s.app.playing_album.as_ref().is_some_and(|p| p.id == a.id);
+                    let name = label(&a.name, 14., 550., if playing { p.accent } else { p.text })
+                        .truncate();
+                    let by = label(
+                        format!("{} • {}", v.tr("Album"), a.artist),
+                        12.5,
+                        400.,
+                        p.secondary,
+                    )
+                    .truncate();
+                    let mut item = if grid {
+                        col()
+                            .w(layout.card_width)
+                            .padding(6.)
+                            .gap(3.)
+                            .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, edge, 6.))
+                            .child(name)
+                            .child(by)
+                    } else {
+                        let mut line = row().w_full().px(8.).items_center().gap(12.);
+                        if !compact {
+                            line = line.child(v.cover(
+                                a.cover_art.as_deref(),
+                                CoverSize::Sleeve,
+                                44.,
+                                6.,
+                            ));
+                        }
+                        let mut titles = col().min_w(0.).grow(1.).gap(3.).child(name);
+                        if !compact {
+                            titles = titles.child(by);
+                        }
+                        line = line.child(titles);
+                        if playing {
+                            line = line.child(v.icon(Icon::Volume2, 16., p.accent));
+                        }
+                        line
+                    };
+                    if playing {
+                        item = item.fill(color(p.surface));
+                    }
+                    band = band.child(
+                        item.h_full()
+                            .radius(6.)
+                            .role("button")
+                            .label(&a.name)
+                            .focusable(true)
+                            .hover(color(p.surface_hover))
+                            .on_press_tx(move |s: &mut State, tx| {
+                                s.dispatch(Action::Open(Page::Album(id.clone())), tx)
+                            }),
+                    );
+                }
+                band
+            },
+        ));
+    side.child(list)
+}
+fn heading(v: &Paint<'_>, text: &str) -> El {
+    label(text, 28., 700., v.p.text).pb(18.)
+}
+fn album_card(v: &Paint<'_>, a: &Album) -> El {
+    let page = Page::Album(navidrome::encode(&a.id));
+    col()
+        .key(format!("album-{}", a.id))
+        .w(172.)
+        .padding(12.)
+        .gap(2.)
+        .radius(8.)
+        .hover(color(v.p.surface_hover))
+        .role("button")
+        .focusable(true)
+        .label(format!("{}, {}", a.name, a.artist))
+        .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, 148., 6.))
+        .child(label(&a.name, 14., 600., v.p.text).mt(8.).truncate())
+        .child(label(&a.artist, 12.5, 400., v.p.secondary).wrap())
+        .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx))
+}
+fn albums(v: &Paint<'_>, width: f32) -> El {
+    let a = &v.s.app;
+    let n = crate::ui::widgets::card_columns((width - 48.).max(1.));
+    let p = v.p;
+    let scale = v.scale;
+    let zoom = v.zoom;
+    let rows = a.albums.len().div_ceil(n);
+    let bounds = (v.width, v.height);
+    col()
+        .w_full()
+        .growth(rune::GrowthSpec::default())
+        .virtual_rows(
+            rows + 2,
+            240.,
+            move |_: &State, r| {
+                if r == 0 {
+                    "albums-heading".into()
+                } else if r == rows + 1 {
+                    "albums-status".into()
+                } else {
+                    Cow::Owned(format!("albums-{r}"))
+                }
+            },
+            move |s: &State, r| {
+                let v = Paint {
+                    s,
+                    p,
+                    scale,
+                    zoom,
+                    width: bounds.0,
+                    height: bounds.1,
+                };
+                if r == 0 {
+                    return heading(&v, &v.tr("Albums"));
+                }
+                if r == rows + 1 {
+                    return album_status(&v);
+                }
+                let mut band = row().h(240.).gap(7.);
+                for album in s.app.albums.iter().skip((r - 1) * n).take(n) {
+                    band = band.child(album_card(&v, album));
+                }
+                band
+            },
+        )
+}
+fn album_status(v: &Paint<'_>) -> El {
+    let a = &v.s.app;
+    let mut page = col();
+    if let Some(e) = &a.error {
+        page = page.child(label(e, 14., 400., v.p.danger)).child(v.button(
+            &v.tr("Retry"),
+            false,
+            |s, _| s.app.apply(Service::Retry),
+        ));
+    } else if a.list_loading || a.restoring_login {
+        page = page.child(label(v.tr("Loading…"), 14., 400., v.p.secondary));
+    } else if a.albums.is_empty() {
+        page = page.child(heading(v, &v.tr("No albums"))).child(label(
+            v.tr("Albums in your Navidrome library appear here."),
+            14.,
+            400.,
+            v.p.secondary,
+        ));
+    } else if a.has_more {
+        page = page.child(v.button(&v.tr("Load more"), false, |s, _| s.app.apply(Service::More)));
+    }
+    page
+}
+fn album(v: &Paint<'_>) -> El {
+    let app = &v.s.app;
+    let Some(a) = app.album.as_ref() else {
+        return if let Some(e) = &app.error {
+            col().child(label(e, 14., 400., v.p.danger)).child(v.button(
+                &v.tr("Retry"),
+                false,
+                |s, tx| s.dispatch(Action::Reload(s.app.presentation.page().clone()), tx),
+            ))
+        } else {
+            label(v.tr("Loading…"), 14., 400., v.p.secondary)
+        };
+    };
+    let width = v.content_width();
+    let edge = if width > 720. { 212. } else { 160. };
+    let mut byline = row().items_center().flex_wrap().gap(4.).child(credit(
+        v,
+        &a.artist,
+        a.credits.artist_id.as_deref(),
+    ));
+    if a.year > 0 {
+        byline = byline.child(label(format!("• {}", a.year), 13.5, 400., v.p.secondary));
+    }
+    let length = a.song.iter().map(|t| (t.duration * 1000.) as u64).sum();
+    let details =
+        crate::ui::collection::songs_and_duration(app.presentation.locale, a.song_count, length);
+    let release = col()
+        .gap(6.)
+        .grow(1.)
+        .min_w(0.)
+        .pt(edge * 0.08)
+        .child(label(v.tr("Album"), 12.5, 500., v.p.text))
+        .child(label(&a.name, if edge > 200. { 56. } else { 40. }, 700., v.p.text).wrap())
+        .child(byline.child(label(format!("• {details}"), 13.5, 400., v.p.secondary)));
+    let active = app
+        .playing_album
+        .as_ref()
+        .is_some_and(|playing| playing.id == a.id)
+        && !app.transport.paused;
+    let mut page = col()
+        .w_full()
+        .gap(12.)
+        .child(
+            row()
+                .w_full()
+                .gap(24.)
+                .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, edge, 6.))
+                .child(release),
+        )
+        .child(
+            row()
+                .mt(14.)
+                .mb(10.)
+                .items_center()
+                .gap(12.)
+                .child(
+                    el().size(56., 56.)
+                        .center()
+                        .radius(28.)
+                        .fill(color(v.p.accent))
+                        .hover(color(v.p.accent_hover))
+                        .role("button")
+                        .focusable(true)
+                        .label(v.tr(if active { "Pause" } else { "Play" }))
+                        .child(v.icon(
+                            if active {
+                                Icon::PauseFilled
+                            } else {
+                                Icon::PlayFilled
+                            },
+                            28.,
+                            v.p.on_accent,
+                        ))
+                        .on_press(move |s: &mut State| {
+                            s.app.apply(if active {
+                                Service::Toggle
+                            } else {
+                                Service::Play(0)
+                            })
+                        }),
+                )
+                .child(
+                    v.icon_button(&v.tr("Shuffle"), Icon::Shuffle, 24., |_, _| {})
+                        .disabled(true),
+                )
+                .child(star(v, FavoriteKind::Album, &a.id))
+                .child(v.icon_button(&v.tr("More"), Icon::Ellipsis, 22., |s, _| {
+                    s.menu = Some("album")
+                })),
+        );
+    if v.s.menu == Some("album") {
+        page = page.child(star(v, FavoriteKind::Album, &a.id));
+    }
+    if a.song.is_empty() {
+        page = page.child(label(v.tr("No tracks"), 14., 400., v.p.secondary));
+    }
+    page
+}
+pub(super) fn credit(v: &Paint<'_>, name: &str, id: Option<&str>) -> El {
+    let title = label(name, 14., 500., v.p.secondary).truncate();
+    if let Some(id) = id {
+        let page = Page::Artist(navidrome::encode(id));
+        title
+            .role("button")
+            .focusable(true)
+            .label(name)
+            .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx))
+    } else {
+        title
+    }
+}
+pub(super) fn star(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
+    let uri = kind.uri(id);
+    let saved = v.s.app.presentation.navidrome_favorites.contains(&uri);
+    v.icon_button(
+        &v.tr(if saved == Some(true) {
+            "Remove from Favorites"
+        } else {
+            "Add to Favorites"
+        }),
+        if saved == Some(true) {
+            Icon::StarFilled
+        } else {
+            Icon::Star
+        },
+        18.,
+        move |s, tx| s.dispatch(Action::ToggleSaved(uri.clone()), tx),
+    )
+    .disabled(saved.is_none())
+}
+fn list_songs(s: &State) -> &[Song] {
+    s.app.page_songs().unwrap_or_default()
+}
+fn open_song(s: &mut State, i: usize, tx: &mut Tx) {
+    if matches!(s.app.presentation.page(), Page::Playlist(_)) {
+        s.dispatch(Action::NavidromeSearch(Search::PlayEntry(i)), tx);
+    } else {
+        s.app.apply(Service::Play(i));
+    }
+}
+fn songs(v: &Paint<'_>) -> El {
+    let p = v.p;
+    let zoom = v.zoom;
+    let scale = v.scale;
+    let h = if v.s.app.presentation.settings.tracklist_compact {
+        36.
+    } else {
+        56.
+    };
+    let bounds = (v.width, v.height);
+    let mut grid = col()
+        .key("tracks")
+        .role("grid")
+        .label(v.tr("Tracks"))
+        .w_full()
+        .focusable(true)
+        .growth(rune::GrowthSpec::default())
+        .on_key(|s: &mut State, k, tx| track_key(s, k, tx));
+    if let Some(key) = v.s.table.cursor() {
+        grid = grid.active_descendant(key);
+    }
+    let context_playing = match v.s.app.presentation.page() {
+        Page::Playlist(id) => v.s.app.playing_playlist.as_ref() == Some(id),
+        Page::Album(id) => {
+            v.s.app
+                .playing_album
+                .as_ref()
+                .is_some_and(|a| navidrome::encode(&a.id) == *id)
+        }
+        _ => false,
+    };
+    let current_key = if context_playing {
+        let t = &v.s.app.transport;
+        t.song().zip(t.index).map(|(song, i)| {
+            let occurrence = t.songs[..i].iter().filter(|s| s.id == song.id).count();
+            format!("song-{occurrence}:{}", song.id)
+        })
+    } else {
+        None
+    };
+    grid.virtual_rows(
+        list_songs(v.s).len() + 1,
+        h,
+        |s: &State, r| {
+            if r == 0 {
+                "tracks-heading".into()
+            } else {
+                Cow::Borrowed(s.table.key(r - 1))
+            }
+        },
+        move |s: &State, r| {
+            let v = Paint {
+                s,
+                p,
+                scale,
+                zoom,
+                width: bounds.0,
+                height: bounds.1,
+            };
+            if r == 0 {
+                let header = if matches!(s.app.presentation.page(), Page::Playlist(_)) {
+                    collection(&v)
+                } else {
+                    album(&v)
+                };
+                return col().w_full().child(header).child(
+                    row()
+                        .h(36.)
+                        .gap(12.)
+                        .items_center()
+                        .child(label("#", 13., 500., p.secondary).w(28.))
+                        .child(label(v.tr("Title"), 13., 500., p.secondary)),
+                );
+            }
+            let i = r - 1;
+            let song = &list_songs(s)[i];
+            let key = s.table.key(i).to_owned();
+            let playing = current_key.as_ref() == Some(&key);
+            let selected = s.table.selection.rows.contains(&i);
+            let mut line = row()
+                .key(key.clone())
+                .w_full()
+                .h(h)
+                .items_center()
+                .gap(12.)
+                .px(8.)
+                .radius(6.)
+                .role("row")
+                .focus_selected(selected)
+                .label(format!("{} {} {}", i + 1, song.title, song.artist))
+                .fill(if selected {
+                    color(p.surface_active)
+                } else {
+                    Color::TRANSPARENT
+                })
+                .hover(color(p.surface_hover))
+                .child(
+                    label(
+                        (i + 1).to_string(),
+                        14.,
+                        400.,
+                        if playing { p.accent } else { p.secondary },
+                    )
+                    .w(28.),
+                );
+            if h > 36. && matches!(s.app.presentation.page(), Page::Playlist(_)) {
+                line = line.child(v.cover(song.cover_art.as_deref(), CoverSize::Sleeve, 40., 4.));
+            }
+            line.child(
+                col()
+                    .grow(1.)
+                    .min_w(0.)
+                    .child(
+                        label(
+                            &song.title,
+                            14.,
+                            550.,
+                            if playing { p.accent } else { p.text },
+                        )
+                        .truncate(),
+                    )
+                    .child(credit(&v, &song.artist, song.credits.artist_id.as_deref())),
+            )
+            .child(star(&v, FavoriteKind::Song, &song.id))
+            .child(label(
+                crate::util::format_duration_ms((song.duration * 1000.) as u32),
+                13.,
+                400.,
+                p.secondary,
+            ))
+            .on_press_tx({
+                let key = key.clone();
+                move |s: &mut State, tx| {
+                    if let Some(i) = s.table.index(&key) {
+                        let pick = if tx.mods().shift {
+                            crate::model::RowPick::Range
+                        } else if tx.mods().cmd {
+                            crate::model::RowPick::Toggle
+                        } else {
+                            crate::model::RowPick::Only
+                        };
+                        s.table.pick(i, pick);
+                    }
+                }
+            })
+            .on_double_press_tx(move |s: &mut State, tx| {
+                if let Some(i) = s.table.index(&key) {
+                    open_song(s, i, tx)
+                }
+            })
+        },
+    )
+}
+fn track_key(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
+    let count = list_songs(s).len();
+    if count == 0 {
+        return false;
+    }
+    if k.is_command('a') {
+        s.table.selection.rows = (0..count).collect();
+        s.table.selection.anchor = Some(0);
+        s.table.cursor = Some(count - 1);
+        return true;
+    }
+    if k.mods.cmd || k.mods.alt {
+        return false;
+    }
+    let index = s.table.cursor;
+    let next = match k.key {
+        rune::Key::Enter => {
+            if let Some(i) = index {
+                open_song(s, i, tx);
+            }
+            return index.is_some();
+        }
+        rune::Key::Down => index.map_or(0, |i| (i + 1).min(count - 1)),
+        rune::Key::Up => index.unwrap_or(0).saturating_sub(1),
+        rune::Key::Home => 0,
+        rune::Key::End => count - 1,
+        _ => return false,
+    };
+    if !k.mods.shift {
+        s.table.selection.rows.clear();
+    }
+    s.table.pick(
+        next,
+        if k.mods.shift {
+            crate::model::RowPick::Range
+        } else {
+            crate::model::RowPick::Only
+        },
+    );
+    tx.scroll_into_view(s.table.key(next));
+    true
+}
+fn failed<T>(state: &Loadable<T>) -> Option<&str> {
+    if let Loadable::Failed(e) = state {
+        Some(e)
+    } else {
+        None
+    }
+}
+fn search(v: &Paint<'_>) -> El {
+    let s = &v.s.app.presentation.navidrome_search;
+    let mut list = col().w_full().gap(6.).child(heading(v, &v.tr("Search")));
+    if v.s.query.text.trim().is_empty() {
+        if s.recent.is_empty() {
+            return col()
+                .w_full()
+                .items_center()
+                .gap(8.)
+                .pt(48.)
+                .child(v.icon(Icon::Search, 40., v.p.secondary))
+                .child(heading(v, &v.tr("Search")))
+                .child(label(
+                    v.tr("What do you want to play?"),
+                    14.,
+                    400.,
+                    v.p.secondary,
+                ));
+        }
+        list = col()
+            .w_full()
+            .child(label(v.tr("Recent searches"), 18., 650., v.p.text));
+        let mut terms = row().flex_wrap().gap(8.);
+        for term in &s.recent {
+            let query = term.clone();
+            let forget = term.clone();
+            terms = terms.child(
+                row()
+                    .items_center()
+                    .child(v.button(term, false, move |s, tx| {
+                        s.query.replace_text(&query);
+                        s.dispatch(Action::Search(query.clone()), tx);
+                    }))
+                    .child(v.icon_button(&v.tr("Remove"), Icon::X, 14., move |s, tx| {
+                        s.dispatch(Action::ForgetSearch(forget.clone()), tx)
+                    })),
+            );
+        }
+        return list.child(terms);
+    }
+    let mut previous = None;
+    for (hit, name, artist) in s.rows() {
+        use crate::app::navidrome::search::Hit;
+        let section = match hit {
+            Hit::Song(_) => "Songs",
+            Hit::Album(_) => "Albums",
+            Hit::Artist(_) => "Artists",
+            Hit::Playlist(_) => "Playlists",
+        };
+        if previous != Some(section) {
+            list = list.child(label(v.tr(section), 18., 650., v.p.text).mt(10.));
+            previous = Some(section);
+        }
+        let detail = artist.map_or("", |(name, _)| name);
+        list = list.child(
+            col()
+                .key(format!("hit-{hit:?}"))
+                .w_full()
+                .padding(8.)
+                .radius(6.)
+                .role("button")
+                .focusable(true)
+                .label(name)
+                .fill(if s.selected == Some(hit) {
+                    color(v.p.surface_active)
+                } else {
+                    Color::TRANSPARENT
+                })
+                .child(label(name, 15., 600., v.p.text))
+                .child(label(detail, 13., 400., v.p.secondary))
+                .on_press_tx(move |s: &mut State, tx| {
+                    s.dispatch(Action::NavidromeSearch(Search::Activate(hit)), tx)
+                }),
+        );
+    }
+    if s.catalogue.get().is_some() && s.playlists.get().is_some() && previous.is_none() {
+        list = list
+            .child(heading(
+                v,
+                &v.tr("No results for “{query}”")
+                    .replace("{query}", &v.s.app.presentation.search.committed),
+            ))
+            .child(label(
+                v.tr("Check the spelling, or try fewer words."),
+                14.,
+                400.,
+                v.p.secondary,
+            ));
+    }
+    if v.s.app.presentation.search.typed_at.is_some()
+        || s.catalogue.is_loading()
+        || s.playlists.is_loading()
+    {
+        list = list.child(label(v.tr("Searching…"), 14., 400., v.p.secondary));
+    }
+    for (part, error) in [
+        (SearchPart::Catalogue, failed(&s.catalogue)),
+        (SearchPart::Playlists, failed(&s.playlists)),
+    ] {
+        if let Some(error) = error {
+            list = list
+                .child(label(error, 14., 400., v.p.danger))
+                .child(v.button(&v.tr("Retry"), false, move |s, tx| {
+                    s.dispatch(Action::NavidromeSearch(Search::Retry(part)), tx)
+                }));
+        }
+    }
+    list
+}
+fn collection(v: &Paint<'_>) -> El {
+    let state = &v.s.app.presentation.navidrome_search;
+    match &state.collection {
+        Loadable::Loaded(Collection::Playlist { name, .. }) => col().child(heading(v, name)),
+        Loadable::Loaded(Collection::Artist {
+            name,
+            albums,
+            cover_art,
+        }) => {
+            let mut page = col()
+                .gap(10.)
+                .child(v.cover(cover_art.as_deref(), CoverSize::Portrait, 156., 78.))
+                .child(heading(v, name))
+                .child(label(v.tr("Discography"), 22., 700., v.p.text));
+            let mut grid = row().flex_wrap().gap(14.);
+            for a in albums {
+                grid = grid.child(album_card(v, a));
+            }
+            page = page.child(grid);
+            if let Some(info) = state.artist_info.get() {
+                if let Some(bio) = &info.biography {
+                    page = page
+                        .child(label(v.tr("About"), 22., 700., v.p.text))
+                        .child(label(bio, 14., 400., v.p.secondary).wrap());
+                }
+                if !info.similar_artist.is_empty() {
+                    page = page.child(label(v.tr("Similar artists"), 22., 700., v.p.text));
+                }
+                for a in &info.similar_artist {
+                    page = page.child(credit(v, &a.name, a.id.as_deref()));
+                }
+            }
+            if let Some(albums) = state.appearances.get().filter(|a| !a.is_empty()) {
+                page = page.child(label(v.tr("Appears on"), 22., 700., v.p.text));
+                for a in albums {
+                    page = page.child(album_card(v, a));
+                }
+            }
+            page
+        }
+        Loadable::Failed(e) => col().child(label(e, 14., 400., v.p.danger)).child(v.button(
+            &v.tr("Retry"),
+            false,
+            |s, tx| s.dispatch(Action::Reload(s.app.presentation.page().clone()), tx),
+        )),
+        _ => label(v.tr("Loading…"), 14., 400., v.p.secondary),
+    }
+}
+fn favorites(v: &Paint<'_>) -> El {
+    let state = &v.s.app.presentation.navidrome_favorites;
+    let mut page = col().gap(12.).child(heading(v, &v.tr("Favorites")));
+    if let Some(e) = &state.error {
+        page = page.child(label(e, 14., 400., v.p.danger)).child(v.button(
+            &v.tr("Retry"),
+            false,
+            |s, tx| s.dispatch(Action::Reload(Page::LikedSongs), tx),
+        ));
+    }
+    for (uri, fail) in &state.failures {
+        let uri = uri.clone();
+        page = page.child(
+            row()
+                .child(label(&fail.message, 14., 400., v.p.danger))
+                .child(v.button(&v.tr("Retry"), false, move |s, tx| {
+                    s.dispatch(Action::RetryFavorite(uri.clone()), tx)
+                })),
+        );
+    }
+    for (kind, title) in [
+        (FavoriteKind::Song, "Songs"),
+        (FavoriteKind::Album, "Albums"),
+        (FavoriteKind::Artist, "Artists"),
+    ] {
+        let group = matches!(v.s.app.presentation.page(),Page::FavoriteGroup(k) if *k==kind);
+        if !group && matches!(v.s.app.presentation.page(), Page::FavoriteGroup(_)) {
+            continue;
+        }
+        let mut section = row()
+            .items_center()
+            .child(label(v.tr(title), 22., 700., v.p.text).grow(1.));
+        if !group {
+            section = section.child(v.button(&v.tr("See all"), false, move |s, tx| {
+                s.dispatch(Action::Open(Page::FavoriteGroup(kind)), tx)
+            }));
+        }
+        let mut grid = row().w_full().flex_wrap().gap(14.);
+        let limit = if group {
+            usize::MAX
+        } else {
+            2 * crate::ui::widgets::card_columns((v.width - 300.).max(1.))
+        };
+        match kind {
+            FavoriteKind::Album => {
+                for a in state.list.album.iter().take(limit) {
+                    grid = grid.child(album_card(v, a));
+                }
+            }
+            FavoriteKind::Song => {
+                for song in state.list.song.iter().take(limit) {
+                    let id = song.id.clone();
+                    grid = grid.child(
+                        col()
+                            .w(172.)
+                            .padding(12.)
+                            .role("button")
+                            .focusable(true)
+                            .label(&song.title)
+                            .child(v.cover(song.cover_art.as_deref(), CoverSize::Sleeve, 148., 6.))
+                            .child(label(&song.title, 14., 600., v.p.text).truncate())
+                            .child(label(&song.artist, 13., 400., v.p.secondary).truncate())
+                            .on_press_tx(move |s: &mut State, tx| {
+                                s.dispatch(Action::PlayFavorite(id.clone()), tx)
+                            }),
+                    );
+                }
+            }
+            FavoriteKind::Artist => {
+                for a in state.list.artist.iter().take(limit) {
+                    let id = navidrome::encode(&a.id);
+                    grid = grid.child(
+                        col()
+                            .w(172.)
+                            .padding(12.)
+                            .role("button")
+                            .focusable(true)
+                            .label(&a.name)
+                            .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, 148., 74.))
+                            .child(label(&a.name, 14., 600., v.p.text))
+                            .on_press_tx(move |s: &mut State, tx| {
+                                s.dispatch(Action::Open(Page::Artist(id.clone())), tx)
+                            }),
+                    );
+                }
+            }
+        }
+        page = page.child(section).child(grid);
+    }
+    page
+}

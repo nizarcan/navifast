@@ -6,11 +6,12 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
+pub mod desktop;
 pub mod favorites;
+mod host;
+use host::Host;
 mod presentation;
 pub mod search;
-#[cfg(feature = "demo")]
-use egui::load::ImageLoader;
 use presentation::Artwork;
 pub(crate) use presentation::{encode, view_artists};
 
@@ -158,17 +159,18 @@ impl Transport {
 }
 
 pub struct App {
-    presentation: Box<super::App>,
+    pub(crate) presentation: Box<super::App>,
     artwork: Arc<Artwork>,
     presentation_revision: Option<PresentationRevision>,
     pending_play: Option<(String, usize)>,
-    playing_album: Option<Album>,
+    pub(crate) playing_album: Option<Album>,
+    pub(crate) playing_playlist: Option<String>,
     pub login: Login,
     pub connecting: bool,
     pub connected: bool,
     // Keep the main window visible through both credential lookup and ping.
     // This is presentation state, not permission to send authenticated requests.
-    restoring_login: bool,
+    pub(crate) restoring_login: bool,
     pub preferences: Preferences,
     pub albums: Vec<Album>,
     pub album: Option<Album>,
@@ -180,7 +182,6 @@ pub struct App {
     pub transport: Transport,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
-    pub spectrum: [f32; crate::vis::WIDE_BANDS],
     pub palette: crate::theme::Palette,
     backend: Backend,
     player: Player,
@@ -191,7 +192,6 @@ pub struct App {
     album_request: u64,
     eq: crate::eq::SharedEq,
     tap: Arc<crate::vis::AudioTap>,
-    analyser: crate::vis::WideAnalyser,
     dirs: crate::paths::AppDirs,
     dirty: Option<Instant>,
     proxy: crate::settings::ProxyConfig,
@@ -212,6 +212,28 @@ impl App {
         demo: bool,
     ) -> Self {
         crate::theme::install(&cc.egui_ctx);
+        let waker = crate::backend::Waker::default();
+        waker.attach(&cc.egui_ctx);
+        let ctx = cc.egui_ctx.clone();
+        let mut app = Self::with_host(
+            dirs,
+            instance,
+            demo,
+            &waker,
+            Arc::new(move || ctx.request_repaint()),
+        );
+        app.presentation.attach(&cc.egui_ctx);
+        cc.egui_ctx.add_image_loader(app.artwork.clone());
+        app
+    }
+
+    fn with_host(
+        dirs: crate::paths::AppDirs,
+        instance: Option<crate::single_instance::Guard>,
+        demo: bool,
+        presentation_waker: &crate::backend::Waker,
+        wake: Arc<dyn Fn() + Send + Sync>,
+    ) -> Self {
         let mut preferences: Preferences = std::fs::read(dirs.config.join("navidrome.json"))
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -234,10 +256,8 @@ impl App {
         preferences.eq_on = settings.eq_on;
         preferences.bands = settings.eq_bands_db;
         preferences.preamp = settings.eq_preamp_db;
-        let waker = crate::backend::Waker::default();
-        waker.attach(&cc.egui_ctx);
         let mut presentation = Box::new(super::App::new(
-            &waker,
+            presentation_waker,
             dirs.clone(),
             settings,
             super::AppOptions {
@@ -252,17 +272,18 @@ impl App {
         presentation.recent_contexts = preferences.recent_contexts.clone();
         presentation.history = vec![crate::model::Page::Albums];
         presentation.history_index = 0;
-        presentation.attach(&cc.egui_ctx);
         if !demo {
             presentation.enable_desktop_themes();
         }
-        presentation.load_custom_themes(&waker);
+        let theme_wake = wake.clone();
+        presentation.custom_themes.start(
+            dirs.config.join("themes"),
+            presentation.settings.custom_theme.clone(),
+            &fastframe_theme::Waker::new(move || theme_wake()),
+        );
         let eq = presentation.winamp.eq.clone();
         let tap = presentation.winamp.tap.clone();
         let artwork = Arc::new(Artwork::default());
-        cc.egui_ctx.add_image_loader(artwork.clone());
-        let ctx = cc.egui_ctx.clone();
-        let wake: Arc<dyn Fn() + Send + Sync> = Arc::new(move || ctx.request_repaint());
         let backend = Backend::spawn(wake.clone(), dirs.clone());
         if !demo {
             backend.send(Request::Restore { session: 0 });
@@ -294,6 +315,7 @@ impl App {
             presentation_revision: None,
             pending_play: None,
             playing_album: None,
+            playing_playlist: None,
             login: Login {
                 server: preferences.server.clone(),
                 username: preferences.username.clone(),
@@ -316,7 +338,6 @@ impl App {
             },
             requested_covers: HashSet::new(),
             show_eq: false,
-            spectrum: [0.0; crate::vis::WIDE_BANDS],
             palette: crate::theme::Palette::dark(),
             backend,
             player,
@@ -327,7 +348,6 @@ impl App {
             album_request: 0,
             eq,
             tap,
-            analyser: Default::default(),
             dirs,
             dirty: None,
             proxy,
@@ -404,6 +424,7 @@ impl App {
                 self.requested_covers.clear();
                 let generation = self.transport.generation.wrapping_add(1);
                 self.playing_album = None;
+                self.playing_playlist = None;
                 self.transport = Transport {
                     generation,
                     paused: true,
@@ -519,6 +540,8 @@ impl App {
             }
             Action::Volume(volume) => {
                 self.preferences.volume = volume.clamp(0.0, 1.0);
+                self.presentation.settings.volume =
+                    (self.preferences.volume * f32::from(u16::MAX)).round() as u16;
                 self.player
                     .send(player::Command::Volume(self.preferences.volume));
                 self.mark_dirty();
@@ -559,7 +582,7 @@ impl App {
         }
     }
 
-    fn mark_dirty(&mut self) {
+    pub(crate) fn mark_dirty(&mut self) {
         self.dirty.get_or_insert_with(Instant::now);
     }
 
@@ -632,6 +655,7 @@ impl App {
         if index >= songs.len() {
             return;
         }
+        self.playing_playlist = None;
         if let Some(album) = album {
             let uri = format!("navidrome:album:{}", presentation::encode(&album.id));
             self.playing_album = Some(album);
@@ -690,8 +714,10 @@ impl App {
         }
     }
 
-    fn poll(&mut self, ctx: &egui::Context) {
-        for event in self.backend.events.try_iter().collect::<Vec<_>>() {
+    fn poll(&mut self, host: &impl Host) -> bool {
+        let mut changed = false;
+        while let Ok(event) = self.backend.events.try_recv() {
+            changed = true;
             match event {
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
                     self.favorite_event(event)
@@ -772,8 +798,19 @@ impl App {
                         let tint = self.presentation.palette.tint_from_art(color);
                         self.presentation.accents.insert(uri.clone(), tint);
                     }
-                    self.artwork.insert(ctx, uri, cover);
-                    ctx.request_repaint();
+                    host.insert_cover(self, uri, cover);
+                }
+                Event::Cover {
+                    size,
+                    session,
+                    id,
+                    result: Err(_),
+                    ..
+                } if session == self.session => {
+                    let key = presentation::artwork_uri(session, &id, size);
+                    if host.retry_cover(&key) {
+                        self.requested_covers.remove(&key);
+                    }
                 }
                 Event::SaveFailed => self.error = Some(
                     "Your preferences could not be saved. Check the config directory permissions."
@@ -782,18 +819,32 @@ impl App {
                 _ => {}
             }
         }
-        for event in self.player_events.try_iter().collect::<Vec<_>>() {
+        while let Ok(event) = self.player_events.try_recv() {
+            let previous = (
+                self.transport.index,
+                self.transport.loading,
+                self.transport.paused,
+                self.transport.position as u64,
+            );
             if let player::Event::Failed {
                 generation,
                 message,
             } = &event
                 && *generation == self.transport.generation
             {
+                changed = true;
                 self.presentation.toast_error(message.clone());
             }
             if let Some(index) = self.transport.event(event) {
                 self.load(index, 0.0, self.transport.paused);
             }
+            changed |= previous
+                != (
+                    self.transport.index,
+                    self.transport.loading,
+                    self.transport.paused,
+                    self.transport.position as u64,
+                );
         }
         if self
             .dirty
@@ -801,20 +852,19 @@ impl App {
         {
             self.save();
         }
-        self.poll_search(ctx);
-        self.poll_favorites(ctx);
-        self.poll_controls(ctx);
+        changed |= self.poll_search(host);
+        self.poll_favorites(host);
+        changed |= self.poll_controls(host);
         self.sync_media();
-        self.spectrum = self.analyser.step(
-            &self.tap.window(crate::vis::WIDE_SAMPLES, crate::vis::LAG),
-            Instant::now(),
-        );
+        changed
     }
 
-    fn poll_controls(&mut self, ctx: &egui::Context) {
+    fn poll_controls(&mut self, host: &impl Host) -> bool {
+        let mut changed = false;
         use crate::media::MediaCommand as M;
         if let Some(media) = &self.media {
             for command in media.drain_commands() {
+                changed = true;
                 let action = match command {
                     M::Play => Some(Action::Pause(false)),
                     M::Pause | M::Stop => Some(Action::Pause(true)),
@@ -832,11 +882,11 @@ impl App {
                     .then_some(Action::Seek(f64::from(position_ms) / 1000.0)),
                     M::SetVolume(volume) => Some(Action::Volume(volume as f32)),
                     M::Raise => {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                        host.show_window();
                         None
                     }
                     M::Quit => {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        host.close_window();
                         None
                     }
                     _ => None,
@@ -854,15 +904,15 @@ impl App {
             })
             .unwrap_or_default();
         for command in commands {
+            changed = true;
             use crate::single_instance::ControlCommand as C;
             let action = match command {
                 C::Show => {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    host.show_window();
                     None
                 }
                 C::ReloadThemes => {
-                    self.ui_action(crate::model::Action::ReloadThemes, ctx);
+                    self.ui_action(crate::model::Action::ReloadThemes, host);
                     None
                 }
                 C::PlayPause => Some(Action::Toggle),
@@ -887,6 +937,7 @@ impl App {
                 self.apply(action);
             }
         }
+        changed
     }
 
     fn sync_media(&mut self) {
@@ -977,6 +1028,19 @@ impl eframe::App for App {
 #[cfg(feature = "demo")]
 impl App {
     pub fn populate_demo(&mut self, page: Option<&str>, flags: Option<&str>, ctx: &egui::Context) {
+        self.populate_demo_model(page, flags, ctx);
+        ctx.set_theme(self.presentation.theme_preference());
+        let flags: Vec<_> = flags.unwrap_or_default().split(',').collect();
+        for (flag, filter) in [("appearance", "Appearance"), ("about", "About")] {
+            if flags.contains(&flag) {
+                ctx.data_mut(|data| {
+                    data.insert_temp(egui::Id::new("settings-filter"), filter.to_owned())
+                });
+            }
+        }
+    }
+
+    fn populate_demo_model(&mut self, page: Option<&str>, flags: Option<&str>, host: &impl Host) {
         let flags: Vec<_> = flags.unwrap_or_default().split(',').collect();
         self.preferences.light = flags.contains(&"light");
         self.preferences.username = "Demo listener".into();
@@ -1046,6 +1110,9 @@ impl App {
                 [70, 64, 120],
                 [110, 65, 96],
             ];
+            if flags.contains(&"no-art") {
+                continue;
+            }
             let base = colors[index % colors.len()];
             let image = image::RgbaImage::from_fn(128, 128, |x, y| {
                 let stripe = ((x as f32 * 0.04 + y as f32 * 0.03 + index as f32).sin() * 0.3 + 0.7)
@@ -1057,8 +1124,8 @@ impl App {
                     255,
                 ])
             });
-            self.artwork.insert(
-                ctx,
+            host.insert_cover(
+                self,
                 self.cover_uri(&id),
                 crate::navidrome::backend::Cover {
                     preview: image.clone(),
@@ -1080,9 +1147,6 @@ impl App {
             _ => crate::model::Page::decode(p).filter(crate::model::Page::is_favorites),
         });
         self.populate_demo_favorites(favorite_page.is_some(), &flags);
-        if flags.contains(&"no-art") {
-            self.artwork.forget_all();
-        }
         let library_state = favorite_page.is_none()
             && page != Some("search")
             && !page.is_some_and(|p| p.starts_with("artist:"));
@@ -1103,14 +1167,13 @@ impl App {
         if self.preferences.light {
             self.presentation.settings.theme = crate::settings::ThemeChoice::Light;
         }
-        ctx.set_theme(self.presentation.theme_preference());
         if let Some(page) = favorite_page {
             self.presentation.history = vec![crate::model::Page::LikedSongs];
             if page != crate::model::Page::LikedSongs {
                 self.presentation.open(page);
             }
         } else if page == Some("search") {
-            self.populate_demo_search(&flags, ctx);
+            self.populate_demo_search(&flags, host);
         } else if let Some(id) = page.and_then(|p| p.strip_prefix("artist:")) {
             self.populate_demo_artist(id, &flags);
         } else if page == Some("settings") || self.show_eq {
@@ -1120,17 +1183,8 @@ impl App {
                 &self.albums[0].id,
             ))];
         }
-        if flags.contains(&"appearance") {
+        if flags.contains(&"appearance") || flags.contains(&"about") {
             self.presentation.history = vec![crate::model::Page::Settings];
-            ctx.data_mut(|data| {
-                data.insert_temp(egui::Id::new("settings-filter"), "Appearance".to_string())
-            });
-        }
-        if flags.contains(&"about") {
-            self.presentation.history = vec![crate::model::Page::Settings];
-            ctx.data_mut(|data| {
-                data.insert_temp(egui::Id::new("settings-filter"), "About".to_string())
-            });
         }
         if self.restoring_login {
             self.presentation.history = vec![crate::model::Page::Albums];

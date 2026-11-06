@@ -3197,6 +3197,13 @@ impl App {
 
     /// Takes the selected and the desktop's palettes from a finished scan.
     fn adopt_custom_themes(&mut self, ctx: &egui::Context) {
+        if self.refresh_theme_cache() {
+            self.mark_settings_dirty();
+            ctx.set_theme(self.theme_preference());
+        }
+    }
+
+    fn refresh_theme_cache(&mut self) -> bool {
         let mut changed = false;
         if let Some(filename) = &self.settings.custom_theme
             && let Some(theme) = self.custom_themes.find(filename)
@@ -3216,10 +3223,7 @@ impl App {
         } else if self.settings.system_theme_cache.take().is_some() {
             changed = true;
         }
-        if changed {
-            self.mark_settings_dirty();
-            ctx.set_theme(self.theme_preference());
-        }
+        changed
     }
 
     fn custom_palette(&self) -> Option<Palette> {
@@ -9573,37 +9577,7 @@ impl App {
             Some((owner, seen, selection)) if owner == *page && seen == view => selection,
             _ => RowSelection::default(),
         };
-        match pick {
-            RowPick::Only => {
-                // Clicking the sole selected row clears the selection.
-                let only_this = selection.rows.len() == 1 && selection.rows.contains(&row);
-                selection.rows.clear();
-                if only_this {
-                    selection.anchor = None;
-                } else {
-                    selection.rows.insert(row);
-                    selection.anchor = Some(row);
-                }
-            }
-            RowPick::Toggle => {
-                if !selection.rows.remove(&row) {
-                    selection.rows.insert(row);
-                }
-                selection.anchor = Some(row);
-            }
-            RowPick::Range => {
-                // Without an anchor, shift-click selects only this row.
-                let anchor = selection.anchor.unwrap_or(row);
-                let (from, to) = if anchor <= row {
-                    (anchor, row)
-                } else {
-                    (row, anchor)
-                };
-                selection.rows.clear();
-                selection.rows.extend((from..=to).filter(|row| *row < len));
-                selection.anchor = Some(anchor);
-            }
-        }
+        selection.pick(row, pick, len);
         if selection.rows.is_empty() {
             self.selection = None;
         } else {

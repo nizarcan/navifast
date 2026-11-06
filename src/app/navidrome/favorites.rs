@@ -391,7 +391,7 @@ impl App {
         }
     }
 
-    pub(super) fn poll_favorites(&mut self, ctx: &egui::Context) {
+    pub(super) fn poll_favorites(&mut self, host: &impl super::Host) {
         let state = &self.presentation.navidrome_favorites;
         if !state.loading
             && let Some(at) = state.verify_at
@@ -399,7 +399,7 @@ impl App {
             if at <= Instant::now() {
                 self.refresh_favorites();
             } else {
-                ctx.request_repaint_after(at.saturating_duration_since(Instant::now()));
+                host.repaint_after(at.saturating_duration_since(Instant::now()));
             }
         }
     }

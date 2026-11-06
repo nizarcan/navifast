@@ -525,6 +525,42 @@ pub struct RowSelection {
     pub anchor: Option<usize>,
 }
 
+impl RowSelection {
+    pub(crate) fn pick(&mut self, row: usize, pick: RowPick, len: usize) {
+        match pick {
+            RowPick::Only => {
+                // Clicking the sole selected row clears the self.
+                let only_this = self.rows.len() == 1 && self.rows.contains(&row);
+                self.rows.clear();
+                if only_this {
+                    self.anchor = None;
+                } else {
+                    self.rows.insert(row);
+                    self.anchor = Some(row);
+                }
+            }
+            RowPick::Toggle => {
+                if !self.rows.remove(&row) {
+                    self.rows.insert(row);
+                }
+                self.anchor = Some(row);
+            }
+            RowPick::Range => {
+                // Without an anchor, shift-click selects only this row.
+                let anchor = self.anchor.unwrap_or(row);
+                let (from, to) = if anchor <= row {
+                    (anchor, row)
+                } else {
+                    (row, anchor)
+                };
+                self.rows.clear();
+                self.rows.extend((from..=to).filter(|row| *row < len));
+                self.anchor = Some(anchor);
+            }
+        }
+    }
+}
+
 /// Selection behavior for a row click.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RowPick {

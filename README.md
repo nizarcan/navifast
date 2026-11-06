@@ -1,6 +1,6 @@
 # Navifast
 
-A native Navidrome desktop client written in Rust with egui. Navifast is
+A native Navidrome desktop client written in Rust with Rune. Navifast is
 maintained independently and reuses the original interface, audio DSP and platform integrations from
 [Spotifast](https://github.com/crmne/spotifast), originally by Carmine Paolino.
 Original copyrights and the MIT license are retained.

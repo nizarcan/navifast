@@ -306,7 +306,7 @@ impl App {
         }
         self.sync_presentation();
     }
-    pub(super) fn cover_uri(&self, id: &str) -> String {
+    pub(crate) fn cover_uri(&self, id: &str) -> String {
         artwork_uri(self.session, id, CoverSize::Sleeve)
     }
     fn view_album(&self, album: &Album) -> view::Album {
@@ -521,7 +521,7 @@ impl App {
             self.play_album_songs(self.album.clone(), songs, index);
         }
     }
-    pub(super) fn ui_action(&mut self, action: UiAction, ctx: &egui::Context) {
+    pub(super) fn ui_action(&mut self, action: UiAction, host: &impl Host) {
         let was_favorites = self.presentation.page().is_favorites();
         match action {
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
@@ -538,11 +538,11 @@ impl App {
             UiAction::Reload(page) if self.connected && page.is_favorites() => {
                 self.refresh_favorites()
             }
-            UiAction::NavidromeSearch(action) if self.connected => self.search_action(action, ctx),
+            UiAction::NavidromeSearch(action) if self.connected => self.search_action(action, host),
             UiAction::Search(query) if self.connected => {
                 self.presentation.search.focus_requested = true;
                 self.presentation.open(Page::Search);
-                self.edit_search(query, ctx);
+                self.edit_search(query, host);
                 self.submit_query();
             }
             UiAction::ForgetSearch(query) if self.connected => {
@@ -553,7 +553,7 @@ impl App {
                 self.save_recent_searches();
             }
             UiAction::Open(Page::Search) | UiAction::FocusSearch if self.connected => {
-                self.presentation.apply(action, ctx);
+                host.local_action(self, action);
             }
             UiAction::Open(page @ (Page::Artist(_) | Page::Playlist(_))) if self.connected => {
                 self.presentation.open(page);
@@ -572,8 +572,7 @@ impl App {
             }
             UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
             UiAction::Back | UiAction::Forward => {
-                self.presentation.apply(action, ctx);
-                crate::ui::restore_navidrome_scroll(ctx, self.presentation.page());
+                host.local_action(self, action);
                 if let Page::Album(id) = self.presentation.page()
                     && let Some(id) = decode(id)
                     && !(self.album.as_ref().is_some_and(|album| album.id == id)
@@ -585,7 +584,7 @@ impl App {
             }
             UiAction::OpenUri(uri) => {
                 if let Some(id) = raw_uri(&uri, "album") {
-                    self.ui_action(UiAction::Open(Page::Album(encode(&id))), ctx);
+                    self.ui_action(UiAction::Open(Page::Album(encode(&id))), host);
                 }
             }
             UiAction::PlayContext {
@@ -632,7 +631,7 @@ impl App {
                         offset_uri: Some(uri),
                         offset_index: Some(index),
                     },
-                    ctx,
+                    host,
                 ),
                 RowContext::Queue => {}
             },
@@ -709,7 +708,7 @@ impl App {
             | UiAction::ShowWindow
             | UiAction::CloseWindow
             | UiAction::Quit) => {
-                self.presentation.apply(action, ctx);
+                host.local_action(self, action);
                 self.preferences.eq_on = self.presentation.settings.eq_on;
                 self.preferences.bands = self.presentation.settings.eq_bands_db;
                 self.preferences.preamp = self.presentation.settings.eq_preamp_db;

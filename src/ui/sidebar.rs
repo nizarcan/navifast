@@ -1556,14 +1556,14 @@ const GRID_MAX_COLUMNS: usize = 4;
 const GRID_TEXT_HEIGHT: f32 = 44.0;
 
 #[derive(Clone, Copy)]
-struct GridLayout {
-    columns: usize,
-    card_width: f32,
+pub(super) struct GridLayout {
+    pub(super) columns: usize,
+    pub(super) card_width: f32,
     card_height: f32,
-    row_height: f32,
+    pub(super) row_height: f32,
 }
 
-fn grid_layout(width: f32) -> GridLayout {
+pub(super) fn grid_layout(width: f32) -> GridLayout {
     let columns = ((width / GRID_MIN_CARD_WIDTH).floor() as usize).clamp(2, GRID_MAX_COLUMNS);
     let card_width = (width / columns as f32).max(1.0);
     let card_height = card_width + GRID_TEXT_HEIGHT;

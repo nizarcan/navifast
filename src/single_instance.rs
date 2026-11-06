@@ -192,11 +192,17 @@ fn send_to(port: u16, verb: &str) -> std::io::Result<Reply> {
     }
 }
 
+/// Route control messages to the eframe shell's current window.
+pub fn acquire(waker: &crate::backend::Waker, link: Option<&str>) -> Outcome {
+    let waker = waker.clone();
+    acquire_with_wake(&fastframe_theme::Waker::new(move || waker.wake()), link)
+}
+
 /// Claims the running-instance role, or hands `link` (a canonical
 /// `spotify:` URI, see [`crate::link::parse`]) to the instance that has it
 /// and asks that one to come forward.
 #[cfg(not(target_os = "linux"))]
-pub fn acquire(waker: &crate::backend::Waker, link: Option<&str>) -> Outcome {
+pub fn acquire_with_wake(waker: &fastframe_theme::Waker, link: Option<&str>) -> Outcome {
     use std::net::{Ipv4Addr, TcpListener};
     use std::sync::{Arc, Mutex};
 
@@ -250,7 +256,7 @@ fn serve(
     commands: &std::sync::Mutex<Vec<ControlCommand>>,
     now_playing: &std::sync::Mutex<String>,
     devices: &std::sync::Mutex<String>,
-    waker: &crate::backend::Waker,
+    waker: &fastframe_theme::Waker,
 ) {
     use std::io::Write;
     use std::time::Duration;
@@ -403,7 +409,7 @@ fn read_line(stream: &mut std::net::TcpStream) -> Option<String> {
 #[cfg(target_os = "linux")]
 struct Instance {
     commands: std::sync::Arc<std::sync::Mutex<Vec<ControlCommand>>>,
-    waker: crate::backend::Waker,
+    waker: fastframe_theme::Waker,
 }
 
 #[cfg(target_os = "linux")]
@@ -468,7 +474,7 @@ fn call_instance(method: &str) -> zbus::Result<()> {
 /// `spotify:` URI, see [`crate::link::parse`]) to the instance that has it
 /// and asks that one to come forward.
 #[cfg(target_os = "linux")]
-pub fn acquire(waker: &crate::backend::Waker, link: Option<&str>) -> Outcome {
+pub fn acquire_with_wake(waker: &fastframe_theme::Waker, link: Option<&str>) -> Outcome {
     use mpris_server::zbus::blocking::Connection;
     use mpris_server::zbus::fdo::{RequestNameFlags, RequestNameReply};
 
@@ -647,7 +653,7 @@ mod bus_tests {
         let commands: std::sync::Arc<std::sync::Mutex<Vec<ControlCommand>>> = Default::default();
         let instance = Instance {
             commands: std::sync::Arc::clone(&commands),
-            waker: crate::backend::Waker::default(),
+            waker: fastframe_theme::Waker::default(),
         };
 
         let opened = instance.open("https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3?si=x");
@@ -678,7 +684,7 @@ mod bus_tests {
         let commands: std::sync::Arc<std::sync::Mutex<Vec<ControlCommand>>> = Default::default();
         let instance = Instance {
             commands: std::sync::Arc::clone(&commands),
-            waker: crate::backend::Waker::default(),
+            waker: fastframe_theme::Waker::default(),
         };
         serve_links(server.clone(), instance).expect("the interface is served");
         let name = server.unique_name().expect("a unique name").to_string();
@@ -870,7 +876,7 @@ mod tests {
             let commands = Arc::clone(&commands);
             let now_playing = Arc::clone(&now_playing);
             let devices = Arc::clone(&devices);
-            let waker = crate::backend::Waker::default();
+            let waker = fastframe_theme::Waker::default();
             std::thread::spawn(move || serve(listener, &commands, &now_playing, &devices, &waker))
         };
 
