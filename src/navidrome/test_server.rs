@@ -22,6 +22,9 @@ impl Server {
             while !stopped.load(Ordering::Acquire) {
                 match listener.accept() {
                     Ok((mut socket, _)) => {
+                        // macOS inherits the listener's nonblocking mode. This
+                        // fixture must wait for headers that arrive in parts.
+                        socket.set_nonblocking(false).unwrap();
                         socket
                             .set_read_timeout(Some(std::time::Duration::from_secs(10)))
                             .unwrap();
@@ -64,6 +67,36 @@ impl Drop for Server {
             std::panic::resume_unwind(error);
         }
     }
+}
+
+#[test]
+fn fragmented_headers_wait_for_the_rest_of_the_request() {
+    use std::io::ErrorKind;
+    use std::time::Duration;
+
+    let server = Server::spawn(|request| {
+        assert_eq!(request, "GET /fixture HTTP/1.1\r\nHost: localhost\r\n\r\n");
+        response("200 OK", "", b"fixture")
+    });
+    let mut socket =
+        std::net::TcpStream::connect(server.url.trim_start_matches("http://")).unwrap();
+    socket
+        .set_read_timeout(Some(Duration::from_millis(100)))
+        .unwrap();
+    socket.write_all(b"GET /fixture HTTP/1.1\r\n").unwrap();
+    let pending = socket.read(&mut [0]);
+    assert!(
+        matches!(pending, Err(ref error) if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)),
+        "the server must wait for complete headers, got {pending:?}"
+    );
+    socket.write_all(b"Host: localhost\r\n\r\n").unwrap();
+    socket
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    let mut body = String::new();
+    socket.read_to_string(&mut body).unwrap();
+    assert!(body.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(body.ends_with("fixture"));
 }
 
 #[test]
