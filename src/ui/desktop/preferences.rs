@@ -152,29 +152,21 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
     let settings = &p.settings;
     let q = v.s.filter.text.trim().to_lowercase();
     let matches = |values: &[&str]| values.iter().any(|v| v.to_lowercase().contains(&q));
-    let mut filter = row()
-        .w(v.content_width().min(400.))
-        .h(34.)
-        .px(10.)
-        .gap(6.)
-        .items_center()
-        .radius(17.)
-        .fill(color(v.p.surface))
-        .child(v.icon(Icon::Search, 16., v.p.secondary))
-        .child(
-            text_input(&v.s.filter, TextStyle::new(14., 400.))
-                .single_line()
-                .key("filter")
-                .label(v.tr("Search settings"))
-                .placeholder(v.tr("Search settings"), color(v.p.secondary))
-                .grow(1.)
-                .min_w(0.)
-                .color(color(v.p.text))
-                .on_edit(|s: &mut State| &mut s.filter),
-        );
-    if !q.is_empty() {
-        filter = filter.child(v.icon_button(&v.tr("Clear"), Icon::X, 14., |s, _| s.filter.clear()));
-    }
+    let editor =
+        text_input(&v.s.filter, TextStyle::new(14., 400.)).on_edit(|s: &mut State| &mut s.filter);
+    let filter = v
+        .search_field(
+            "filter",
+            &v.tr("Search settings"),
+            &v.s.filter,
+            editor,
+            |s, _| {
+                s.filter.clear();
+                s.filter.focused = true;
+            },
+        )
+        .key("settings-search-field")
+        .w(v.content_width().min(400.));
     let mut page = col()
         .w_full()
         .max_w(802.)

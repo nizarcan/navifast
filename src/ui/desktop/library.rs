@@ -335,16 +335,7 @@ fn topbar(v: &Paint<'_>) -> El {
             Action::Forward,
         ));
     let hint = v.tr("What do you want to play?");
-    let focused = v.s.query.focused;
     let input = text_input(&v.s.query, TextStyle::new(14., 400.))
-        .single_line()
-        .key("query")
-        .label(&hint)
-        .w_full()
-        .min_w(0.)
-        .h(18.)
-        .caret(color(v.p.accent), color(v.p.accent.gamma_multiply(0.28)))
-        .color(color(v.p.text))
         .on_edit(|s: &mut State| &mut s.query)
         .on_input_change(|s: &mut State, tx| {
             if s.app.presentation.page() != &Page::Search {
@@ -372,50 +363,15 @@ fn topbar(v: &Paint<'_>) -> El {
         v.content_width() + 2. * crate::ui::widgets::PAGE_PADDING,
         v.s.app.presentation.settings.sidebar_visible,
     );
-    let mut editor = el().grow(1.).min_w(0.).h(18.);
-    if v.s.query.text.is_empty() {
-        // Use a one-line label so the hint has the reference ellipsis at narrow widths.
-        editor = editor.child(
-            label(&hint, 14., 400., v.p.secondary)
-                .absolute(0., 0.)
-                .w_full()
-                .pr(4.)
-                .truncate()
-                .a11y_hidden(),
-        );
-    }
-    let mut field = row()
+    let field = v
+        .search_field("query", &hint, &v.s.query, input, |s, tx| {
+            s.query.clear();
+            s.query.focused = true;
+            s.dispatch(Action::NavidromeSearch(Search::Edit(String::new())), tx);
+        })
         .key("search-field")
         .ml(8.)
-        .w(width)
-        .h(34.)
-        .pl(10.)
-        .pr(30.)
-        .gap(8.)
-        .items_center()
-        .radius(17.)
-        .fill(color(if focused {
-            v.p.surface_hover
-        } else {
-            v.p.surface
-        }))
-        .child(v.icon(Icon::Search, 16., v.p.secondary))
-        .child(editor.child(input));
-    if focused {
-        field = field.border(1.5, color(v.p.text.gamma_multiply(0.6)));
-    }
-    if !v.s.query.text.is_empty() {
-        field = field.child(
-            v.icon_button(&v.tr("Clear"), Icon::X, 15., |s, tx| {
-                s.query.clear();
-                s.query.focused = true;
-                s.dispatch(Action::NavidromeSearch(Search::Edit(String::new())), tx);
-            })
-            .key("clear-query")
-            .size(24., 24.)
-            .pin(None, Some(5.), Some(5.), None),
-        );
-    }
+        .w(width);
     bar.child(field.disabled(!v.s.app.connected))
         .child(el().grow(1.))
         .child(
@@ -627,18 +583,21 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
         ),
     );
     if v.s.library_search {
+        let editor = text_input(&v.s.library_filter, TextStyle::new(14., 400.))
+            .on_edit(|s: &mut State| &mut s.library_filter);
         side = side.child(
-            text_input(&v.s.library_filter, TextStyle::new(14., 400.))
-                .key("library-filter")
-                .single_line()
-                .label(v.tr("Search in Your Library"))
-                .placeholder(v.tr("Search in Your Library"), color(v.p.secondary))
-                .h(32.)
-                .px(8.)
-                .radius(8.)
-                .fill(color(v.p.surface))
-                .color(color(v.p.text))
-                .on_edit(|s: &mut State| &mut s.library_filter),
+            v.search_field(
+                "library-filter",
+                &v.tr("Search in Your Library"),
+                &v.s.library_filter,
+                editor,
+                |s, _| {
+                    s.library_filter.clear();
+                    s.library_filter.focused = true;
+                },
+            )
+            .key("library-search-field")
+            .w((width - 28.).max(0.)),
         );
     }
     let filter = v.s.library_filter.text.to_lowercase();

@@ -99,6 +99,66 @@ impl Paint<'_> {
         });
         el().size(size, size).pixels(img.pixels()).a11y_hidden()
     }
+    /// A search pill has a full-height hit area and one centered line of type.
+    /// Giving the editor the height of the pill puts its glyphs at the top.
+    fn search_field(
+        &self,
+        key: &'static str,
+        hint: &str,
+        edit: &rune::TextEdit,
+        input: El,
+        clear: impl Fn(&mut State, &mut Tx) + 'static,
+    ) -> El {
+        let input = input
+            .single_line()
+            .key(key)
+            .label(hint)
+            .w_full()
+            .min_w(0.)
+            .h(18.)
+            .caret(
+                color(self.p.accent),
+                color(self.p.accent.gamma_multiply(0.28)),
+            )
+            .color(color(self.p.text));
+        let mut editor = el().grow(1.).min_w(0.).h(18.);
+        if edit.text.is_empty() {
+            editor = editor.child(
+                label(hint, 14., 400., self.p.secondary)
+                    .absolute(0., 0.)
+                    .w_full()
+                    .pr(4.)
+                    .truncate()
+                    .a11y_hidden(),
+            );
+        }
+        let mut pill = row()
+            .h(34.)
+            .pl(10.)
+            .pr(30.)
+            .gap(8.)
+            .items_center()
+            .radius(17.)
+            .fill(color(if edit.focused {
+                self.p.surface_hover
+            } else {
+                self.p.surface
+            }))
+            .child(self.icon(Icon::Search, 16., self.p.secondary))
+            .child(editor.child(input));
+        if edit.focused {
+            pill = pill.border(1.5, color(self.p.text.gamma_multiply(0.6)));
+        }
+        if !edit.text.is_empty() {
+            pill = pill.child(
+                self.icon_button(&self.tr("Clear"), Icon::X, 15., clear)
+                    .key(format!("clear-{key}"))
+                    .size(24., 24.)
+                    .pin(None, Some(5.), Some(5.), None),
+            );
+        }
+        pill
+    }
     fn icon_button(
         &self,
         name: &str,

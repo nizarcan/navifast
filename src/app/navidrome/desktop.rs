@@ -716,6 +716,31 @@ mod tests {
     }
 
     #[test]
+    fn all_search_editors_and_their_placeholders_share_the_pill_center() {
+        let mut rt = runtime("settings", "");
+        rt.update(|s, _| s.library_search = true);
+        rt.frame(0.);
+        rt.settle_all();
+        let elements = rt.elements();
+        let rect = |key: &str| {
+            elements
+                .iter()
+                .find(|e| e.key.as_deref() == Some(key))
+                .unwrap()
+                .rect
+        };
+        for (outer, inner) in [
+            ("search-field", "query"),
+            ("library-search-field", "library-filter"),
+            ("settings-search-field", "filter"),
+        ] {
+            let [_, y, _, h] = rect(outer);
+            let [_, line, _, line_height] = rect(inner);
+            assert_eq!((h, line_height), (34., 18.));
+            assert_eq!(line + line_height / 2., y + h / 2.);
+        }
+    }
+    #[test]
     fn recent_search_reopens_and_can_be_removed_independently() {
         let mut rt = runtime("search", "recent");
         let click = rune::accesskit::Action::Click;
