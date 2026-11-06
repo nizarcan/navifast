@@ -131,11 +131,21 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             )
             .a11y_hidden(),
     );
+    // The analyser changes every frame. Let Rune reuse the settled opaque
+    // library surface while it draws the transport, until the page itself changes.
+    let body = body.child(center).fill(color(v.p.window));
+    let body = if !s.app.transport.paused
+        && s.app.presentation.settings.player_bar_vis == crate::settings::PlayerBarVis::Spectrum
+    {
+        body.cache()
+    } else {
+        body
+    };
     let mut shell = col()
         .w_full()
         .h_full()
         .fill(color(v.p.window))
-        .child(body.child(center))
+        .child(body)
         .child(transport::player(v));
     if !s.app.presentation.toasts.is_empty() {
         let mut notices = col().items_end().gap(8.).pin(
