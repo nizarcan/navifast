@@ -22,7 +22,9 @@ can press **Connect** to retry.
 
 Use **Albums** or the sidebar library list, open an album, then **Play** or
 double-click a song. The sidebar retains its list/grid switch, filtering,
-sorting and local pins. More albums load as you scroll. Previous restarts the
+sorting and local pins. Its **Recently played** order remembers the last 100
+albums across restarts for the last connected server and account.
+More albums load as you scroll. Previous restarts the
 current song after three seconds; otherwise it selects the previous song.
 Next and natural completion advance through the selected album. Seeking while
 paused keeps playback paused. Space toggles play/pause outside text fields.

@@ -31,6 +31,8 @@ pub struct Login {
 pub struct Preferences {
     pub server: String,
     pub username: String,
+    /// Album URIs, newest first, belonging to the server and account above.
+    pub recent_contexts: Vec<String>,
     pub light: bool,
     pub volume: f32,
     pub eq_on: bool,
@@ -43,6 +45,7 @@ impl Default for Preferences {
         Self {
             server: String::new(),
             username: String::new(),
+            recent_contexts: Vec::new(),
             light: false,
             volume: 0.7,
             eq_on: false,
@@ -240,6 +243,7 @@ impl App {
         presentation.backend.set_offline(true);
         presentation.offline = true;
         presentation.navidrome_mode = true;
+        presentation.recent_contexts = preferences.recent_contexts.clone();
         presentation.history = vec![crate::model::Page::Albums];
         presentation.history_index = 0;
         presentation.attach(&cc.egui_ctx);
@@ -547,6 +551,7 @@ impl App {
     }
 
     fn save(&mut self) {
+        self.preferences.recent_contexts = self.presentation.recent_contexts.clone();
         if !self.demo
             && let Ok(json) = serde_json::to_string_pretty(&self.preferences)
         {
@@ -563,6 +568,15 @@ impl App {
         }
         self.presentation.settings_dirty = false;
         self.dirty = None;
+    }
+
+    fn remember_account(&mut self, server: &str, username: &str) {
+        if self.preferences.server != server || self.preferences.username != username {
+            self.preferences.recent_contexts.clear();
+            self.presentation.recent_contexts.clear();
+        }
+        self.preferences.server = server.into();
+        self.preferences.username = username.into();
     }
 
     fn fetch_albums(&mut self, offset: usize) {
@@ -595,6 +609,7 @@ impl App {
             self.presentation.recent_contexts.retain(|old| old != &uri);
             self.presentation.recent_contexts.insert(0, uri);
             self.presentation.recent_contexts.truncate(100);
+            self.mark_dirty();
         }
         self.tap.clear();
         if let Some(client) = &self.client {
@@ -653,8 +668,7 @@ impl App {
                     self.restoring_login = false;
                     match result {
                         Ok(client) => {
-                            self.preferences.server = client.base_url().into();
-                            self.preferences.username = client.username().into();
+                            self.remember_account(client.base_url(), client.username());
                             self.login.password.clear();
                             self.client = Some(client);
                             self.connected = true;
@@ -1163,6 +1177,83 @@ mod tests {
         assert!(!json.contains("password"));
         let old: Preferences = serde_json::from_str("{}").unwrap();
         assert_eq!(old.volume, 0.7);
+        assert!(old.recent_contexts.is_empty());
+    }
+
+    #[test]
+    fn recently_played_albums_survive_autosave_and_exit() {
+        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
+        let root = std::env::temp_dir().join(format!(
+            "navifast-recent-albums-{:016x}",
+            rand::random::<u64>()
+        ));
+        let dirs = crate::paths::AppDirs {
+            config: root.join("config"),
+            state: root.join("state"),
+            cache: root.join("cache"),
+        };
+        let play = |app: &mut App, id: &str| {
+            app.album = Some(Album {
+                id: id.into(),
+                song: vec![Song {
+                    id: format!("{id}/song"),
+                    duration: 60.0,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            });
+            app.apply(Action::Play(0));
+        };
+        let uri = |id: &str| format!("navidrome:album:{}", presentation::encode(id));
+        let mut app = App::new(&cc, dirs.clone(), None, true);
+        app.remember_account("https://music.example.com/", "listener");
+        for index in 0..105 {
+            play(&mut app, &format!("older-{index}"));
+        }
+        assert_eq!(app.presentation.recent_contexts.len(), 100);
+        assert_eq!(
+            app.presentation.recent_contexts.last(),
+            Some(&uri("older-5"))
+        );
+        app.presentation.recent_contexts.clear();
+        play(&mut app, "library:/🌍/first");
+        play(&mut app, "second");
+        play(&mut app, "library:/🌍/first");
+        let expected = vec![uri("library:/🌍/first"), uri("second")];
+        assert_eq!(app.presentation.recent_contexts, expected);
+        assert!(app.dirty.is_some(), "playing schedules an autosave");
+
+        // Enable only real persistence, without restoring credentials or
+        // starting audio. The worker drains pending saves when dropped.
+        app.demo = false;
+        app.dirty = Some(Instant::now() - Duration::from_secs(1));
+        app.poll(&cc.egui_ctx);
+        assert!(app.dirty.is_none());
+        drop(app);
+
+        let mut restored = App::new(&cc, dirs.clone(), None, true);
+        restored.remember_account("https://music.example.com/", "listener");
+        assert_eq!(restored.presentation.recent_contexts, expected);
+        play(&mut restored, "second");
+        restored.demo = false;
+        eframe::App::on_exit(&mut restored, None);
+        drop(restored);
+
+        let mut restored = App::new(&cc, dirs, None, true);
+        assert_eq!(
+            restored.presentation.recent_contexts,
+            vec![uri("second"), uri("library:/🌍/first")]
+        );
+        // The same opaque IDs can belong to unrelated albums on another
+        // server or account. Only a successful account change clears them.
+        restored.remember_account("https://music.example.com/", "another-listener");
+        assert!(restored.presentation.recent_contexts.is_empty());
+        assert!(restored.preferences.recent_contexts.is_empty());
+        play(&mut restored, "second");
+        restored.remember_account("https://other.example.com/", "another-listener");
+        assert!(restored.presentation.recent_contexts.is_empty());
+        drop(restored);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

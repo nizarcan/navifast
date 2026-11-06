@@ -13,6 +13,8 @@ The first migration stage supports:
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
+- The sidebar's recently played album order survives restarts for the last
+  connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,
   next and automatic progression through an album.
 - The existing ten-band equalizer and a spectrum visualizer that follows the
@@ -74,7 +76,8 @@ you in automatically on launch. The main window opens while the saved login
 connects, without flashing the login form. **Sign out** forgets it. If the store
 is locked or unavailable, playback still works and a message explains why the
 login could not be saved. Passwords are never written to the settings files.
-The server URL, username and playback preferences are saved in `navidrome.json`;
+The server URL, username, playback preferences and up to 100 recently played
+album identifiers are saved in `navidrome.json`;
 the existing interface and theme preferences use `settings.json`, both under
 Navifast's config directory. Spotify profiles and
 credentials are not imported. The app does not check for updates or contact

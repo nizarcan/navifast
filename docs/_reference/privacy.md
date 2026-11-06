@@ -22,8 +22,10 @@ together in the system credential store: Keychain on macOS, Credential Manager
 on Windows, or Secret Service on Linux. Navifast restores this login at startup
 and contacts that server automatically. If storage is unavailable, the password
 remains in memory for the session and Navifast reports the storage failure.
-Preferences contain the server base URL, username, theme, volume and equalizer
-settings, but never the password.
+Preferences contain the server base URL, username, theme, volume, equalizer
+settings and up to 100 recently played album identifiers, but never the password.
+The recent album order stays on this computer in `navidrome.json`, survives
+restarts and is cleared when a different server or account signs in successfully.
 
 Sign-out disables automatic sign-in, deletes the saved login, stops playback
 and clears the active account, library and artwork from memory. A non-secret
