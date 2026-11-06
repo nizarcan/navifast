@@ -103,6 +103,14 @@ impl Host for Window {
     }
 }
 
+pub(crate) struct ItemMenu {
+    pub uri: String,
+    /// Stable occurrence for an album track. Other catalog items only offer a favorite action.
+    pub row: Option<String>,
+    /// A context click supplies window points. The More button anchors by row key.
+    pub at: Option<[f32; 2]>,
+}
+
 pub(crate) struct State {
     pub(crate) app: App,
     window: Window,
@@ -130,7 +138,7 @@ pub(crate) struct State {
     pub(crate) plot_width: f32,
     pub(crate) seek_preview: Option<(u64, f64)>,
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
-    pub(crate) favorite_menu: Option<(String, [f32; 2])>,
+    pub(crate) favorite_menu: Option<ItemMenu>,
     pub(crate) menu: Option<&'static str>,
 }
 
@@ -676,8 +684,9 @@ mod tests {
             .find(|e| e.key.as_ref() == Some(&key))
             .unwrap();
         let [x, y, _, h] = el.rect;
-        rt.pointer_down(x + 10., y + h / 2.);
-        rt.pointer_up(x + 10., y + h / 2.);
+        // Click the title line. The artist credit beneath it opens the artist.
+        rt.pointer_down(x + 90., y + h / 3.);
+        rt.pointer_up(x + 90., y + h / 3.);
         rt.frame(0.);
     }
 
@@ -739,6 +748,30 @@ mod tests {
                 .to_string()
                 .contains("Nothing here yet.")
         );
+    }
+
+    #[test]
+    fn album_number_and_more_menu_play_the_named_occurrence() {
+        let mut rt = runtime("album:alb0", "");
+        let target = rt.state.table.key(2).to_owned();
+        assert!(rt.accessibility_action(
+            &format!("number-{target}"),
+            rune::accesskit::Action::Click,
+            None
+        ));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.transport.index, Some(2));
+        let key = rt.state.table.key(1).to_owned();
+        assert!(rt.accessibility_action(
+            &format!("more-{key}"),
+            rune::accesskit::Action::Click,
+            None
+        ));
+        rt.frame(0.);
+        assert!(rt.accessibility_action("play-menu-row", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.transport.index, Some(1));
+        assert!(rt.state.favorite_menu.is_none());
     }
 
     #[test]

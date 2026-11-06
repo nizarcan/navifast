@@ -1,5 +1,8 @@
 use super::*;
-use crate::app::navidrome::desktop::autoscroll::{self, Pane};
+use crate::app::navidrome::desktop::{
+    ItemMenu,
+    autoscroll::{self, Pane},
+};
 use crate::app::navidrome::{Action as Service, search::Action as Search};
 use crate::model::Loadable;
 use crate::navidrome::api::{Album, Collection, FavoriteKind, SearchPart, Song};
@@ -202,32 +205,54 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     } {
         shell = shell.child(menu);
     }
-    if let Some((uri, [x, y])) = &s.favorite_menu {
-        let name = if s.app.presentation.navidrome_favorites.contains(uri) == Some(true) {
-            "Remove from Favorites"
-        } else {
-            "Add to Favorites"
-        };
-        let uri = uri.clone();
-        shell = shell.child(
-            col()
-                .absolute(
-                    x.clamp(0., (v.width - 200.).max(0.)),
-                    y.clamp(0., (v.height - 48.).max(0.)),
-                )
-                .w(200.)
-                .padding(5.)
-                .radius(8.)
-                .fill(color(v.p.overlay))
-                .role("menu")
-                .modal(true, |s: &mut State| s.favorite_menu = None)
-                .child(
-                    v.button(&v.tr(name), false, move |s, tx| {
-                        s.dispatch(Action::ToggleSaved(uri.clone()), tx)
-                    })
-                    .role("menuitem"),
-                ),
-        );
+    if let Some(menu) = &s.favorite_menu {
+        let uri = menu.uri.clone();
+        let mut popup = col()
+            .w(232.)
+            .padding(6.)
+            .gap(2.)
+            .radius(8.)
+            .fill(color(v.p.overlay))
+            .border(1., color(v.p.outline))
+            .role("menu")
+            .modal(true, |s: &mut State| s.favorite_menu = None);
+        if let Some(saved) = s.app.presentation.navidrome_favorites.contains(&uri) {
+            let name = v.tr(if saved {
+                "Remove from Favorites"
+            } else {
+                "Add to Favorites"
+            });
+            popup = popup.child(v.menu_item(
+                &name,
+                Some(if saved { Icon::StarFilled } else { Icon::Star }),
+                move |s, tx| {
+                    s.dispatch(Action::ToggleSaved(uri.clone()), tx);
+                },
+            ));
+        }
+        if let Some(key) = menu.row.clone() {
+            popup = popup.child(
+                v.menu_item(&v.tr("Play"), Some(Icon::Play), move |s, tx| {
+                    if let Some(i) = s.table.index(&key) {
+                        open_song(s, i, tx);
+                    }
+                    s.favorite_menu = None;
+                })
+                .key("play-menu-row"),
+            );
+        }
+        if let Some([x, y]) = menu.at {
+            popup = popup.absolute(
+                x.clamp(0., (v.width - 232.).max(0.)),
+                y.clamp(0., (v.height - 84.).max(0.)),
+            );
+        } else if let Some(key) = &menu.row {
+            let trigger = format!("more-{key}");
+            popup = popup
+                .anchored_fit(&trigger, rune::Side::Bottom, rune::Align::End, 2.)
+                .focus_return(trigger);
+        }
+        shell = shell.child(popup);
     }
     if s.app.presentation.dialog.is_some() {
         shell = shell.child(preferences::shortcuts(v));
@@ -725,7 +750,11 @@ pub(super) fn favorite_context(tile: El, kind: FavoriteKind, id: &str) -> El {
             .is_some()
         {
             let zoom = s.app.presentation.settings.zoom;
-            s.favorite_menu = Some((uri.clone(), [p.x / zoom, p.y / zoom]));
+            s.favorite_menu = Some(ItemMenu {
+                uri: uri.clone(),
+                row: None,
+                at: Some([p.x / zoom, p.y / zoom]),
+            });
         }
     })
 }
@@ -1117,79 +1146,161 @@ fn songs(v: &Paint<'_>) -> El {
             let key = s.table.key(i).to_owned();
             let playing = current_key.as_ref() == Some(&key);
             let selected = s.table.selection.rows.contains(&i);
-            let line = row()
+            let ink = if playing { p.accent } else { p.text };
+            let saved = s
+                .app
+                .presentation
+                .navidrome_favorites
+                .contains(&FavoriteKind::Song.uri(&song.id))
+                == Some(true);
+            let show_more = s
+                .favorite_menu
+                .as_ref()
+                .is_some_and(|menu| menu.row.as_ref() == Some(&key));
+            let mut number = el()
+                .size(44., h)
+                .center()
+                .key(format!("number-{key}"))
+                .role("button")
+                .focusable(true)
+                .label(v.tr(if playing && !s.app.transport.paused {
+                    "Pause"
+                } else {
+                    "Play"
+                }))
+                .on_press_tx({
+                    let key = key.clone();
+                    move |s: &mut State, tx| {
+                        if playing {
+                            s.app.apply(Service::Toggle);
+                        } else if let Some(i) = s.table.index(&key) {
+                            open_song(s, i, tx);
+                        }
+                    }
+                });
+            let normal = if playing && !s.app.transport.paused {
+                v.icon(Icon::AudioLines, 16., p.accent)
+            } else {
+                label(
+                    (source + 1).to_string(),
+                    14.,
+                    400.,
+                    if playing { p.accent } else { p.secondary },
+                )
+            };
+            number = number.child(normal.group_opacity(1., 0.)).child(
+                el().pin(Some(0.), Some(0.), Some(0.), Some(0.))
+                    .center()
+                    .child(v.icon(
+                        if playing && !s.app.transport.paused {
+                            Icon::PauseFilled
+                        } else {
+                            Icon::PlayFilled
+                        },
+                        14.,
+                        p.text,
+                    ))
+                    .group_opacity(0., 1.),
+            );
+            let description = if s.app.presentation.settings.tracklist_compact {
+                row()
+                    .min_w(0.)
+                    .grow(1.)
+                    .items_center()
+                    .gap(5.)
+                    .child(label(&song.title, 14., 550., ink).truncate())
+                    .child(label("•", 12., 400., p.secondary))
+                    .child(credits(&v, &song.artist, &song.credits))
+            } else {
+                col()
+                    .min_w(0.)
+                    .grow(1.)
+                    .child(label(&song.title, 14., 550., ink).truncate())
+                    .child(credits(&v, &song.artist, &song.credits))
+            };
+            let uri = FavoriteKind::Song.uri(&song.id);
+            let more = v
+                .icon_button(&v.tr("More"), Icon::Ellipsis, 18., {
+                    let key = key.clone();
+                    let uri = uri.clone();
+                    move |s, _| {
+                        s.favorite_menu = Some(ItemMenu {
+                            uri: uri.clone(),
+                            row: Some(key.clone()),
+                            at: None,
+                        })
+                    }
+                })
+                .key(format!("more-{key}"))
+                .group_opacity(if show_more { 1. } else { 0. }, 1.);
+            row()
                 .key(key.clone())
                 .w_full()
                 .h(h)
                 .items_center()
-                .gap(12.)
                 .px(8.)
                 .radius(6.)
                 .role("row")
                 .focus_selected(selected)
                 .label(format!("{} {} {}", source + 1, song.title, song.artist))
+                .hover_group()
                 .fill(if selected {
-                    color(p.surface_active)
+                    color(p.secondary.gamma_multiply(0.20))
                 } else {
                     Color::TRANSPARENT
                 })
-                .hover(color(p.surface_hover))
+                .hover(color(if selected {
+                    p.secondary.gamma_multiply(0.30)
+                } else {
+                    p.surface_hover
+                        .gamma_multiply(if p.dark { 0.7 } else { 1. })
+                }))
+                .child(number)
+                .child(description)
                 .child(
-                    el().w(28.)
+                    el().w(36.)
                         .center()
-                        .child(if playing && !s.app.transport.paused {
-                            v.icon(Icon::AudioLines, 17., p.accent)
-                        } else {
-                            label(
-                                (source + 1).to_string(),
-                                14.,
-                                400.,
-                                if playing { p.accent } else { p.secondary },
-                            )
-                        }),
-                );
-            line.child(
-                col()
-                    .grow(1.)
-                    .min_w(0.)
-                    .child(
-                        label(
-                            &song.title,
-                            14.,
-                            550.,
-                            if playing { p.accent } else { p.text },
-                        )
-                        .truncate(),
-                    )
-                    .child(credits(&v, &song.artist, &song.credits)),
-            )
-            .child(star(&v, FavoriteKind::Song, &song.id))
-            .child(label(
-                crate::util::format_duration_ms((song.duration * 1000.) as u32),
-                13.,
-                400.,
-                p.secondary,
-            ))
-            .on_press_tx({
-                let key = key.clone();
-                move |s: &mut State, tx| {
-                    if let Some(i) = s.table.index(&key) {
-                        let pick = if tx.mods().shift {
-                            crate::model::RowPick::Range
-                        } else if tx.mods().cmd {
-                            crate::model::RowPick::Toggle
-                        } else {
-                            crate::model::RowPick::Only
-                        };
-                        s.table.pick(i, pick);
+                        .child(star(&v, FavoriteKind::Song, &song.id))
+                        .group_opacity(if saved { 1. } else { 0. }, 1.),
+                )
+                .child(row().w(56.).pr(6.).justify_end().child(label(
+                    crate::util::format_duration_ms((song.duration * 1000.) as u32),
+                    13.,
+                    400.,
+                    p.secondary,
+                )))
+                .child(el().w(36.).center().child(more))
+                .on_secondary_press({
+                    let key = key.clone();
+                    move |s: &mut State, p, _| {
+                        let zoom = s.app.presentation.settings.zoom;
+                        s.favorite_menu = Some(ItemMenu {
+                            uri: uri.clone(),
+                            row: Some(key.clone()),
+                            at: Some([p.x / zoom, p.y / zoom]),
+                        });
                     }
-                }
-            })
-            .on_double_press_tx(move |s: &mut State, tx| {
-                if let Some(i) = s.table.index(&key) {
-                    open_song(s, i, tx)
-                }
-            })
+                })
+                .on_press_tx({
+                    let key = key.clone();
+                    move |s: &mut State, tx| {
+                        if let Some(i) = s.table.index(&key) {
+                            let pick = if tx.mods().shift {
+                                crate::model::RowPick::Range
+                            } else if tx.mods().cmd {
+                                crate::model::RowPick::Toggle
+                            } else {
+                                crate::model::RowPick::Only
+                            };
+                            s.table.pick(i, pick);
+                        }
+                    }
+                })
+                .on_double_press_tx(move |s: &mut State, tx| {
+                    if let Some(i) = s.table.index(&key) {
+                        open_song(s, i, tx)
+                    }
+                })
         },
     )
 }
