@@ -24,6 +24,57 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn collection_shuffle_and_repeat_controls_keep_the_playing_context_and_position() {
+    use crate::player::RepeatMode;
+    for theme in ["", "light"] {
+        let mut rt = runtime("playlist:list0", theme);
+        let context = rt.state.app.playing_album.as_ref().unwrap().id.clone();
+        let occurrence = rt.state.app.transport.queue.current().unwrap().id;
+        let position = rt.state.app.transport.position;
+        let generation = rt.state.app.transport.generation;
+        assert!(rt.accessibility_action(
+            "collection-shuffle",
+            rune::accesskit::Action::Click,
+            None
+        ));
+        rt.frame(0.);
+        assert!(rt.state.app.transport.queue.shuffled());
+        let order: Vec<_> = rt
+            .state
+            .app
+            .transport
+            .queue
+            .upcoming()
+            .iter()
+            .map(|e| e.id)
+            .collect();
+        for mode in [RepeatMode::Context, RepeatMode::Track, RepeatMode::Off] {
+            assert!(rt.accessibility_action("player-repeat", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            assert_eq!(rt.state.app.transport.repeat, mode);
+            assert_eq!(rt.state.app.playing_album.as_ref().unwrap().id, context);
+            assert_eq!(
+                rt.state.app.transport.queue.current().unwrap().id,
+                occurrence
+            );
+            assert_eq!(rt.state.app.transport.position, position);
+            assert_eq!(rt.state.app.transport.generation, generation);
+            assert_eq!(
+                rt.state
+                    .app
+                    .transport
+                    .queue
+                    .upcoming()
+                    .iter()
+                    .map(|e| e.id)
+                    .collect::<Vec<_>>(),
+                order
+            );
+        }
+    }
+}
+
+#[test]
 fn queue_reflows_only_while_open_and_preserves_browsing_on_close() {
     for theme in ["", "light"] {
         for width in [760., 1280.] {

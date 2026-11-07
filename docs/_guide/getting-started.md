@@ -111,5 +111,13 @@ The queue appears beside browsing on wide windows and fills the content area on
 narrow windows. See [The queue's rules](/reference/queue/) for keyboard controls
 and pending album behavior.
 
-Shuffle/repeat, saved queues, lyrics, scrobbling,
+**Shuffle** in the player or a collection's action row changes the remaining
+playing collection, preserving the current song, position and paused state.
+Manual additions stay first. Turning it off restores the remaining collection's
+original play order. **Repeat** cycles through Off, All and One; a small 1 marks
+Repeat One. Explicit Next still skips to another available occurrence. Repeat All
+loops the collection, with manual additions played once. A queue without an album
+or playlist loops its current and upcoming manual songs instead.
+
+Saved queues, lyrics, scrobbling,
 transcoding and tray operation are still pending.

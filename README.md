@@ -39,6 +39,8 @@ The current build supports:
 - A local queue with **Play next** and **Add to queue** for songs and albums.
   Open **Queue** in the player to play, move or remove upcoming occurrences.
   **Clear** removes manual additions while preserving the current song and collection.
+- Shuffle keeps one visible order for remaining collection tracks, after manual
+  additions. Repeat cycles through Off, All and One without changing playback position.
 - The existing ten-band equalizer and a spectrum visualizer that follows the
   equalizer even when playback volume is zero.
 - The original sidebar lists and grids, album pages, player bar and settings,
@@ -46,7 +48,7 @@ The current build supports:
   player-bar visualizers.
 - Basic native media controls.
 
-This is an early playback build. Shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
+This is an early playback build. Saved queues, lyrics, scrobbling, transcoding preferences,
 and tray behavior are not available in the current Navidrome interface.
 The existing interface keeps its translations; the server sign-in form
 currently uses English.

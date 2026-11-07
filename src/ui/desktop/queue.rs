@@ -286,10 +286,7 @@ pub(super) fn menu(v: &Paint<'_>) -> Option<El> {
         (-1, mark("Move up"), Icon::ChevronUp),
         (1, mark("Move down"), Icon::ChevronDown),
     ] {
-        let available = at
-            .checked_add_signed(delta)
-            .and_then(|i| entries.get(i))
-            .is_some_and(|e| e.manual() == entries[at].manual());
+        let available = v.s.app.transport.queue.can_move(id, delta);
         menu = menu.child(
             v.menu_item(&v.tr(name), Some(icon), move |s, tx| {
                 s.dispatch(Action::Queue(QueueAction::Move { id, delta }), tx)

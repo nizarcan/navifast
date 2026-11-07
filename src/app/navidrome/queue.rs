@@ -188,6 +188,91 @@ mod tests {
             .collect()
     }
 
+    fn finish(app: &mut App) {
+        if app
+            .transport
+            .event(player::Event::Finished(app.transport.generation))
+        {
+            app.finish_track();
+        }
+    }
+
+    #[test]
+    fn playback_modes_preserve_paused_position_and_explicit_next_ignores_repeat_one() {
+        use crate::player::RepeatMode;
+        with_app(|app, _| {
+            app.play_search_songs(songs(&["dup", "dup", "tail"]), 0);
+            app.apply(TransportAction::Pause(true));
+            app.apply(TransportAction::Seek(21.0));
+            let before = (
+                app.transport.queue.current().unwrap().id,
+                app.transport.generation,
+            );
+            app.apply(TransportAction::Shuffle(true));
+            app.apply(TransportAction::Repeat(RepeatMode::Context));
+            assert_eq!(
+                (
+                    app.transport.queue.current().unwrap().id,
+                    app.transport.generation
+                ),
+                before
+            );
+            assert_eq!(app.transport.position, 21.0);
+            assert!(app.transport.paused);
+            app.queue_action(Action::Songs {
+                songs: songs(&["manual"]),
+                next: false,
+            });
+            let next = app.transport.queue.upcoming()[0].id;
+            app.apply(TransportAction::Repeat(RepeatMode::Track));
+            app.apply(TransportAction::Next);
+            assert_eq!(app.transport.queue.current().unwrap().id, next);
+            assert_eq!(app.transport.song().unwrap().id, "manual");
+            assert!(app.transport.paused);
+            let generation = app.transport.generation;
+            finish(app);
+            assert_eq!(app.transport.queue.current().unwrap().id, next);
+            assert!(app.transport.generation > generation);
+            assert_eq!(app.transport.position, 0.0);
+            assert!(app.transport.paused);
+            let next = app.transport.queue.upcoming()[0].id;
+            app.apply(TransportAction::Repeat(RepeatMode::Off));
+            finish(app);
+            assert_eq!(app.transport.queue.current().unwrap().id, next);
+        });
+    }
+
+    #[test]
+    fn one_track_repeat_and_control_snapshots_report_the_actual_modes() {
+        use crate::player::RepeatMode;
+        with_app(|app, host| {
+            app.play_search_songs(songs(&["only"]), 0);
+            finish(app);
+            assert!(app.transport.paused);
+            assert_eq!(app.transport.position, 60.0);
+            app.apply(TransportAction::Repeat(RepeatMode::Context));
+            let next = app.transport.queue.upcoming()[0].id;
+            finish(app);
+            assert_eq!(app.transport.queue.current().unwrap().id, next);
+            assert_eq!(app.transport.position, 0.0);
+            assert!(app.transport.paused);
+            let current = app.transport.queue.current().unwrap().id;
+            app.commands = Some(std::sync::Arc::new(std::sync::Mutex::new(vec![
+                crate::single_instance::ControlCommand::SetShuffle(true),
+                crate::single_instance::ControlCommand::SetRepeat(RepeatMode::Track),
+            ])));
+            assert!(app.poll_controls(host));
+            assert!(app.transport.queue.shuffled());
+            assert_eq!(app.transport.repeat, RepeatMode::Track);
+            assert_eq!(app.transport.queue.current().unwrap().id, current);
+            app.now_slot = Some(std::sync::Arc::new(std::sync::Mutex::new(String::new())));
+            app.sync_media();
+            let snapshot = app.now_slot.as_ref().unwrap().lock().unwrap().clone();
+            let fields: Vec<_> = snapshot.split('\t').collect();
+            assert_eq!(&fields[7..9], ["true", "track"]);
+        });
+    }
+
     #[test]
     fn catalogue_queue_actions_do_not_depend_on_a_successful_favorites_read() {
         with_app(|app, _| {

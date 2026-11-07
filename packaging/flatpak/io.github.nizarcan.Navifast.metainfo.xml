@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.5" date="2026-11-07" type="development">
+      <description><p>Shuffle remaining collection tracks and repeat a song or collection without losing your place.</p></description>
+    </release>
     <release version="0.1.0-rc.4" date="2026-11-07" type="development">
       <description><p>Play songs and albums next, add them to the queue, and rearrange upcoming occurrences.</p></description>
     </release>

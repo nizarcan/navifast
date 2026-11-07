@@ -51,7 +51,36 @@ song at its position. Removing, skipping, clearing or signing out prevents late
 replies from restoring removed entries. Album reads run on the backend worker and
 survive ordinary browsing navigation. Clear and sign-out cancel their requests.
 
-Queue restoration and shuffle/repeat are separate features and are not yet exposed.
+## Shuffle and repeat
+
+Shuffle only reorders the remaining collection. Manual additions stay first,
+including albums that are still loading. The shuffled order remains stable as
+playback advances and the view redraws. Turning shuffle off sorts the remaining
+collection occurrences back into their original play order, without restoring
+consumed or removed occurrences. Starting a chosen song while shuffle is enabled
+puts it first, followed by every other occurrence in that collection once.
+Changing shuffle from any collection page affects the playing collection without
+starting the viewed one. Mode changes preserve the current occurrence, position,
+pause intention and player generation.
+
+Repeat cycles through **Off**, **All**, and **One**. Off stops after the last
+occurrence. One restarts the current occurrence on natural completion; explicit
+Next still consumes the visible head when one exists. All repeats the underlying
+collection, with explicit manual additions played once. Without an underlying
+collection, All repeats the current and upcoming manual songs captured when the
+mode is enabled, including later additions. Song data is shared across cycles.
+
+A future cycle appears in Next up when the current collection has no more
+upcoming tracks. Its entries have new occurrence IDs. Starting that cycle consumes
+its visible head. Turning All off discards only a cycle that has not started yet;
+a cycle already playing continues normally. Removal excludes that occurrence
+from subsequent cycles until a new collection starts. In a standalone manual
+loop, Clear retains only the current song in the loop. New explicit additions
+postpone the standalone loop preview until those additions play, so pending
+albums can resolve before the next cycle is prepared.
+
+The existing command and media interfaces report and set the same modes as the
+native controls. Queue and mode restoration are not yet exposed.
 The queue model and regression tests live in `src/navidrome/queue.rs`; controller
 and transport coverage lives in `src/app/navidrome/queue.rs` and
 `src/app/navidrome.rs`. Rune interaction tests live in

@@ -2521,7 +2521,7 @@ dependencies = [
 
 [[package]]
 name = "navifast"
-version = "0.1.0-rc.4"
+version = "0.1.0-rc.5"
 dependencies = [
  "anyhow",
  "apple-native-keyring-store",

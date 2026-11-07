@@ -126,6 +126,57 @@ pub(super) fn artwork(v: &Paint<'_>, edge: f32, expanded: bool) -> El {
     }
     art
 }
+pub(super) fn shuffle(v: &Paint<'_>, size: f32) -> El {
+    let on = v.s.app.transport.queue.shuffled();
+    v.tinted_button(
+        &v.tr(mark("Shuffle")),
+        Icon::Shuffle,
+        size,
+        if on { v.p.accent } else { v.p.secondary },
+        move |s, _| {
+            s.app
+                .apply(Service::Shuffle(!s.app.transport.queue.shuffled()))
+        },
+    )
+    .checked(on)
+}
+
+fn repeat(v: &Paint<'_>) -> El {
+    use crate::player::RepeatMode;
+    let mode = v.s.app.transport.repeat;
+    let ink = if mode == RepeatMode::Off {
+        v.p.secondary
+    } else {
+        v.p.accent
+    };
+    let mut button = v
+        .tinted_button(
+            &v.tr(match mode {
+                RepeatMode::Off => mark("Repeat off"),
+                RepeatMode::Context => mark("Repeat all"),
+                RepeatMode::Track => mark("Repeat one"),
+            }),
+            Icon::Repeat,
+            17.,
+            ink,
+            |s, _| s.app.apply(Service::Repeat(s.app.transport.repeat.next())),
+        )
+        .checked(mode != RepeatMode::Off)
+        .size(29., 36.)
+        .key("player-repeat");
+    if mode == RepeatMode::Track {
+        button = button.child(
+            el().absolute(0., 0.)
+                .w_full()
+                .h_full()
+                .center()
+                .child(label("1", 8., 700., ink))
+                .a11y_hidden(),
+        );
+    }
+    button
+}
+
 pub(super) fn player(v: &Paint<'_>) -> El {
     let a = &v.s.app;
     let song = a.transport.song();
@@ -190,11 +241,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
     let controls = row()
         .gap(10.)
         .items_center()
-        .child(
-            v.icon_button(&v.tr(mark("Shuffle")), Icon::Shuffle, 17., |_, _| {})
-                .size(29., 36.)
-                .disabled(true),
-        )
+        .child(shuffle(v, 17.).size(29., 36.).key("player-shuffle"))
         .child(
             v.icon_button(
                 &v.tr(mark("Previous")),
@@ -237,11 +284,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             .size(30., 36.)
             .disabled(a.transport.queue.upcoming().is_empty()),
         )
-        .child(
-            v.icon_button(&v.tr(mark("Repeat")), Icon::Repeat, 17., |_, _| {})
-                .size(29., 36.)
-                .disabled(true),
-        );
+        .child(repeat(v));
     let duration = song.map_or(0., |s| s.duration);
     let position =
         v.s.seek_preview

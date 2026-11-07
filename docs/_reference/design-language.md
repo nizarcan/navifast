@@ -86,6 +86,12 @@ additions, and Next up for the collection. Upcoming rows are virtualized, with
 42-pixel artwork, a 14-pixel title and secondary artist text. Repeated songs are
 separate selectable occurrences. Pending albums use the same row with a spinner.
 
+The existing Shuffle and Repeat icons keep their positions and hit areas.
+Enabled modes use the accent color and expose their checked state to assistive
+technology. Repeat One adds a small centered 1 inside the existing repeat glyph;
+its accessible name distinguishes Off, All and One. Collection Shuffle controls
+share the player control's state and behavior.
+
 ## Type, color and controls
 
 - Use Inter and its real font weights through Rune's text layout. Keep logical

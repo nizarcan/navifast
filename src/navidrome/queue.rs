@@ -3,6 +3,9 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use super::api::Song;
+use rand::seq::SliceRandom;
+mod repeat;
+use repeat::Repeat;
 
 pub type Id = u64;
 
@@ -47,9 +50,53 @@ pub struct Queue {
     upcoming: VecDeque<Entry>,
     history: VecDeque<Entry>,
     serial: Id,
+    shuffle: bool,
+    repeat: Repeat,
 }
 
 impl Queue {
+    pub fn shuffled(&self) -> bool {
+        self.shuffle
+    }
+
+    pub fn set_shuffle(&mut self, shuffle: bool) {
+        if self.shuffle == shuffle {
+            return;
+        }
+        self.shuffle = shuffle;
+        self.order_collection();
+    }
+
+    fn order_collection(&mut self) {
+        self.order_with(&mut rand::rng());
+    }
+
+    #[cfg(feature = "navidrome-demo")]
+    pub(crate) fn demo_shuffle(&mut self) {
+        use rand::SeedableRng;
+        self.shuffle = true;
+        self.order_with(&mut rand::rngs::StdRng::seed_from_u64(7));
+    }
+
+    fn order_with(&mut self, rng: &mut impl rand::Rng) {
+        if self.context.is_empty() {
+            return;
+        }
+        let manual = self.manual_len();
+        let boundary = self.upcoming.len() - self.repeat.preview;
+        let (current, future) = self.upcoming.make_contiguous().split_at_mut(boundary);
+        for collection in [&mut current[manual..], future] {
+            if self.shuffle {
+                collection.shuffle(rng);
+            } else {
+                collection.sort_by_key(|entry| match entry.source {
+                    Source::Context(index) => index,
+                    _ => unreachable!("collection section"),
+                });
+            }
+        }
+    }
+
     pub fn context(&self) -> &[Song] {
         &self.context
     }
@@ -74,7 +121,9 @@ impl Queue {
     }
 
     pub fn manual_len(&self) -> usize {
-        self.upcoming.partition_point(Entry::manual)
+        self.upcoming
+            .partition_point(Entry::manual)
+            .min(self.upcoming.len() - self.repeat.preview)
     }
 
     pub fn upcoming(&self) -> &VecDeque<Entry> {
@@ -94,14 +143,25 @@ impl Queue {
         if index >= songs.len() {
             return false;
         }
+        self.discard_repeat_preview();
+        self.repeat.standalone = Vec::new();
+        self.repeat.removed.clear();
         self.upcoming.retain(Entry::manual);
         self.history.clear();
         self.context = songs;
         self.current = Some(self.entry(Source::Context(index)));
-        for i in index + 1..self.context.len() {
+        let first = if self.shuffle { 0 } else { index + 1 };
+        for i in first..self.context.len() {
+            if i == index {
+                continue;
+            }
             let entry = self.entry(Source::Context(i));
             self.upcoming.push_back(entry);
         }
+        if self.shuffle {
+            self.order_collection();
+        }
+        self.ensure_repeat_preview();
         true
     }
 
@@ -121,12 +181,14 @@ impl Queue {
             .into_iter()
             .map(|s| self.entry(Source::Manual(Arc::new(s))))
             .collect();
+        self.repeat_additions(&entries, next);
         self.insert(entries, next);
     }
 
     pub fn reserve(&mut self, id: String, name: String, next: bool) -> Id {
         let entry = self.entry(Source::Album { id, name });
         let token = entry.id;
+        self.repeat_additions(std::slice::from_ref(&entry), next);
         self.insert([entry], next);
         token
     }
@@ -155,6 +217,8 @@ impl Queue {
             self.upcoming.push_back(entry);
         }
         self.upcoming.rotate_right(at + added);
+        self.repeat_resolved(token, at, added);
+        self.ensure_repeat_preview();
         true
     }
 
@@ -172,10 +236,14 @@ impl Queue {
             Some(entry) if entry.pending() => return Advance::Pending,
             _ => {}
         }
+        if self.upcoming.len() == self.repeat.preview {
+            self.repeat.preview = 0;
+        }
         if let Some(current) = self.current.take() {
             self.remember(current);
         }
         self.current = self.upcoming.pop_front();
+        self.ensure_repeat_preview();
         Advance::Ready
     }
 
@@ -196,7 +264,18 @@ impl Queue {
 
     pub fn play(&mut self, id: Id) -> Option<Advance> {
         let at = self.upcoming.iter().position(|e| e.id == id)?;
+        let skipped_pending: Vec<_> = self
+            .upcoming
+            .iter()
+            .take(at)
+            .filter(|e| e.pending())
+            .cloned()
+            .collect();
+        for entry in &skipped_pending {
+            self.repeat_removed(entry);
+        }
         self.upcoming.drain(..at);
+        self.repeat.preview = self.repeat.preview.min(self.upcoming.len());
         Some(self.advance())
     }
 
@@ -204,31 +283,54 @@ impl Queue {
         let Some(at) = self.upcoming.iter().position(|e| e.id == id) else {
             return false;
         };
-        self.upcoming.remove(at);
+        if at >= self.upcoming.len() - self.repeat.preview {
+            self.repeat.preview -= 1;
+        }
+        let entry = self.upcoming.remove(at).expect("located occurrence");
+        self.repeat_removed(&entry);
+        self.ensure_repeat_preview();
         true
     }
 
     /// Manual additions remain before the collection. Moves stay within their section.
-    pub fn move_by(&mut self, id: Id, delta: isize) -> bool {
-        let Some(at) = self.upcoming.iter().position(|e| e.id == id) else {
-            return false;
-        };
-        let Some(to) = at
+    fn move_indices(&self, id: Id, delta: isize) -> Option<(usize, usize)> {
+        let at = self.upcoming.iter().position(|e| e.id == id)?;
+        let to = at
             .checked_add_signed(delta)
-            .filter(|&to| to < self.upcoming.len())
-        else {
+            .filter(|&to| to < self.upcoming.len())?;
+        let manual = self.manual_len();
+        let preview = self.upcoming.len() - self.repeat.preview;
+        ((at < manual) == (to < manual) && (at < preview) == (to < preview)).then_some((at, to))
+    }
+
+    pub fn can_move(&self, id: Id, delta: isize) -> bool {
+        self.move_indices(id, delta).is_some()
+    }
+
+    pub fn move_by(&mut self, id: Id, delta: isize) -> bool {
+        let Some((at, to)) = self.move_indices(id, delta) else {
             return false;
         };
-        if self.upcoming[at].manual() != self.upcoming[to].manual() {
-            return false;
-        }
+        self.repeat_moved(at, to);
         let entry = self.upcoming.remove(at).expect("located occurrence");
         self.upcoming.insert(to, entry);
         true
     }
 
     pub fn clear_manual(&mut self) {
-        self.upcoming.retain(|e| !e.manual());
+        if self.context.is_empty() {
+            self.upcoming.clear();
+            self.repeat.preview = 0;
+            self.repeat.standalone = Vec::new();
+            if self.repeat.enabled
+                && let Some(current) = &self.current
+            {
+                self.repeat.standalone.push(current.clone());
+            }
+        } else {
+            self.upcoming.retain(|e| !e.manual());
+        }
+        self.ensure_repeat_preview();
     }
 }
 
@@ -249,6 +351,66 @@ mod tests {
             .iter()
             .map(|e| q.song(e).map_or("loading", |s| s.id.as_str()))
             .collect()
+    }
+
+    #[test]
+    fn shuffle_keeps_occurrences_and_manual_order_and_restores_only_remaining_tracks() {
+        let mut q = Queue::default();
+        q.start(songs(&["a", "dup", "dup", "c", "d", "e"]), 0);
+        let current = q.current().unwrap().id;
+        q.add(songs(&["manual", "manual"]), false);
+        let manual: Vec<_> = q.upcoming.iter().take(2).map(|e| e.id).collect();
+        let original: Vec<_> = q.upcoming.iter().map(|e| e.id).collect();
+        q.set_shuffle(true);
+        let shuffled: Vec<_> = q.upcoming.iter().map(|e| e.id).collect();
+        assert_eq!(q.current().unwrap().id, current);
+        assert_eq!(&shuffled[..2], &manual);
+        let mut before = original.clone();
+        before.sort_unstable();
+        let mut after = shuffled.clone();
+        after.sort_unstable();
+        assert_eq!(before, after);
+        q.set_shuffle(true);
+        assert_eq!(
+            q.upcoming.iter().map(|e| e.id).collect::<Vec<_>>(),
+            shuffled
+        );
+        q.advance();
+        q.advance();
+        q.advance();
+        let consumed = q.current().unwrap().id;
+        q.add(songs(&["later"]), false);
+        q.set_shuffle(false);
+        assert_eq!(q.current().unwrap().id, consumed);
+        assert_eq!(q.song(&q.upcoming[0]).unwrap().id, "later");
+        assert_eq!(
+            q.upcoming.iter().skip(1).map(|e| e.id).collect::<Vec<_>>(),
+            original
+                .into_iter()
+                .skip(2)
+                .filter(|&id| id != consumed)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn starting_in_shuffle_keeps_chosen_duplicate_and_plays_other_occurrences_once() {
+        let mut q = Queue::default();
+        q.set_shuffle(true);
+        q.start(songs(&["a", "dup", "dup", "b"]), 2);
+        assert_eq!(q.context_index(), Some(2));
+        let mut indices: Vec<_> = q
+            .upcoming
+            .iter()
+            .map(|e| match e.source {
+                Source::Context(i) => i,
+                _ => panic!("unexpected manual"),
+            })
+            .collect();
+        indices.sort_unstable();
+        assert_eq!(indices, [0, 1, 3]);
+        q.set_shuffle(false);
+        assert_eq!(ids(&q), ["a", "dup", "b"]);
     }
 
     #[test]

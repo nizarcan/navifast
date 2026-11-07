@@ -1173,9 +1173,9 @@ fn collection_actions(v: &Paint<'_>, key: &'static str, active: bool, empty: boo
                 }),
         )
         .child(
-            v.icon_button(&v.tr(mark("Shuffle")), Icon::Shuffle, 26., |_, _| {})
+            transport::shuffle(v, 26.)
                 .size(38., 38.)
-                .disabled(true),
+                .key("collection-shuffle"),
         )
 }
 

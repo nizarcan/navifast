@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 15:45+0300\n"
+"POT-Creation-Date: 2026-11-07 15:59+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -235,7 +235,7 @@ msgstr ""
 #: src/ui/desktop/library.rs:286 src/ui/desktop/library.rs:951
 #: src/ui/desktop/library.rs:1156 src/ui/desktop/library.rs:1507
 #: src/ui/desktop/queue.rs:189 src/ui/desktop/queue.rs:279
-#: src/ui/desktop/transport.rs:212
+#: src/ui/desktop/transport.rs:259
 msgid "Play"
 msgstr ""
 
@@ -328,12 +328,8 @@ msgid "Albums in your Navidrome library appear here."
 msgstr ""
 
 #: src/ui/desktop/library.rs:1156 src/ui/desktop/library.rs:1505
-#: src/ui/desktop/transport.rs:212
+#: src/ui/desktop/transport.rs:259
 msgid "Pause"
-msgstr ""
-
-#: src/ui/desktop/library.rs:1176 src/ui/desktop/transport.rs:194
-msgid "Shuffle"
 msgstr ""
 
 #: src/ui/desktop/library.rs:1214 src/ui/desktop/library.rs:1272
@@ -512,7 +508,7 @@ msgid "Dismiss"
 msgstr ""
 
 #: src/ui/desktop/queue.rs:27 src/ui/desktop/queue.rs:96
-#: src/ui/desktop/transport.rs:316
+#: src/ui/desktop/transport.rs:359
 msgid "Queue"
 msgstr ""
 
@@ -544,7 +540,7 @@ msgstr ""
 msgid "Move down"
 msgstr ""
 
-#: src/ui/desktop/queue.rs:305
+#: src/ui/desktop/queue.rs:302
 msgid "Remove from queue"
 msgstr ""
 
@@ -603,7 +599,7 @@ msgstr ""
 msgid "Use the current cover's colour on pages and the player bar."
 msgstr ""
 
-#: src/ui/desktop/preferences.rs:315 src/ui/desktop/transport.rs:403
+#: src/ui/desktop/preferences.rs:315 src/ui/desktop/transport.rs:446
 msgid "Player bar visualizer"
 msgstr ""
 
@@ -702,51 +698,63 @@ msgstr ""
 msgid "Try fewer words, or check the spelling."
 msgstr ""
 
-#: src/ui/desktop/transport.rs:173
+#: src/ui/desktop/transport.rs:132
+msgid "Shuffle"
+msgstr ""
+
+#: src/ui/desktop/transport.rs:155
+msgid "Repeat off"
+msgstr ""
+
+#: src/ui/desktop/transport.rs:156
+msgid "Repeat all"
+msgstr ""
+
+#: src/ui/desktop/transport.rs:157
+msgid "Repeat one"
+msgstr ""
+
+#: src/ui/desktop/transport.rs:224
 msgid "Nothing playing"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:180
+#: src/ui/desktop/transport.rs:231
 msgid "Pick a song, album, or playlist"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:200
+#: src/ui/desktop/transport.rs:247
 msgid "Previous"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:234
+#: src/ui/desktop/transport.rs:281
 msgid "Next"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:241
-msgid "Repeat"
-msgstr ""
-
-#: src/ui/desktop/transport.rs:273
+#: src/ui/desktop/transport.rs:316
 msgid "Playback position (%)"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:311
+#: src/ui/desktop/transport.rs:354
 msgid "Lyrics"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:330
+#: src/ui/desktop/transport.rs:373
 msgid "Connect to a device"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:339
+#: src/ui/desktop/transport.rs:382
 msgid "Unmute"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:341
+#: src/ui/desktop/transport.rs:384
 msgid "Mute"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:356
+#: src/ui/desktop/transport.rs:399
 msgid "Volume (%)"
 msgstr ""
 
-#: src/ui/desktop/transport.rs:404
+#: src/ui/desktop/transport.rs:447
 msgid "Click to change the visualizer"
 msgstr ""
 

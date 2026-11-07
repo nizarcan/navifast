@@ -78,6 +78,8 @@ pub enum Action {
     Previous,
     Seek(f64),
     Volume(f32),
+    Shuffle(bool),
+    Repeat(crate::player::RepeatMode),
     Theme,
     Equalizer,
     SetEq {
@@ -93,6 +95,7 @@ pub struct Transport {
     /// For a sorted collection, the original occurrence key of each item in playback order.
     collection_rows: Vec<String>,
     pub queue: crate::navidrome::queue::Queue,
+    pub repeat: crate::player::RepeatMode,
     waiting_for_queue: bool,
     pub position: f64,
     pub paused: bool,
@@ -136,7 +139,9 @@ impl Transport {
                 }
             }
             player::Event::Finished(generation) if generation == self.generation => {
-                if !self.queue.upcoming().is_empty() {
+                if self.repeat == crate::player::RepeatMode::Track
+                    || !self.queue.upcoming().is_empty()
+                {
                     self.position = self.song().map_or(0.0, |song| song.duration);
                     return true;
                 }
@@ -512,6 +517,13 @@ impl App {
                     .send(player::Command::Volume(self.preferences.volume));
                 self.mark_dirty();
             }
+            Action::Shuffle(shuffle) => self.transport.queue.set_shuffle(shuffle),
+            Action::Repeat(repeat) => {
+                self.transport.repeat = repeat;
+                self.transport
+                    .queue
+                    .set_repeat_all(repeat == crate::player::RepeatMode::Context);
+            }
             Action::Theme => {
                 self.preferences.light = !self.preferences.light;
                 self.mark_dirty();
@@ -813,7 +825,7 @@ impl App {
                 self.presentation.toast_error(message.clone());
             }
             if self.transport.event(event) {
-                self.apply(Action::Next);
+                self.finish_track();
             }
             changed |= previous
                 != (
@@ -837,6 +849,14 @@ impl App {
         changed
     }
 
+    fn finish_track(&mut self) {
+        if self.transport.repeat == crate::player::RepeatMode::Track {
+            self.load(0.0, self.transport.paused);
+        } else {
+            self.apply(Action::Next);
+        }
+    }
+
     fn poll_controls(&mut self, host: &impl Host) -> bool {
         let mut changed = false;
         use crate::media::MediaCommand as M;
@@ -858,6 +878,8 @@ impl App {
                     } => (self.transport.media_uri(self.session).as_deref()
                         == Some(track_uri.as_str()))
                     .then_some(Action::Seek(f64::from(position_ms) / 1000.0)),
+                    M::SetRepeat(repeat) => Some(Action::Repeat(repeat)),
+                    M::SetShuffle(shuffle) => Some(Action::Shuffle(shuffle)),
                     M::SetVolume(volume) => Some(Action::Volume(volume as f32)),
                     M::Raise => {
                         host.show_window();
@@ -893,6 +915,10 @@ impl App {
                     self.ui_action(crate::model::Action::ReloadThemes, host);
                     None
                 }
+                C::CycleRepeat => Some(Action::Repeat(self.transport.repeat.next())),
+                C::SetRepeat(repeat) => Some(Action::Repeat(repeat)),
+                C::ToggleShuffle => Some(Action::Shuffle(!self.transport.queue.shuffled())),
+                C::SetShuffle(shuffle) => Some(Action::Shuffle(shuffle)),
                 C::PlayPause => Some(Action::Toggle),
                 C::Play => Some(Action::Pause(false)),
                 C::Pause => Some(Action::Pause(true)),
@@ -923,7 +949,7 @@ impl App {
         if let Some(slot) = &self.now_slot {
             let value = if let Some(song) = song {
                 format!(
-                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\tfalse\toff\t\tfalse\tThis computer",
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t\tfalse\tThis computer",
                     if self.transport.paused {
                         "paused"
                     } else {
@@ -934,7 +960,9 @@ impl App {
                     song.album.replace(['\t', '\n'], " "),
                     (self.transport.position * 1000.0) as u64,
                     (song.duration * 1000.0) as u64,
-                    (self.preferences.volume * 100.0) as u32
+                    (self.preferences.volume * 100.0) as u32,
+                    self.transport.queue.shuffled(),
+                    self.transport.repeat.api_name()
                 )
             } else {
                 "stopped".into()
@@ -964,8 +992,8 @@ impl App {
             }),
             position_ms: (self.transport.position * 1000.0) as u32,
             volume: f64::from(self.preferences.volume),
-            shuffle: false,
-            repeat: crate::player::RepeatMode::Off,
+            shuffle: self.transport.queue.shuffled(),
+            repeat: self.transport.repeat,
             can_control: song.is_some(),
         };
         media.update(state);
@@ -1031,6 +1059,15 @@ impl App {
         self.transport.queue.start(self.albums[0].song.clone(), 0);
         self.transport.prepare(83.0, false);
         self.transport.loading = false;
+        if flags.contains(&"shuffle") {
+            self.transport.queue.demo_shuffle();
+        }
+        if flags.contains(&"repeat-all") {
+            self.apply(Action::Repeat(crate::player::RepeatMode::Context));
+        }
+        if flags.contains(&"repeat-one") {
+            self.apply(Action::Repeat(crate::player::RepeatMode::Track));
+        }
         let favorite_page = page.and_then(|p| match p {
             "favorites" => Some(crate::model::Page::LikedSongs),
             _ => crate::model::Page::decode(p).filter(crate::model::Page::is_favorites),
