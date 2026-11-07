@@ -184,3 +184,21 @@ ranges/timing retain readable line timing, and no word timestamps are synthesize
 from line duration. Logical text goes to one Rune text element with colored byte
 ranges, preserving wrapping and bidi shaping. The UI repaints when the active line
 or word changes, including while the listener has suspended Follow.
+
+### Account ratings
+
+Song and album `userRating` metadata supplies the account's initial rating.
+Opening a rating menu checks `getSong` or `getAlbum` for edits made in other
+clients. Choosing 1–5 or clearing to 0 calls `setRating`, through the same
+worker, authenticated client and proxy policy as library requests. Favorites
+use their own independent endpoints and state.
+
+Writes serialize per entity and coalesce rapid edits to the latest intention.
+All menus immediately share the chosen value. Readback after a save must agree
+before the optimistic value is released; lagging reads never undo it. A definite
+rejection restores the last confirmed value, reconciles it with the server, and
+names the failed item with Retry. An uncertain save retains the chosen value.
+Automatic verification uses bounded backoff and stops after four reads, leaving
+Retry available. Closing a menu does not cancel a save. Sign-out cancels work
+and clears this account's ratings; late replies cannot affect the next account.
+Pending ratings are currently in memory only, not a durable offline edit queue.

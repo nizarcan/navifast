@@ -75,8 +75,9 @@ impl Host for Window {
 }
 
 pub(crate) struct ItemMenu {
+    pub anchor: Option<String>,
     pub uri: String,
-    /// Stable occurrence for a collection track. Other catalog items only offer a favorite action.
+    /// Stable occurrence for a collection track. Other catalog items use their own actions.
     pub row: Option<String>,
     /// A context click supplies window points. The More button anchors by row key.
     pub at: Option<[f32; 2]>,
@@ -146,6 +147,26 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn open_item_menu(&mut self, menu: ItemMenu) {
+        self.app.prepare_rating(&menu.uri);
+        self.favorite_menu = Some(menu);
+    }
+    pub(crate) fn open_queue_menu(&mut self, id: u64) {
+        if let Some(song) = self
+            .app
+            .transport
+            .queue
+            .upcoming()
+            .iter()
+            .find(|entry| entry.id == id)
+            .and_then(|entry| self.app.transport.queue.song(entry))
+        {
+            let uri = crate::navidrome::ratings::Kind::Song.uri(&song.id);
+            self.app.prepare_rating(&uri);
+        }
+        self.queue_selected = Some(id);
+        self.queue_menu = Some(id);
+    }
     pub(crate) fn apply_album_years(&mut self, tx: &mut Tx) {
         if let Some(order) = crate::navidrome::albums::Order::years(
             &self.album_years[0].text,
@@ -392,10 +413,40 @@ impl State {
             && flags.contains(&"browse-menu")
             && state.app.presentation.page().is_browse_songs()
         {
-            state.favorite_menu = Some(ItemMenu {
+            state.open_item_menu(ItemMenu {
+                anchor: None,
                 uri: crate::navidrome::api::FavoriteKind::Song.uri("browse-0"),
                 row: Some(state.table.key(0).into()),
                 at: None,
+            });
+        }
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo
+            && flags.contains(&"rating-album")
+            && let Some(a) = &state.app.album
+        {
+            let uri = crate::navidrome::ratings::Kind::Album.uri(&a.id);
+            state.app.prepare_rating(&uri);
+            if flags.contains(&"rated") || flags.contains(&"rating-error") {
+                state.app.demo_rating(&uri, flags.contains(&"rating-error"));
+            }
+            state.menu = Some("album");
+        }
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo
+            && flags.contains(&"rating-song")
+            && let Some(song) = state.app.page_songs().and_then(|s| s.first())
+        {
+            let uri = crate::navidrome::ratings::Kind::Song.uri(&song.id);
+            state.app.prepare_rating(&uri);
+            if flags.contains(&"rated") || flags.contains(&"rating-error") {
+                state.app.demo_rating(&uri, flags.contains(&"rating-error"));
+            }
+            state.open_item_menu(ItemMenu {
+                uri,
+                row: Some(state.table.key(0).into()),
+                at: None,
+                anchor: None,
             });
         }
         state

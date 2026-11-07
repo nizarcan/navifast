@@ -9,6 +9,21 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    RatingWrite {
+        session: u64,
+        request: u64,
+        client: Client,
+        kind: super::ratings::Kind,
+        id: String,
+        value: u8,
+    },
+    RatingRead {
+        session: u64,
+        request: u64,
+        client: Client,
+        kind: super::ratings::Kind,
+        id: String,
+    },
     Browse {
         session: u64,
         request: u64,
@@ -145,6 +160,20 @@ pub enum Request {
 }
 
 pub enum Event {
+    RatingWritten {
+        session: u64,
+        request: u64,
+        kind: super::ratings::Kind,
+        id: String,
+        result: Result<(), super::api::RequestError>,
+    },
+    RatingRead {
+        session: u64,
+        request: u64,
+        kind: super::ratings::Kind,
+        id: String,
+        result: Result<u8, String>,
+    },
     Browse {
         session: u64,
         request: u64,
@@ -487,6 +516,39 @@ async fn execute(
     provider: &super::lyrics::lrclib::Lookup,
 ) -> Option<Event> {
     Some(match request {
+        Request::RatingWrite {
+            session,
+            request,
+            client,
+            kind,
+            id,
+            value,
+        } => {
+            let result = client.set_rating(&id, value).await;
+            Event::RatingWritten {
+                session,
+                request,
+                kind,
+                id,
+                result,
+            }
+        }
+        Request::RatingRead {
+            session,
+            request,
+            client,
+            kind,
+            id,
+        } => {
+            let result = client.rating(kind, &id).await;
+            Event::RatingRead {
+                session,
+                request,
+                kind,
+                id,
+                result,
+            }
+        }
         Request::Browse {
             session,
             request,

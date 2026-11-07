@@ -236,8 +236,7 @@ fn track(v: &Paint<'_>, entry: &Entry, current: bool) -> El {
             .hover(color(v.p.surface_hover))
             .child(
                 v.icon_button(&v.tr(mark("More")), Icon::Ellipsis, 18., move |s, _| {
-                    s.queue_selected = Some(id);
-                    s.queue_menu = Some(id);
+                    s.open_queue_menu(id);
                 })
                 .key(format!("queue-more-{id}"))
                 .group_opacity(if v.s.queue_menu == Some(id) { 1. } else { 0. }, 1.),
@@ -251,8 +250,7 @@ fn track(v: &Paint<'_>, entry: &Entry, current: bool) -> El {
                 s.dispatch(Action::Queue(QueueAction::Play(id)), tx)
             })
             .on_secondary_press(move |s: &mut State, _, _| {
-                s.queue_selected = Some(id);
-                s.queue_menu = Some(id);
+                s.open_queue_menu(id);
             });
     }
     track
@@ -282,6 +280,12 @@ pub(super) fn menu(v: &Paint<'_>) -> Option<El> {
             .disabled(entries[at].pending())
             .key("queue-play-selected"),
         );
+    if let Some(song) = v.s.app.transport.queue.song(&entries[at]) {
+        menu = menu.child(ratings::menu(
+            v,
+            &crate::navidrome::ratings::Kind::Song.uri(&song.id),
+        ));
+    }
     for (delta, name, icon) in [
         (-1, mark("Move up"), Icon::ChevronUp),
         (1, mark("Move down"), Icon::ChevronDown),

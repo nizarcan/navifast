@@ -156,6 +156,16 @@ share the player control's state and behavior.
 - Keep actions accessible with names, roles, focus and keyboard behavior.
   Hover-only controls still need a keyboard or accessibility path.
 
+## Ratings
+
+Keep ratings inside the existing item menus, under a small secondary **Your rating**
+label. Use five labelled, keyboard-focusable numeric buttons, with the selected
+value in the accent color, and a separate **Clear rating** action. An unrated item
+says **Not rated**. The existing star remains the Favorites control. Song menus
+in collections, search and the queue share the same controls and account value;
+an album's rating is independent of its songs. Save failures use the existing
+inline notice and Retry pattern, naming the affected item.
+
 ## Lists and feedback
 
 Use the shared artwork card grid for album and playlist browsers, and the track

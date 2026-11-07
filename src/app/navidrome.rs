@@ -14,6 +14,7 @@ mod host;
 pub mod lyrics;
 pub mod playlists;
 pub mod queue;
+pub mod ratings;
 mod session;
 use host::Host;
 mod presentation;
@@ -192,6 +193,7 @@ pub struct App {
     pub transport: Transport,
     pub lyrics: lyrics::State,
     pub browse: browse::State,
+    pub ratings: ratings::State,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
@@ -318,6 +320,7 @@ impl App {
             error: None,
             lyrics: Default::default(),
             browse: Default::default(),
+            ratings: Default::default(),
             transport: Transport {
                 paused: true,
                 ..Default::default()
@@ -398,6 +401,7 @@ impl App {
             }
             Action::SignOut => {
                 self.browse = Default::default();
+                self.ratings = Default::default();
                 self.forget_session();
                 self.lyrics = Default::default();
                 self.session = self.session.wrapping_add(1);
@@ -633,6 +637,7 @@ impl App {
 
     fn set_client(&mut self, client: Client) {
         self.browse = Default::default();
+        self.ratings = Default::default();
         self.lyrics = Default::default();
         if self
             .client
@@ -777,6 +782,7 @@ impl App {
                 event @ (Event::PlaylistLibrary { .. }
                 | Event::PlaylistDestinations { .. }
                 | Event::PlaylistEdited { .. }) => self.playlists_event(event),
+                event @ (Event::RatingWritten { .. } | Event::RatingRead { .. }) => self.rating_event(event),
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
                     self.favorite_event(event)
                 }
@@ -921,6 +927,7 @@ impl App {
         }
         changed |= self.poll_search(host);
         self.poll_favorites(host);
+        self.poll_ratings(host);
         self.poll_playlists(host);
         changed |= self.poll_controls(host);
         self.checkpoint_session(false);

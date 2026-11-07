@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.13" date="2026-11-07" type="development">
+      <description><p>Rate songs and albums with shared account values and retry for failed saves.</p></description>
+    </release>
     <release version="0.1.0-rc.12" date="2026-11-07" type="development">
       <description><p>Rediscover albums by year, server listening history or a stable random selection.</p></description>
     </release>

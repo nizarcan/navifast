@@ -44,6 +44,9 @@ The current build supports:
 - Starring songs, albums and artists on your Navidrome account. Open **Favorites**
   in the sidebar for two-row artwork previews. Choose **See all** to browse
   the full grid of favorite songs, albums or artists.
+- Rating songs and albums from **More** or their context menu. Choose 1–5 or
+  **Clear rating**; ratings are shared across views and independent of Favorites.
+  Failed saves identify the item and offer **Retry**.
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,

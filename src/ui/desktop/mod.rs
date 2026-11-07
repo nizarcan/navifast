@@ -22,6 +22,7 @@ pub(crate) mod lyrics_card;
 mod playlists;
 mod preferences;
 mod queue;
+mod ratings;
 pub(crate) mod spectrum;
 mod transport;
 

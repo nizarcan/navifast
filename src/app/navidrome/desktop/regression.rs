@@ -192,6 +192,7 @@ fn browse_retry_retains_tracks_and_song_menu_opens_its_album() {
     assert_eq!(rt.state.app.page_songs().unwrap().len(), 60);
     rt.update(|s, _| {
         s.favorite_menu = Some(ItemMenu {
+            anchor: None,
             uri: String::new(),
             row: Some(s.table.key(0).into()),
             at: Some([500., 200.]),
@@ -1157,5 +1158,56 @@ fn word_lyrics_follow_audible_position_through_pause_seek_and_opt_out() {
             rt.state.app.lyrics.data,
             crate::model::Loadable::NotLoaded
         ));
+    }
+}
+
+#[test]
+fn rating_menus_are_labelled_keyboard_controls_shared_across_views() {
+    use crate::navidrome::ratings::Kind;
+    for (page, flag, kind) in [
+        ("album:alb0", "rating-album", Kind::Album),
+        ("album:alb0", "rating-song", Kind::Song),
+        ("songs", "rating-song", Kind::Song),
+    ] {
+        let mut rt = runtime(page, flag);
+        let uri = if kind == Kind::Album {
+            Kind::Album.uri(&rt.state.app.album.as_ref().unwrap().id)
+        } else {
+            Kind::Song.uri(&rt.state.app.page_songs().unwrap()[0].id)
+        };
+        assert_eq!(rt.state.app.ratings.value(&uri), Some(0));
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.label.as_deref() == Some("Rate 4 out of 5"))
+        );
+        assert!(rt.accessibility_action("rating-4", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.ratings.value(&uri), Some(4));
+        rt.update(|s, _| {
+            s.open_item_menu(ItemMenu {
+                uri: uri.clone(),
+                row: None,
+                at: Some([1270., 790.]),
+                anchor: None,
+            })
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        for element in rt
+            .elements()
+            .into_iter()
+            .filter(|e| e.key.as_deref().is_some_and(|k| k.starts_with("rating-")))
+        {
+            let [x, y, w, h] = element.rect;
+            assert!(
+                x >= 0. && y >= 0. && x + w <= 1280. && y + h <= 800.,
+                "rating menu outside the window: {:?}",
+                element.rect
+            );
+        }
+        assert!(rt.accessibility_action("rating-clear", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.ratings.value(&uri), Some(0));
     }
 }

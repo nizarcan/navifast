@@ -50,6 +50,7 @@ pub(crate) fn album(index: usize) -> Album {
     let id = format!("alb{index}");
     Album {
         id: id.clone(),
+        user_rating: None,
         name: name.into(),
         artist: ARTISTS[artist_index].into(),
         credits: ArtistCredits {
@@ -65,6 +66,7 @@ pub(crate) fn album(index: usize) -> Album {
                 let album_index = track % ALBUMS.len();
                 Song {
                     id: format!("trk{track}"),
+                    user_rating: None,
                     title: TRACKS[track % TRACKS.len()].into(),
                     credits: ArtistCredits {
                         artist_id: Some(format!("art{album_index}")),

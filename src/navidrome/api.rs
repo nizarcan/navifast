@@ -75,6 +75,8 @@ pub struct ArtistCredit {
 pub struct Song {
     pub id: String,
     #[serde(default)]
+    pub user_rating: Option<u8>,
+    #[serde(default)]
     pub title: String,
     #[serde(default)]
     pub artist: String,
@@ -100,6 +102,8 @@ pub struct Song {
 #[serde(rename_all = "camelCase")]
 pub struct Album {
     pub id: String,
+    #[serde(default)]
+    pub user_rating: Option<u8>,
     #[serde(default)]
     pub name: String,
     #[serde(default)]

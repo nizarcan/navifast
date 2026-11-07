@@ -128,6 +128,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if !s.app.presentation.navidrome_favorites.failures.is_empty() {
         center = center.child(favorite_write_errors(v));
     }
+    if !s.app.ratings.failures.is_empty() {
+        center = center.child(ratings::errors(v));
+    }
     let center = if lyrics_page {
         center.child(lyrics::panel(v, false).grow(1.))
     } else if queue_page {
@@ -209,6 +212,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         Some("album-order") => Some(albums::menu(v)),
         Some("album") => s.app.album.as_ref().map(|a| {
             let uri = FavoriteKind::Album.uri(&a.id);
+            let rating = ratings::menu(v, &uri);
             let saved = s.app.presentation.navidrome_favorites.contains(&uri) == Some(true);
             let name = v.tr(if saved {
                 mark("Remove from Favorites")
@@ -216,6 +220,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 mark("Add to Favorites")
             });
             collection_queue_items(v, v.menu("album-more"), None)
+                .child(rating)
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
                 }))
@@ -251,6 +256,10 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         let uri = menu.uri.clone();
         let mut popup = col()
             .w(232.)
+            .min_h(0.)
+            .scroll(ScrollSpec {
+                stick_bottom: false,
+            })
             .padding(6.)
             .gap(2.)
             .radius(8.)
@@ -336,11 +345,24 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 ));
             }
         }
+        popup = popup.child(ratings::menu(v, &menu.uri));
         if let Some([x, y]) = menu.at {
-            popup = popup.absolute(
-                x.clamp(0., (v.width - 232.).max(0.)),
-                y.clamp(0., (v.height - 84.).max(0.)),
+            shell = shell.child(
+                el().key("item-menu-point")
+                    .size(0., 0.)
+                    .absolute(x, y)
+                    .a11y_hidden(),
             );
+            popup = popup.anchored_fit(
+                "item-menu-point",
+                rune::Side::Bottom,
+                rune::Align::Start,
+                0.,
+            );
+        } else if let Some(anchor) = &menu.anchor {
+            popup = popup
+                .anchored_fit(anchor, rune::Side::Bottom, rune::Align::End, 2.)
+                .focus_return(anchor.clone());
         } else if let Some(key) = &menu.row {
             let trigger = format!("more-{key}");
             popup = popup
@@ -939,7 +961,8 @@ pub(super) fn favorite_context(tile: El, kind: FavoriteKind, id: &str) -> El {
             || s.app.queue_item(&uri, false).is_some()
         {
             let zoom = s.app.presentation.settings.zoom;
-            s.favorite_menu = Some(ItemMenu {
+            s.open_item_menu(ItemMenu {
+                anchor: None,
                 uri: uri.clone(),
                 row: None,
                 at: Some([p.x / zoom, p.y / zoom]),
@@ -1263,6 +1286,10 @@ fn album(v: &Paint<'_>) -> El {
         .child(star(v, FavoriteKind::Album, &a.id, 26.))
         .child(
             v.icon_button(&v.tr(mark("More")), Icon::Ellipsis, 26., |s, _| {
+                if let Some(a) = &s.app.album {
+                    let uri = FavoriteKind::Album.uri(&a.id);
+                    s.app.prepare_rating(&uri);
+                }
                 s.menu = Some("album")
             })
             .size(38., 38.)
@@ -1628,7 +1655,8 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                     let key = key.clone();
                     let uri = uri.clone();
                     move |s, _| {
-                        s.favorite_menu = Some(ItemMenu {
+                        s.open_item_menu(ItemMenu {
+                            anchor: None,
                             uri: uri.clone(),
                             row: Some(key.clone()),
                             at: None,
@@ -1678,7 +1706,8 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                     let key = key.clone();
                     move |s: &mut State, p, _| {
                         let zoom = s.app.presentation.settings.zoom;
-                        s.favorite_menu = Some(ItemMenu {
+                        s.open_item_menu(ItemMenu {
+                            anchor: None,
                             uri: uri.clone(),
                             row: Some(key.clone()),
                             at: Some([p.x / zoom, p.y / zoom]),
@@ -2049,7 +2078,21 @@ fn search(v: &Paint<'_>) -> El {
             Hit::Artist(i) => Some((FavoriteKind::Artist, &c.artist[i].id)),
             Hit::Playlist(_) => None,
         }) {
-            line = line.child(star(v, kind, id, 17.));
+            let uri = kind.uri(id);
+            let anchor = format!("search-more-{hit:?}");
+            line = favorite_context(line, kind, id)
+                .child(star(v, kind, id, 17.))
+                .child(
+                    v.icon_button(&v.tr(mark("More")), Icon::Ellipsis, 18., move |s, _| {
+                        s.open_item_menu(ItemMenu {
+                            anchor: Some(anchor.clone()),
+                            uri: uri.clone(),
+                            row: None,
+                            at: None,
+                        });
+                    })
+                    .key(format!("search-more-{hit:?}")),
+                );
         }
         list = list.child(line);
     }
