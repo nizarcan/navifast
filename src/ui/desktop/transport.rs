@@ -235,7 +235,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 s.app.apply(Service::Next)
             })
             .size(30., 36.)
-            .disabled(a.transport.next_index().is_none()),
+            .disabled(a.transport.queue.upcoming().is_empty()),
         )
         .child(
             v.icon_button(&v.tr(mark("Repeat")), Icon::Repeat, 17., |_, _| {})
@@ -307,17 +307,32 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .items_center()
         .justify_end()
         .gap(6.)
-        .children(
-            [
-                (mark("Lyrics"), Icon::Mic),
-                (mark("Queue"), Icon::ListVideo),
-                (mark("Connect to a device"), Icon::Speaker),
-            ]
-            .into_iter()
-            .map(|(name, icon)| {
-                v.icon_button(&v.tr(name), icon, 18., |_, _| {})
-                    .disabled(true)
-            }),
+        .child(
+            v.icon_button(&v.tr(mark("Lyrics")), Icon::Mic, 18., |_, _| {})
+                .disabled(true),
+        )
+        .child(
+            v.tinted_button(
+                &v.tr(mark("Queue")),
+                Icon::ListVideo,
+                18.,
+                if v.s.queue_open {
+                    v.p.accent
+                } else {
+                    v.p.secondary
+                },
+                |s, tx| s.toggle_queue(tx),
+            )
+            .key("queue-toggle"),
+        )
+        .child(
+            v.icon_button(
+                &v.tr(mark("Connect to a device")),
+                Icon::Speaker,
+                18.,
+                |_, _| {},
+            )
+            .disabled(true),
         )
         .child(v.icon_button(
             &v.tr(if a.preferences.volume == 0. {

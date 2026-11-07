@@ -24,6 +24,142 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn queue_reflows_only_while_open_and_preserves_browsing_on_close() {
+    for theme in ["", "light"] {
+        for width in [760., 1280.] {
+            let mut rt = runtime("albums", theme);
+            rt.set_viewport((width, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            let album = |rt: &Runtime<State>| {
+                rt.elements()
+                    .into_iter()
+                    .find(|e| e.key.as_deref() == Some("album-alb0"))
+                    .map(|e| e.rect)
+            };
+            let before = album(&rt).unwrap();
+            let generation = rt.state.app.transport.generation;
+            assert!(rt.accessibility_action("queue-toggle", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            rt.settle_all();
+            let panel = rt
+                .elements()
+                .into_iter()
+                .find(|e| e.key.as_deref() == Some("queue-panel"))
+                .unwrap()
+                .rect;
+            assert!(panel[0] >= 0. && panel[0] + panel[2] <= width + 1.);
+            assert_eq!(album(&rt).is_none(), width < 1060.);
+            assert_eq!(rt.state.app.transport.generation, generation);
+            assert!(rt.accessibility_action("queue-close", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            rt.settle_all();
+            assert_eq!(album(&rt).unwrap(), before);
+            assert_eq!(rt.state.app.transport.generation, generation);
+        }
+    }
+}
+
+#[test]
+fn queue_selection_follows_duplicate_occurrences_through_menu_moves_and_play() {
+    use crate::app::navidrome::queue::Action as Q;
+    let mut rt = runtime("albums", "queue");
+    rt.update(|s, _| {
+        s.app.queue_action(Q::Clear);
+        let song = s.app.transport.song().unwrap().clone();
+        s.app.queue_action(Q::Songs {
+            songs: vec![song.clone(), song],
+            next: false,
+        });
+        s.app.apply(super::super::Action::Pause(true));
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    let id = rt.state.app.transport.queue.upcoming()[1].id;
+    assert!(rt.accessibility_action(
+        &format!("queue-more-{id}"),
+        rune::accesskit::Action::Click,
+        None
+    ));
+    rt.frame(0.);
+    assert!(rt.accessibility_action("queue-move--1", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.queue_selected, Some(id));
+    assert_eq!(rt.state.app.transport.queue.upcoming()[0].id, id);
+    assert!(rt.state.app.transport.paused);
+    rt.update(|s, _| s.app.apply(super::super::Action::Next));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.transport.queue.current().unwrap().id, id);
+    assert!(rt.state.app.transport.paused);
+    let remaining = rt.state.app.transport.queue.upcoming()[0].id;
+    assert!(rt.accessibility_action(
+        &format!("queue-play-{remaining}"),
+        rune::accesskit::Action::Click,
+        None
+    ));
+    rt.frame(0.);
+    assert_eq!(
+        rt.state.app.transport.queue.current().unwrap().id,
+        remaining
+    );
+    assert!(!rt.state.app.transport.paused);
+}
+
+#[test]
+fn queue_virtualizes_long_lists_and_resolves_selected_pending_albums_in_place() {
+    let mut rt = runtime("albums", "queue-loading");
+    let token = rt.state.app.transport.queue.upcoming()[0].id;
+    rt.update(|s, _| {
+        s.queue_selected = Some(token);
+        let song = s.app.transport.song().unwrap().clone();
+        s.app
+            .queue_action(crate::app::navidrome::queue::Action::Songs {
+                songs: vec![song.clone(); 10_000],
+                next: false,
+            });
+        s.app.queued_album(
+            token,
+            Ok(Album {
+                song: vec![song],
+                ..Default::default()
+            }),
+        );
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    assert_eq!(rt.state.queue_selected, Some(token));
+    assert_eq!(rt.state.app.transport.queue.upcoming()[0].id, token);
+    assert!(
+        rt.elements()
+            .iter()
+            .filter(|e| e
+                .key
+                .as_deref()
+                .is_some_and(|key| key.starts_with("queue-play-")))
+            .count()
+            < 30
+    );
+    let [x, y, _, h] = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(&format!("queue-{token}")))
+        .unwrap()
+        .rect;
+    rt.pointer_down(x + 80., y + h / 2.);
+    rt.pointer_up(x + 80., y + h / 2.);
+    rt.frame(0.);
+    rt.key(rune::KeyEvent {
+        key: rune::Key::Down,
+        mods: rune::Mods::default(),
+    });
+    rt.frame(0.);
+    assert_eq!(
+        rt.state.queue_selected,
+        Some(rt.state.app.transport.queue.upcoming()[1].id)
+    );
+}
+
+#[test]
 fn playlist_editor_uses_displayed_selection_order_and_marks_readonly_destinations() {
     for flags in ["", "light"] {
         for width in [760., 1280.] {
@@ -107,7 +243,7 @@ fn playlist_browser_opens_same_named_items_by_id_and_play_starts_at_the_top() {
             assert_eq!(rt.state.app.transport.generation, generation);
             assert!(rt.accessibility_action("playlist-play", rune::accesskit::Action::Click, None));
             rt.frame(0.);
-            assert_eq!(rt.state.app.transport.index, Some(0));
+            assert_eq!(rt.state.app.transport.queue.context_index(), Some(0));
             assert!(!rt.state.app.transport.paused);
         }
     }
@@ -178,7 +314,7 @@ fn playlist_browser_reuses_album_card_geometry_and_virtualizes_large_grids() {
                 playlists.state.app.playing_playlist,
                 Some(super::super::encode("list1"))
             );
-            assert_eq!(playlists.state.app.transport.index, Some(0));
+            assert_eq!(playlists.state.app.transport.queue.context_index(), Some(0));
         }
     }
 }
@@ -248,13 +384,14 @@ fn playlist_uses_album_selection_sorting_and_pause_without_losing_duplicate_occu
     rt.pointer_down(x + 90., y + h / 3.);
     rt.pointer_up(x + 90., y + h / 3.);
     rt.frame(0.);
-    assert_eq!(rt.state.app.transport.index, Some(2));
+    assert_eq!(rt.state.app.transport.queue.context_index(), Some(2));
     assert_eq!(rt.state.playing_row().as_deref(), Some(key.as_str()));
     assert_eq!(
         rt.state
             .app
             .transport
-            .songs
+            .queue
+            .context()
             .iter()
             .map(|s| s.id.as_str())
             .collect::<Vec<_>>(),
@@ -356,12 +493,12 @@ fn credential_lookup_shows_the_library_without_a_login_or_empty_state_flash() {
 fn album_play_button_pauses_without_restarting_the_selected_song() {
     let mut rt = runtime("album:alb0", "");
     let generation = rt.state.app.transport.generation;
-    let index = rt.state.app.transport.index;
+    let index = rt.state.app.transport.queue.context_index();
     let paused = rt.state.app.transport.paused;
     assert!(rt.accessibility_action("album-play", rune::accesskit::Action::Click, None));
     rt.frame(0.);
     assert_eq!(rt.state.app.transport.generation, generation);
-    assert_eq!(rt.state.app.transport.index, index);
+    assert_eq!(rt.state.app.transport.queue.context_index(), index);
     assert_ne!(rt.state.app.transport.paused, paused);
 }
 

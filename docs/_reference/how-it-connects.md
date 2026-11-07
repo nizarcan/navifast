@@ -55,6 +55,11 @@ pre-existing playlists with the same name. Local rows remain visible until reads
 observe the change. A rejected write restores the prior rows and offers recovery.
 Signing out cancels pending work and discards account-specific checkpoints.
 
+Queue additions are local. A whole album that is not already loaded reserves a
+queue position and reads `getAlbum` on the backend worker. These reads have their
+own cancellation group, independent of navigation. Clear cancels pending album
+reads; sign-out discards the entire queue. No server play queue is written.
+
 Artist links use the IDs from OpenSubsonic's individual credits or the older
 `artistId` field. The artist page uses album-artist IDs from `getArtist` to separate
 the discography from guest appearances. When the server returns only the

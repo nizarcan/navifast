@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.4" date="2026-11-07" type="development">
+      <description><p>Play songs and albums next, add them to the queue, and rearrange upcoming occurrences.</p></description>
+    </release>
     <release version="0.1.0-rc.3" date="2026-11-07" type="development">
       <description><p>Create and edit playlists, add selected songs to several playlists, and safely retry failed changes.</p></description>
     </release>

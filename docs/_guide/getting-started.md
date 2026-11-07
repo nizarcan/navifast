@@ -103,5 +103,13 @@ your server and reverse proxy. A redirect error means the final URL should be
 entered directly. A failed request keeps the app usable and provides a retry.
 
 This first stage has album playback, not the full inherited feature set.
+Use **Play next** or **Add to queue** in a song or album's menu to change what
+plays next. Select several tracks to add them in their displayed order. Open
+**Queue** in the player bar to move, remove or directly play an occurrence.
+**Clear** removes manual additions and keeps the current song and collection.
+The queue appears beside browsing on wide windows and fills the content area on
+narrow windows. See [The queue's rules](/reference/queue/) for keyboard controls
+and pending album behavior.
+
 Shuffle/repeat, saved queues, lyrics, scrobbling,
 transcoding and tray operation are still pending.

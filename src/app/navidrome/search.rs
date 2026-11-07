@@ -309,8 +309,9 @@ impl App {
         self.playing_album = None;
         self.playing_playlist = None;
         self.transport.collection_rows.clear();
-        self.transport.songs = songs;
-        self.load(index, 0.0, false);
+        if self.transport.queue.start(songs, index) {
+            self.load(0.0, false);
+        }
     }
 
     pub(super) fn submit_query(&mut self) {

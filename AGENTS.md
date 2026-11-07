@@ -38,7 +38,8 @@ These instructions add implementation constraints for coding agents.
 Read `docs/_reference/how-it-connects.md` before changing authentication,
 server requests, credential storage or network behaviour. Read
 `docs/_reference/queue.md` before touching the queue: its rules are the
-contract, and the transport tests in `src/navidrome/state.rs` enforce them. Read the
+contract, and the queue/transport tests in `src/navidrome/queue.rs` and
+`src/app/navidrome/queue.rs` enforce them. Read the
 nearby module tests before changing a state machine or API fallback.
 
 Follow Navidrome/OpenSubsonic documentation and the implemented capabilities

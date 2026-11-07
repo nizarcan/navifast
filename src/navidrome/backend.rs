@@ -9,6 +9,14 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    QueueAlbum {
+        session: u64,
+        token: u64,
+        client: Client,
+        id: String,
+    },
+    CancelQueueAlbum(u64),
+    ClearQueueAlbums,
     PlaylistDestinations {
         session: u64,
         client: Client,
@@ -110,6 +118,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    QueueAlbum {
+        session: u64,
+        token: u64,
+        result: Result<Album, String>,
+    },
     PlaylistDestinations {
         session: u64,
         result: Result<Vec<super::api::Playlist>, String>,
@@ -235,6 +248,8 @@ impl Backend {
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
+                let mut queue_reads = tokio::task::JoinSet::new();
+                let mut queue_handles: std::collections::HashMap<u64, tokio::task::AbortHandle> = std::collections::HashMap::new();
                 loop {
                     tokio::select! {
                         request = requests.recv() => {
@@ -247,6 +262,29 @@ impl Backend {
                                     tasks.abort_all();
                                     searches.abort_all();
                                     playlists.abort_all();
+                                    queue_reads.abort_all();
+                                    queue_handles.clear();
+                                }
+                                Request::ClearQueueAlbums => {
+                                    queue_reads.abort_all();
+                                    queue_handles.clear();
+                                }
+                                Request::CancelQueueAlbum(token) => {
+                                    if let Some(handle) = queue_handles.remove(&token) { handle.abort(); }
+                                }
+                                Request::QueueAlbum { session, token, client, id } => {
+                                    let events = events.clone();
+                                    let wake = wake.clone();
+                                    let permits = permits.clone();
+                                    let handle = queue_reads.spawn(async move {
+                                        if let Ok(_permit) = permits.acquire().await {
+                                            let result = client.album(&id).await;
+                                            let _ = events.send(Event::QueueAlbum { session, token, result });
+                                            wake();
+                                        }
+                                        token
+                                    });
+                                    queue_handles.insert(token, handle);
                                 }
                                 Request::CancelCollection => collections.abort_all(),
                                 Request::CancelSearch => searches.abort_all(),
@@ -322,6 +360,11 @@ impl Backend {
                                     });
                                 }
                             }
+                        }
+                        result = queue_reads.join_next_with_id(), if !queue_reads.is_empty() => {
+                            if let Some(Ok((task, token))) = result
+                                && queue_handles.get(&token).is_some_and(|handle| handle.id() == task)
+                            { queue_handles.remove(&token); }
                         }
                         _ = collections.join_next(), if !collections.is_empty() => {}
                         _ = searches.join_next(), if !searches.is_empty() => {}
@@ -537,6 +580,9 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
         | Request::CancelSearch
         | Request::CancelPlaylistLibrary
         | Request::Cancel
+        | Request::QueueAlbum { .. }
+        | Request::CancelQueueAlbum(_)
+        | Request::ClearQueueAlbums
         | Request::Shutdown => return None,
     })
 }
@@ -611,6 +657,76 @@ mod tests {
             .events
             .recv_timeout(std::time::Duration::from_secs(10))
             .unwrap()
+    }
+
+    #[test]
+    fn queued_album_reads_survive_navigation_but_clear_cancels_only_old_additions() {
+        let fixture = Fixture::new();
+        let (started, starts) = mpsc::channel();
+        let (release, releases) = mpsc::channel();
+        let server = crate::navidrome::test_server::Server::spawn(move |request| {
+            assert!(request.starts_with("GET /rest/getAlbum.view?"));
+            started.send(()).unwrap();
+            releases
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap();
+            crate::navidrome::test_server::response("200 OK", "", br#"{"subsonic-response":{"status":"ok","album":{"id":"album","name":"Album","song":[{"id":"song","title":"Song"}]}}}"#)
+        });
+        let client = Client::new(
+            &server.url,
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        let backend = fixture.backend();
+        let request = |token| {
+            backend.send(Request::QueueAlbum {
+                session: 1,
+                token,
+                client: client.clone(),
+                id: "album".into(),
+            })
+        };
+        let started = || {
+            starts
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap()
+        };
+        request(1);
+        started();
+        backend.send(Request::CancelCollection);
+        release.send(()).unwrap();
+        assert!(matches!(
+            receive(&backend),
+            Event::QueueAlbum {
+                token: 1,
+                result: Ok(_),
+                ..
+            }
+        ));
+        request(2);
+        started();
+        backend.send(Request::ClearQueueAlbums);
+        // A completed independent request is a barrier after Clear was processed.
+        backend.send(Request::Restore { session: 9 });
+        assert!(matches!(
+            receive(&backend),
+            Event::Restored { session: 9, .. }
+        ));
+        release.send(()).unwrap();
+        request(3);
+        started();
+        release.send(()).unwrap();
+        assert!(matches!(
+            receive(&backend),
+            Event::QueueAlbum {
+                token: 3,
+                result: Ok(_),
+                ..
+            }
+        ));
+        assert!(backend.events.try_recv().is_err());
     }
 
     #[test]

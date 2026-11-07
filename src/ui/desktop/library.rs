@@ -12,6 +12,9 @@ use std::borrow::Cow;
 pub(super) fn shell(v: &Paint<'_>) -> El {
     let mut body = row().w_full().grow(1.).min_h(0.);
     let s = v.s;
+    let queue_width = v.queue_width();
+    s.queue_compact.set(queue_width == 0.);
+    let queue_page = s.queue_open && queue_width == 0.;
     let side = if s.app.presentation.settings.sidebar_visible {
         s.app
             .presentation
@@ -62,7 +65,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         Page::Artist(_) => collection(v),
         Page::LikedSongs | Page::FavoriteGroup(_) => favorites(v),
         Page::Settings => preferences::settings(v),
-        _ => albums(v, v.width - side),
+        _ => albums(v, v.width - side - queue_width),
     };
     let mut scroller = col()
         .key("page")
@@ -122,7 +125,12 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if !s.app.presentation.navidrome_favorites.failures.is_empty() {
         center = center.child(favorite_write_errors(v));
     }
-    let center = center.child(scroller).child(
+    let center = if queue_page {
+        center.child(queue::panel(v, false).grow(1.))
+    } else {
+        center.child(scroller)
+    };
+    let center = center.child(
         el().absolute(0., crate::theme::TOP_BAR_HEIGHT + v.s.titlebar_inset())
             .w_full()
             .h(14.)
@@ -135,7 +143,10 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     );
     // The analyser changes every frame. Let Rune reuse the settled opaque
     // library surface while it draws the transport, until the page itself changes.
-    let body = body.child(center).fill(color(v.p.window));
+    let mut body = body.child(center).fill(color(v.p.window));
+    if queue_width > 0. {
+        body = body.child(queue::panel(v, true).w(queue_width));
+    }
     let body = if !s.app.transport.paused
         && s.app.presentation.settings.player_bar_vis == crate::settings::PlayerBarVis::Spectrum
     {
@@ -194,7 +205,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             } else {
                 mark("Add to Favorites")
             });
-            v.menu("album-more")
+            collection_queue_items(v, v.menu("album-more"), None)
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
                 }))
@@ -205,11 +216,12 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 ))
         }),
         Some("playlist") => {
-            let mut menu = v.menu("playlist-more").child(v.menu_item(
-                &v.tr(mark("Add to playlists")),
-                Some(Icon::ListMusic),
-                |s, tx| s.add_to_playlists(None, tx),
-            ));
+            let mut menu =
+                collection_queue_items(v, v.menu("playlist-more"), None).child(v.menu_item(
+                    &v.tr(mark("Add to playlists")),
+                    Some(Icon::ListMusic),
+                    |s, tx| s.add_to_playlists(None, tx),
+                ));
             if s.app.playlist_writable() {
                 menu = menu.child(v.menu_item(&v.tr(mark("Delete playlist")), None, |s, tx| {
                     s.dispatch(
@@ -251,6 +263,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             ));
         }
         if let Some(key) = menu.row.clone() {
+            popup = collection_queue_items(v, popup, Some(key.clone()));
             let add_key = key.clone();
             popup = popup.child(
                 v.menu_item(
@@ -279,6 +292,24 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 .key("play-menu-row"),
             );
         }
+        if menu.row.is_none() && s.app.queue_item(&menu.uri, false).is_some() {
+            for next in [true, false] {
+                let uri = menu.uri.clone();
+                popup = popup.child(v.menu_item(
+                    &v.tr(if next {
+                        mark("Play next")
+                    } else {
+                        mark("Add to queue")
+                    }),
+                    Some(Icon::ListVideo),
+                    move |s, tx| {
+                        if let Some(action) = s.app.queue_item(&uri, next) {
+                            s.dispatch(Action::Queue(action), tx);
+                        }
+                    },
+                ));
+            }
+        }
         if let Some([x, y]) = menu.at {
             popup = popup.absolute(
                 x.clamp(0., (v.width - 232.).max(0.)),
@@ -292,6 +323,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         }
         shell = shell.child(popup);
     }
+    if let Some(menu) = queue::menu(v) {
+        shell = shell.child(menu);
+    }
     if let Some(dialog) = &s.app.presentation.dialog {
         shell = shell.child(match dialog {
             crate::model::Dialog::Shortcuts => preferences::shortcuts(v),
@@ -301,6 +335,29 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     }
     autoscroll::shell(shell, s, v.zoom)
 }
+fn collection_queue_items(v: &Paint<'_>, mut menu: El, key: Option<String>) -> El {
+    for next in [true, false] {
+        let key = key.clone();
+        menu = menu.child(
+            v.menu_item(
+                &v.tr(if next {
+                    mark("Play next")
+                } else {
+                    mark("Add to queue")
+                }),
+                Some(Icon::ListVideo),
+                move |s, tx| s.queue_selection(key.as_deref(), next, tx),
+            )
+            .key(if next {
+                "play-next-selection"
+            } else {
+                "queue-add-selection"
+            }),
+        );
+    }
+    menu
+}
+
 fn page_tint(v: &Paint<'_>, page: &Page) -> Option<Srgba> {
     if let Page::LikedSongs = page {
         return Some(Srgba::from_rgb(0x50, 0x38, 0xc8));
@@ -837,6 +894,7 @@ pub(super) fn favorite_context(tile: El, kind: FavoriteKind, id: &str) -> El {
             .navidrome_favorites
             .contains(&uri)
             .is_some()
+            || s.app.queue_item(&uri, false).is_some()
         {
             let zoom = s.app.presentation.settings.zoom;
             s.favorite_menu = Some(ItemMenu {

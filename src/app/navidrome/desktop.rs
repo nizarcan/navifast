@@ -112,6 +112,11 @@ pub(crate) struct State {
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
     pub(crate) menu: Option<&'static str>,
+    pub(crate) queue_open: bool,
+    pub(crate) queue_compact: Cell<bool>,
+    pub(crate) queue_selected: Option<crate::navidrome::queue::Id>,
+    pub(crate) queue_menu: Option<crate::navidrome::queue::Id>,
+    pub(crate) queue_offset: Live<f32>,
 }
 
 impl App {
@@ -128,6 +133,19 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn toggle_queue(&mut self, tx: &mut Tx) {
+        self.queue_open = !self.queue_open;
+        self.queue_menu = None;
+        self.menu = None;
+        self.favorite_menu = None;
+        if self.queue_open {
+            tx.scroll_to_y("queue-scroll", self.queue_offset.get());
+        } else if let Some(offset) = self.offsets.get(self.app.presentation.page()) {
+            tx.scroll_to_y("page", offset.get());
+        }
+        tx.instant();
+    }
+
     pub(crate) fn create_playlist(&mut self, tx: &mut Tx) {
         if !self.app.can_create_playlist() || self.playlist_name.text.trim().is_empty() {
             return;
@@ -154,6 +172,27 @@ impl State {
         } else {
             self.table.order().map(|(i, _)| i).collect()
         }
+    }
+
+    pub(crate) fn queue_selection(&mut self, key: Option<&str>, next: bool, tx: &mut Tx) {
+        let Some(source) = self.app.page_songs() else {
+            return;
+        };
+        let mut songs: Vec<_> = if key.is_some() {
+            self.playlist_selection(key)
+                .into_iter()
+                .filter_map(|i| source.get(i).cloned())
+                .collect()
+        } else {
+            source.to_vec()
+        };
+        if key.is_none() && matches!(self.app.presentation.page(), Page::Album(_)) {
+            songs.sort_by_key(|s| (s.disc_number, s.track));
+        }
+        self.dispatch(
+            Action::Queue(super::queue::Action::Songs { songs, next }),
+            tx,
+        );
     }
 
     pub(crate) fn add_to_playlists(&mut self, key: Option<&str>, tx: &mut Tx) {
@@ -249,7 +288,43 @@ impl State {
             artist_views: Default::default(),
             favorite_menu: None,
             menu: None,
+            queue_open: launch.demo && flags.iter().any(|flag| flag.starts_with("queue")),
+            queue_compact: Cell::new(false),
+            queue_selected: None,
+            queue_menu: None,
+            queue_offset: Live::new(0.),
         };
+        #[cfg(feature = "navidrome-demo")]
+        if state.queue_open {
+            if flags.contains(&"queue-empty") {
+                state.app.transport = super::Transport {
+                    paused: true,
+                    ..Default::default()
+                };
+            } else {
+                let songs = state.app.albums[1].song.iter().take(2).cloned().collect();
+                state
+                    .app
+                    .queue_action(super::queue::Action::Songs { songs, next: false });
+                if flags.contains(&"queue-loading") {
+                    state
+                        .app
+                        .transport
+                        .queue
+                        .reserve("loading".into(), "All Melody".into(), true);
+                }
+                if flags.contains(&"queue-menu") {
+                    state.queue_menu = state.app.transport.queue.upcoming().front().map(|e| e.id);
+                    state.queue_selected = state.queue_menu;
+                }
+                if flags.contains(&"queue-error") {
+                    state
+                        .app
+                        .presentation
+                        .toast_error("The album could not be loaded. Try adding it again.");
+                }
+            }
+        }
         state.sync_tracks();
         state
     }
@@ -344,22 +419,42 @@ impl State {
     }
     pub(crate) fn playing_row(&self) -> Option<String> {
         let t = &self.app.transport;
-        let i = t.index?;
+        let i = t.queue.context_index()?;
         if let Some(key) = t.collection_rows.get(i) {
             return Some(key.clone());
         }
         let song = t.song()?;
-        let occurrence = t.songs[..i].iter().filter(|s| s.id == song.id).count();
+        let occurrence = t.queue.context()[..i]
+            .iter()
+            .filter(|s| s.id == song.id)
+            .count();
         Some(format!("song-{occurrence}:{}", song.id))
     }
     pub(crate) fn dispatch(&mut self, action: Action, tx: &mut Tx) {
         self.autoscroll.cancel();
         let previous = self.app.presentation.page().clone();
+        if self.queue_compact.get()
+            && matches!(
+                &action,
+                Action::Open(_)
+                    | Action::Back
+                    | Action::Forward
+                    | Action::Search(_)
+                    | Action::FocusSearch
+                    | Action::NavidromeSearch(_)
+            )
+        {
+            self.queue_open = false;
+        }
         let session = self.app.session;
         self.app.ui_action(action, &self.window);
         self.menu = None;
         self.favorite_menu = None;
+        self.queue_menu = None;
         if session != self.app.session {
+            self.queue_open = false;
+            self.queue_selected = None;
+            self.queue_offset.set(0.);
             self.window.covers.replace(Default::default());
             self.offsets.clear();
             self.history_tables.clear();
@@ -906,7 +1001,7 @@ mod tests {
             rt.frame(0.);
         }
         assert_eq!(rt.state.table.cursor, Some(77));
-        assert_eq!(rt.state.app.transport.index, Some(77));
+        assert_eq!(rt.state.app.transport.queue.context_index(), Some(77));
         let old = rt.state.offsets[rt.state.app.presentation.page()].get();
         assert!(old > 1000.);
         rt.update(|s, tx| s.dispatch(Action::Open(Page::Settings), tx));
@@ -932,7 +1027,7 @@ mod tests {
         let key = format!("number-{}", rt.state.table.key(1));
         assert!(rt.accessibility_action(&key, rune::accesskit::Action::Click, None));
         rt.frame(0.);
-        assert_eq!(rt.state.app.transport.index, Some(1));
+        assert_eq!(rt.state.app.transport.queue.context_index(), Some(1));
         assert!(rt.state.app.playing_playlist.is_some());
         let empty = runtime("playlist:list0", "empty");
         assert!(
@@ -953,7 +1048,7 @@ mod tests {
             None
         ));
         rt.frame(0.);
-        assert_eq!(rt.state.app.transport.index, Some(2));
+        assert_eq!(rt.state.app.transport.queue.context_index(), Some(2));
         let key = rt.state.table.key(1).to_owned();
         assert!(rt.accessibility_action(
             &format!("more-{key}"),
@@ -963,7 +1058,7 @@ mod tests {
         rt.frame(0.);
         assert!(rt.accessibility_action("play-menu-row", rune::accesskit::Action::Click, None));
         rt.frame(0.);
-        assert_eq!(rt.state.app.transport.index, Some(1));
+        assert_eq!(rt.state.app.transport.queue.context_index(), Some(1));
         assert!(rt.state.favorite_menu.is_none());
     }
 

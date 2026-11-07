@@ -4,12 +4,55 @@ description: What the queue shows, what Add to queue does, and what the app prom
 nav_order: 2
 ---
 
-## Current Navidrome transport
+## Playback order
 
-Navifast plays an album's ordered song list locally. Queue position is an index,
-so duplicate song IDs remain distinct occurrences. A new selection or seek
-increments the generation, updates the view immediately and rejects old player
-events. Next advances to the next occurrence, previous restarts after three
-seconds, and natural completion stops after the final song. Paused skips and
-seeks preserve the paused intention. Queue editing, shuffle/repeat and saved
-server queues are not yet exposed. Tests live in `src/navidrome/state.rs and src/app/navidrome.rs`.
+The queue belongs to the current local session. Each occurrence has its own ID,
+including repeated copies of one song. The current occurrence is separate from
+upcoming entries. **Next** and natural completion consume the visible head.
+Player generations reject position and completion reports from older selections.
+Paused skips, moves and seeks preserve the paused intention.
+
+**Play next** inserts a song or ordered selection at the head of **Playing next**.
+**Add to queue** appends after earlier manual additions, before **Next up**, the
+remaining collection. An album is added in disc/track order, including duplicates.
+Starting a different collection keeps manual additions and replaces the collection
+remainder. Playlist playback keeps its displayed sort order.
+
+## Editing
+
+Open **Queue** in the player. It appears beside browsing at normal widths and in
+the content area at narrow widths. Closing it returns to the same browsing page.
+Single-click selects an occurrence; double-click, its Play control or Enter plays
+it and skips the entries above it. The menu offers **Move up**, **Move down** and
+**Remove from queue**. Arrow keys select, Alt+Up/Down move, and Delete removes.
+Moves stay within the manual or collection section, preserving the promise that
+explicit additions come before the remaining collection. Selection follows the
+occurrence ID after a move or album load.
+
+**Clear** removes only upcoming manual additions, including pending albums. It
+keeps the current song, its position and the remaining collection. Previous
+restarts the current song after three seconds; otherwise it returns to the prior
+occurrence. Recent playback history retains at most 128 occurrences, then falls
+back to the current collection's preceding track. This bounds memory for a queue
+that is continuously fed manual additions.
+
+## Pending albums
+
+An album request immediately reserves one visible loading row. Later additions
+keep their order even if requests complete out of order. A successful read replaces
+that placeholder with the entire album in one update. Its first occurrence inherits
+the placeholder ID. A failed or empty result removes only its reservation and shows
+an error. Add it again to retry.
+
+Next waits if its head is still loading. Pause/resume changes the intention while
+waiting. The resolved first song becomes current at position zero; failure advances
+to the following entry. Clear cancels that wait and restores the existing current
+song at its position. Removing, skipping, clearing or signing out prevents late
+replies from restoring removed entries. Album reads run on the backend worker and
+survive ordinary browsing navigation. Clear and sign-out cancel their requests.
+
+Queue restoration and shuffle/repeat are separate features and are not yet exposed.
+The queue model and regression tests live in `src/navidrome/queue.rs`; controller
+and transport coverage lives in `src/app/navidrome/queue.rs` and
+`src/app/navidrome.rs`. Rune interaction tests live in
+`src/app/navidrome/desktop/regression.rs`.

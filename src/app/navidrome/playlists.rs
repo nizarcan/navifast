@@ -907,13 +907,14 @@ mod tests {
             app.search_action(super::super::search::Action::PlayEntry(2), host);
             assert_eq!(
                 app.transport
-                    .songs
+                    .queue
+                    .context()
                     .iter()
                     .map(|s| s.id.as_str())
                     .collect::<Vec<_>>(),
                 ["a", "b", "a", "c"]
             );
-            assert_eq!(app.transport.index, Some(2));
+            assert_eq!(app.transport.queue.context_index(), Some(2));
             app.apply(Action::Next);
             assert_eq!(app.transport.song().unwrap().id, "c");
             app.client = client;

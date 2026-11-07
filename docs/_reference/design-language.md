@@ -71,6 +71,21 @@ same keyboard, selection, sorting and context-menu code serves both collection
 types. Repeated song IDs remain separate occurrences. Playing a sorted view
 uses its displayed order; the active-row marker follows the occurrence.
 
+## Queue
+
+Use the player bar's Queue control to show or hide it. At widths of at least
+1060 logical pixels, show a 320-pixel right-side panel when at least 340 pixels
+remain for the main content. At narrower widths or with a wider library sidebar,
+the queue uses the main content area below the existing top bar. Keep navigation,
+the player bar, browsing history and scroll position intact. Navigating from the
+compact queue returns to browsing. This is layout A approved for NAV-6.
+
+Reuse Palette colors, Inter, artwork sleeves and the existing menu controls.
+Show Now playing separately, followed by Playing next with Clear for manual
+additions, and Next up for the collection. Upcoming rows are virtualized, with
+42-pixel artwork, a 14-pixel title and secondary artist text. Repeated songs are
+separate selectable occurrences. Pending albums use the same row with a spinner.
+
 ## Type, color and controls
 
 - Use Inter and its real font weights through Rune's text layout. Keep logical

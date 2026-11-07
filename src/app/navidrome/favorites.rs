@@ -250,7 +250,7 @@ impl State {
 
 impl App {
     // Resolve shared table, sidebar and player URIs against native metadata at click time.
-    fn favorite_item(&self, uri: &str) -> Option<Item> {
+    pub(super) fn favorite_item(&self, uri: &str) -> Option<Item> {
         let (kind, encoded) = uri.strip_prefix("navidrome:")?.split_once(':')?;
         let id = decode(encoded).filter(|id| !id.is_empty())?;
         let kind = match kind {
@@ -278,10 +278,19 @@ impl App {
                     _ => &[],
                 };
                 self.transport
-                    .songs
+                    .queue
+                    .context()
                     .iter()
+                    .chain(self.transport.song())
+                    .chain(
+                        self.transport
+                            .queue
+                            .upcoming()
+                            .iter()
+                            .filter_map(|e| self.transport.queue.song(e)),
+                    )
                     .chain(playlist)
-                    .chain(self.album.iter().flat_map(|album| &album.song))
+                    .chain(self.album.iter().flat_map(|album| album.song.as_slice()))
                     .find(|s| s.id == id)
                     .cloned()
                     .map(Item::Song)

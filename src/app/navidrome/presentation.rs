@@ -56,8 +56,8 @@ impl App {
         let source = self
             .album
             .as_ref()
-            .map(|album| &album.song)
-            .unwrap_or(&self.transport.songs);
+            .map(|album| album.song.as_slice())
+            .unwrap_or(self.transport.queue.context());
         let songs: Option<Vec<_>> = ids
             .iter()
             .map(|id| source.iter().find(|song| &song.id == id).cloned())
@@ -70,6 +70,7 @@ impl App {
         let was_favorites = self.presentation.page().is_favorites();
         let was_playlists = self.presentation.page() == &Page::Playlists;
         match action {
+            UiAction::Queue(action) if self.connected => self.queue_action(action),
             UiAction::EditPlaylists(action) if self.connected => self.playlist_action(action),
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
             UiAction::RetryFavorite(uri) if self.connected => self.retry_favorite(&uri),
@@ -318,7 +319,7 @@ mod tests {
             assert_eq!(app.transport.song().unwrap().title, "Second");
             app.ui_action(UiAction::Next, ctx);
             assert_eq!(app.transport.song().unwrap().title, "First");
-            assert_eq!(app.transport.index, Some(2));
+            assert_eq!(app.transport.queue.context_index(), Some(2));
         });
     }
     #[test]

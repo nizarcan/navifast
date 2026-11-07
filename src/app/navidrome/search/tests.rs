@@ -221,8 +221,8 @@ fn playlist_only_match_survives_catalogue_failure_and_retry_then_enter_opens_it(
         receive(app);
         app.client = None; // Exercise the native transport without opening an audio device.
         app.search_action(Action::PlayEntry(1), ctx);
-        assert_eq!(app.transport.index, Some(1));
-        assert_eq!(app.transport.songs.len(), 2);
+        assert_eq!(app.transport.queue.context_index(), Some(1));
+        assert_eq!(app.transport.queue.context().len(), 2);
         assert_eq!(app.transport.song().unwrap().title, "One");
     });
 }

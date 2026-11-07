@@ -16,6 +16,7 @@ mod backdrop;
 mod library;
 mod playlists;
 mod preferences;
+mod queue;
 pub(crate) mod spectrum;
 mod transport;
 
@@ -53,7 +54,22 @@ impl Paint<'_> {
         } else {
             0.
         };
-        (self.width - sidebar - 48.).max(1.)
+        (self.width - sidebar - self.queue_width() - 48.).max(1.)
+    }
+    fn queue_width(&self) -> f32 {
+        let settings = &self.s.app.presentation.settings;
+        let sidebar = if settings.sidebar_visible {
+            settings
+                .sidebar_width
+                .clamp(210., (self.width - 340.).max(210.))
+        } else {
+            0.
+        };
+        if self.s.queue_open && self.width >= 1060. && self.width - sidebar >= 660. {
+            320.
+        } else {
+            0.
+        }
     }
     fn tr(&self, value: &'static str) -> String {
         gettext(self.s.app.presentation.locale, value).into_owned()
@@ -536,6 +552,14 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
         Key::Up if !editing && k.mods.cmd => Action::VolumeBy(5),
         Key::Down if !editing && k.mods.cmd => Action::VolumeBy(-5),
         Key::Escape if s.app.presentation.dialog.is_some() => Action::CloseDialog,
+        Key::Escape if s.queue_menu.is_some() => {
+            s.queue_menu = None;
+            return true;
+        }
+        Key::Escape if s.queue_open => {
+            s.toggle_queue(tx);
+            return true;
+        }
         Key::Escape if s.menu.is_some() => {
             s.menu = None;
             return true;
@@ -548,6 +572,9 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
         Key::Right if !editing && k.mods.shift => Action::SeekBy(10000),
         Key::Text(v) if !editing && v == " " => Action::TogglePlay,
         Key::Text(v) if !editing && v.eq_ignore_ascii_case("m") => Action::ToggleMute,
+        _ if tx.focused().is_none() && s.queue_open && s.queue_selected.is_some() => {
+            return queue::keys(s, k, tx);
+        }
         _ if tx.focused().is_none()
             && s.menu.is_none()
             && s.app.presentation.dialog.is_none()

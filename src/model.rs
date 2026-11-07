@@ -236,6 +236,7 @@ pub enum Action {
     RetryFavorite(String),
     NavidromeSearch(crate::app::navidrome::search::Action),
     EditPlaylists(crate::app::navidrome::playlists::Action),
+    Queue(crate::app::navidrome::queue::Action),
     FocusSearch,
     LoadMore(Page),
     Reload(Page),

@@ -10,6 +10,7 @@ pub mod desktop;
 pub mod favorites;
 mod host;
 pub mod playlists;
+pub mod queue;
 use host::Host;
 mod presentation;
 pub mod search;
@@ -91,8 +92,8 @@ pub enum Action {
 pub struct Transport {
     /// For a sorted collection, the original occurrence key of each item in playback order.
     collection_rows: Vec<String>,
-    pub songs: Vec<Song>,
-    pub index: Option<usize>,
+    pub queue: crate::navidrome::queue::Queue,
+    waiting_for_queue: bool,
     pub position: f64,
     pub paused: bool,
     pub loading: bool,
@@ -102,19 +103,17 @@ pub struct Transport {
 
 impl Transport {
     pub fn song(&self) -> Option<&Song> {
-        self.index.and_then(|index| self.songs.get(index))
+        self.queue
+            .current()
+            .and_then(|entry| self.queue.song(entry))
     }
     fn media_uri(&self, session: u64) -> Option<String> {
         self.song()
             .map(|song| format!("navidrome:track:{session}:{}", song.id))
     }
-    pub fn next_index(&self) -> Option<usize> {
-        self.index
-            .and_then(|index| (index + 1 < self.songs.len()).then_some(index + 1))
-    }
-    fn select(&mut self, index: usize, position: f64, paused: bool) -> Option<Song> {
-        let song = self.songs.get(index)?.clone();
-        self.index = Some(index);
+    fn prepare(&mut self, position: f64, paused: bool) -> Option<Song> {
+        let song = self.song()?.clone();
+        self.waiting_for_queue = false;
         self.position = position.max(0.0).min(song.duration.max(0.0));
         self.paused = paused;
         self.loading = true;
@@ -122,7 +121,7 @@ impl Transport {
         self.generation = self.generation.wrapping_add(1);
         Some(song)
     }
-    fn event(&mut self, event: player::Event) -> Option<usize> {
+    fn event(&mut self, event: player::Event) -> bool {
         match event {
             player::Event::Position {
                 generation,
@@ -137,8 +136,9 @@ impl Transport {
                 }
             }
             player::Event::Finished(generation) if generation == self.generation => {
-                if let Some(index) = self.next_index() {
-                    return Some(index);
+                if !self.queue.upcoming().is_empty() {
+                    self.position = self.song().map_or(0.0, |song| song.duration);
+                    return true;
                 }
                 self.paused = true;
                 self.loading = false;
@@ -154,7 +154,7 @@ impl Transport {
             }
             _ => {}
         }
-        None
+        false
     }
 }
 
@@ -208,10 +208,10 @@ impl App {
     /// The playing album supplies its sleeve even when a song omits its own art.
     pub(crate) fn playing_cover(&self) -> Option<&str> {
         let song = self.transport.song()?;
-        self.playing_album
-            .as_ref()
-            .and_then(|album| album.cover_art.as_deref())
-            .or(song.cover_art.as_deref())
+        song.cover_art.as_deref().or_else(|| {
+            self.transport.queue.context_index()?;
+            self.playing_album.as_ref()?.cover_art.as_deref()
+        })
     }
     fn with_host(
         dirs: crate::paths::AppDirs,
@@ -450,25 +450,31 @@ impl App {
                 }
             }
             Action::Toggle => {
+                if self.transport.waiting_for_queue {
+                    self.transport.paused = !self.transport.paused;
+                    return;
+                }
                 if self.transport.error.is_some()
                     || self
                         .transport
                         .song()
                         .is_some_and(|song| self.transport.position >= song.duration)
                 {
-                    if let Some(index) = self.transport.index {
-                        let position = if self.transport.error.is_some() {
-                            self.transport.position
-                        } else {
-                            0.0
-                        };
-                        self.load(index, position, false);
-                    }
+                    let position = if self.transport.error.is_some() {
+                        self.transport.position
+                    } else {
+                        0.0
+                    };
+                    self.load(position, false);
                 } else {
                     self.apply(Action::Pause(!self.transport.paused));
                 }
             }
             Action::Pause(paused) => {
+                if self.transport.waiting_for_queue {
+                    self.transport.paused = paused;
+                    return;
+                }
                 if !paused
                     && (self.transport.error.is_some()
                         || self
@@ -483,26 +489,19 @@ impl App {
                 self.player.send(player::Command::Pause(paused));
             }
             Action::Next => {
-                if let Some(index) = self.transport.next_index() {
-                    self.load(index, 0.0, self.transport.paused);
-                }
+                let advance = self.transport.queue.advance();
+                self.advance_queue(advance, self.transport.paused);
             }
             Action::Previous => {
-                if let Some(index) = self.transport.index {
-                    let index = if self.transport.position > 3.0 {
-                        index
-                    } else {
-                        index.saturating_sub(1)
-                    };
-                    self.load(index, 0.0, self.transport.paused);
+                if self.transport.position <= 3.0 {
+                    self.transport.queue.previous();
                 }
+                self.load(0.0, self.transport.paused);
             }
             Action::Seek(seconds) => {
-                if let Some(index) = self.transport.index {
-                    self.load(index, seconds, self.transport.paused);
-                    if let Some(media) = &self.media {
-                        media.seeked((self.transport.position * 1000.0) as u32);
-                    }
+                self.load(seconds, self.transport.paused);
+                if let Some(media) = &self.media {
+                    media.seeked((self.transport.position * 1000.0) as u32);
                 }
             }
             Action::Volume(volume) => {
@@ -632,13 +631,13 @@ impl App {
             self.mark_dirty();
         }
         self.transport.collection_rows.clear();
-        self.transport.songs = songs;
-        self.load(index, 0.0, false);
+        self.transport.queue.start(songs, index);
+        self.load(0.0, false);
     }
 
-    fn load(&mut self, index: usize, position: f64, paused: bool) {
+    fn load(&mut self, position: f64, paused: bool) {
         self.pending_play = None;
-        let Some(song) = self.transport.select(index, position, paused) else {
+        let Some(song) = self.transport.prepare(position, paused) else {
             return;
         };
         self.tap.clear();
@@ -687,6 +686,13 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::QueueAlbum {
+                    session,
+                    token,
+                    result,
+                } if session == self.session => {
+                    self.queued_album(token, result);
+                }
                 event @ (Event::PlaylistLibrary { .. }
                 | Event::PlaylistDestinations { .. }
                 | Event::PlaylistEdited { .. }) => self.playlists_event(event),
@@ -792,7 +798,7 @@ impl App {
         }
         while let Ok(event) = self.player_events.try_recv() {
             let previous = (
-                self.transport.index,
+                self.transport.queue.current().map(|entry| entry.id),
                 self.transport.loading,
                 self.transport.paused,
                 self.transport.position as u64,
@@ -806,12 +812,12 @@ impl App {
                 changed = true;
                 self.presentation.toast_error(message.clone());
             }
-            if let Some(index) = self.transport.event(event) {
-                self.load(index, 0.0, self.transport.paused);
+            if self.transport.event(event) {
+                self.apply(Action::Next);
             }
             changed |= previous
                 != (
-                    self.transport.index,
+                    self.transport.queue.current().map(|entry| entry.id),
                     self.transport.loading,
                     self.transport.paused,
                     self.transport.position as u64,
@@ -1022,8 +1028,8 @@ impl App {
             self.album = self.albums.first().cloned();
         }
         self.playing_album = Some(self.albums[0].clone());
-        self.transport.songs = self.albums[0].song.clone();
-        self.transport.select(0, 83.0, false);
+        self.transport.queue.start(self.albums[0].song.clone(), 0);
+        self.transport.prepare(83.0, false);
         self.transport.loading = false;
         let favorite_page = page.and_then(|p| match p {
             "favorites" => Some(crate::model::Page::LikedSongs),
@@ -1193,47 +1199,40 @@ mod tests {
     }
 
     fn transport() -> Transport {
-        Transport {
-            songs: vec![
-                Song {
-                    id: "a".into(),
+        let mut transport = Transport::default();
+        transport.queue.start(
+            ["a", "a", "b"]
+                .into_iter()
+                .map(|id| Song {
+                    id: id.into(),
                     duration: 60.0,
                     ..Default::default()
-                },
-                Song {
-                    id: "a".into(),
-                    duration: 60.0,
-                    ..Default::default()
-                },
-                Song {
-                    id: "b".into(),
-                    duration: 60.0,
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        }
+                })
+                .collect(),
+            0,
+        );
+        transport
     }
     #[test]
     fn duplicate_occurrences_progress_by_index_and_stale_completions_cannot_skip() {
         let mut player = transport();
-        player.select(0, 0.0, false);
+        player.prepare(0.0, false);
         let old = player.generation;
-        assert_eq!(player.event(player::Event::Finished(old)), Some(1));
-        player.select(1, 0.0, false);
-        assert_eq!(player.event(player::Event::Finished(old)), None);
-        assert_eq!(player.index, Some(1));
-        assert_eq!(
-            player.event(player::Event::Finished(player.generation)),
-            Some(2)
-        );
+        assert!(player.event(player::Event::Finished(old)));
+        player.queue.advance();
+        player.prepare(0.0, false);
+        assert!(!player.event(player::Event::Finished(old)));
+        assert_eq!(player.queue.context_index(), Some(1));
+        assert!(player.event(player::Event::Finished(player.generation)));
     }
     #[test]
     fn selecting_and_seeking_are_immediate_and_late_position_reports_are_ignored() {
         let mut player = transport();
-        player.select(0, 0.0, false);
+        player.prepare(0.0, false);
         let old = player.generation;
-        player.select(2, 30.0, true);
+        let last = player.queue.upcoming().back().unwrap().id;
+        player.queue.play(last);
+        player.prepare(30.0, true);
         player.event(player::Event::Position {
             generation: old,
             seconds: 2.0,
@@ -1391,7 +1390,7 @@ mod tests {
     #[test]
     fn desktop_track_identity_changes_after_signing_in_again() {
         let mut player = transport();
-        player.select(0, 0.0, false);
+        player.prepare(0.0, false);
         assert_ne!(player.media_uri(1), player.media_uri(2));
         assert_eq!(player.media_uri(2).as_deref(), Some("navidrome:track:2:a"));
     }

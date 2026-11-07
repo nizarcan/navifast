@@ -36,6 +36,9 @@ The current build supports:
 - Streaming original audio locally, with pause, resume, seeking, previous,
   next and automatic progression through an album. Scroll over the volume slider
   to adjust it in 5% steps. Expand the playing cover into the sidebar with its arrow.
+- A local queue with **Play next** and **Add to queue** for songs and albums.
+  Open **Queue** in the player to play, move or remove upcoming occurrences.
+  **Clear** removes manual additions while preserving the current song and collection.
 - The existing ten-band equalizer and a spectrum visualizer that follows the
   equalizer even when playback volume is zero.
 - The original sidebar lists and grids, album pages, player bar and settings,
@@ -43,8 +46,7 @@ The current build supports:
   player-bar visualizers.
 - Basic native media controls.
 
-This is an early playback build. Queue editing,
-shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
+This is an early playback build. Shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
 and tray behavior are not available in the current Navidrome interface.
 The existing interface keeps its translations; the server sign-in form
 currently uses English.
