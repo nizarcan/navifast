@@ -124,6 +124,59 @@ pub struct NamedItem {
     pub cover_art: Option<String>,
 }
 
+/// Server metadata, including Navidrome's per-account smart-playlist permissions.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Playlist {
+    #[serde(default)]
+    pub id: String,
+    pub name: String,
+    pub cover_art: Option<String>,
+    pub owner: Option<String>,
+    pub readonly: Option<bool>,
+    pub changed: Option<String>,
+    #[serde(default, rename = "entry")]
+    pub songs: Vec<Song>,
+}
+
+impl Playlist {
+    pub fn writable(&self, username: &str) -> bool {
+        self.readonly == Some(false)
+            || (self.readonly.is_none() && self.owner.as_deref() == Some(username))
+    }
+
+    pub fn named(&self) -> NamedItem {
+        NamedItem {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            cover_art: self.cover_art.clone(),
+        }
+    }
+
+    pub fn metadata(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            cover_art: self.cover_art.clone(),
+            owner: self.owner.clone(),
+            readonly: self.readonly,
+            changed: self.changed.clone(),
+            songs: Vec::new(),
+        }
+    }
+
+    pub fn collection(self, username: &str) -> Collection {
+        let writable = self.writable(username);
+        Collection::Playlist {
+            name: self.name,
+            songs: self.songs,
+            cover_art: self.cover_art,
+            owner: self.owner,
+            writable,
+        }
+    }
+}
+
 #[derive(Default, Deserialize)]
 pub struct Catalogue {
     #[serde(default)]
@@ -190,6 +243,7 @@ pub enum Collection {
         songs: Vec<Song>,
         cover_art: Option<String>,
         owner: Option<String>,
+        writable: bool,
     },
 }
 
@@ -299,7 +353,7 @@ impl Client {
             .map_err(|error| error.to_string())
     }
 
-    async fn checked_request(
+    pub(super) async fn checked_request(
         &self,
         endpoint: &str,
         params: &[(&str, String)],
@@ -426,10 +480,19 @@ impl Client {
     }
 
     pub async fn playlists(&self) -> Result<Vec<NamedItem>, String> {
+        Ok(self
+            .playlist_destinations()
+            .await?
+            .iter()
+            .map(Playlist::named)
+            .collect())
+    }
+
+    pub async fn playlist_destinations(&self) -> Result<Vec<Playlist>, String> {
         #[derive(Deserialize)]
         struct Playlists {
             #[serde(default)]
-            playlist: Vec<NamedItem>,
+            playlist: Vec<Playlist>,
         }
         let body = self.request("getPlaylists", &[]).await?;
         let playlists: Playlists = decode(
@@ -440,6 +503,17 @@ impl Client {
         Ok(playlists.playlist)
     }
 
+    pub async fn playlist(&self, id: &str) -> Result<Playlist, String> {
+        let body = self.request("getPlaylist", &[("id", id.into())]).await?;
+        let mut playlist: Playlist = decode(
+            body.get("playlist")
+                .cloned()
+                .ok_or("The server returned no playlist.")?,
+        )?;
+        playlist.id = id.into();
+        Ok(playlist)
+    }
+
     pub async fn collection(&self, kind: CollectionKind, id: &str) -> Result<Collection, String> {
         #[derive(Deserialize)]
         #[serde(rename_all = "camelCase")]
@@ -448,15 +522,6 @@ impl Client {
             cover_art: Option<String>,
             #[serde(default)]
             album: Vec<Album>,
-        }
-        #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Playlist {
-            name: String,
-            cover_art: Option<String>,
-            owner: Option<String>,
-            #[serde(default)]
-            entry: Vec<Song>,
         }
         let (endpoint, field) = match kind {
             CollectionKind::Artist => ("getArtist", "artist"),
@@ -480,20 +545,7 @@ impl Client {
                     cover_art,
                 }
             }
-            CollectionKind::Playlist => {
-                let Playlist {
-                    name,
-                    entry,
-                    cover_art,
-                    owner,
-                } = decode(value)?;
-                Collection::Playlist {
-                    name,
-                    songs: entry,
-                    cover_art,
-                    owner,
-                }
-            }
+            CollectionKind::Playlist => decode::<Playlist>(value)?.collection(&self.username),
         })
     }
 

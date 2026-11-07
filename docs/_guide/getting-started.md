@@ -60,6 +60,19 @@ including repeated songs. **Refresh** reloads the list; **Retry** recovers
 a failed request without interrupting playback. A removed playlist reports
 that it is unavailable, while an empty playlist shows an empty state.
 
+Choose **Create playlist** in the playlist browser, or select tracks on an album
+or playlist and use **Add to playlists** in a track's menu. Check one or more
+writable destinations and choose **Add**, or enter a name and choose **Create**.
+Songs are added in displayed order, including repeated tracks. Each destination
+shows its own progress and result. Retry affects only that destination; after an
+uncertain response it checks the server without adding the tracks again.
+
+Use **Remove from playlist** in a selected track's menu to remove those specific
+occurrences. If another client has changed the order, refresh and select them
+again. The playlist's **More** menu offers **Delete playlist**, with its name in
+the confirmation. Songs remain in your library. Shared or smart playlists that
+are read-only can still be played.
+
 Select an artist credit in search, on an album or playlist, or in the player
 bar to explore that artist. Navifast links each artist your server identifies.
 Select a sleeve in Discography to open the full release. Use **See more**
@@ -90,5 +103,5 @@ your server and reverse proxy. A redirect error means the final URL should be
 entered directly. A failed request keeps the app usable and provides a retry.
 
 This first stage has album playback, not the full inherited feature set.
-Playlist management, shuffle/repeat, saved queues, lyrics, scrobbling,
+Shuffle/repeat, saved queues, lyrics, scrobbling,
 transcoding and tray operation are still pending.

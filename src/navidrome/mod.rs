@@ -3,6 +3,7 @@
 pub mod api;
 pub mod backend;
 pub mod player;
+pub mod playlists;
 pub mod stream;
 
 #[cfg(test)]

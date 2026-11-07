@@ -70,6 +70,7 @@ impl App {
         let was_favorites = self.presentation.page().is_favorites();
         let was_playlists = self.presentation.page() == &Page::Playlists;
         match action {
+            UiAction::EditPlaylists(action) if self.connected => self.playlist_action(action),
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
             UiAction::RetryFavorite(uri) if self.connected => self.retry_favorite(&uri),
             UiAction::PlayFavorite(id) if self.connected => {
@@ -253,7 +254,7 @@ impl App {
             | UiAction::SetEqBand(..)
             | UiAction::SetEqPreamp(_)
             | UiAction::ApplyEqPreset(_)
-            | UiAction::ShowDialog(crate::model::Dialog::Shortcuts)
+            | UiAction::ShowDialog(_)
             | UiAction::CloseDialog
             | UiAction::ShowWindow
             | UiAction::CloseWindow

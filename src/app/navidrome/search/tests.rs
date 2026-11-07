@@ -23,6 +23,7 @@ fn playlist_card_plays_after_loading_and_navigation_cancels_its_intent() {
                 }],
                 cover_art: None,
                 owner: None,
+                writable: false,
             }),
         };
         app.ui_action(
@@ -59,6 +60,7 @@ fn playlist_response_after_navigation_or_signout_cannot_replace_the_current_coll
                 songs: Vec::new(),
                 cover_art: None,
                 owner: None,
+                writable: false,
             }),
         };
         app.ui_action(UiAction::Open(page("second")), host);

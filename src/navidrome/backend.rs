@@ -9,6 +9,16 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    PlaylistDestinations {
+        session: u64,
+        client: Client,
+    },
+    EditPlaylist {
+        session: u64,
+        job: usize,
+        client: Client,
+        task: super::playlists::Task,
+    },
     Restore {
         session: u64,
     },
@@ -100,6 +110,16 @@ pub enum Request {
 }
 
 pub enum Event {
+    PlaylistDestinations {
+        session: u64,
+        result: Result<Vec<super::api::Playlist>, String>,
+    },
+    PlaylistEdited {
+        session: u64,
+        job: usize,
+        task: Box<super::playlists::Task>,
+        result: Result<super::playlists::Outcome, String>,
+    },
     PlaylistLibrary {
         session: u64,
         request: u64,
@@ -408,6 +428,24 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             id,
             starred,
         },
+        Request::PlaylistDestinations { session, client } => Event::PlaylistDestinations {
+            session,
+            result: client.playlist_destinations().await,
+        },
+        Request::EditPlaylist {
+            session,
+            job,
+            client,
+            mut task,
+        } => {
+            let result = task.run(&client).await;
+            Event::PlaylistEdited {
+                session,
+                job,
+                task: Box::new(task),
+                result,
+            }
+        }
         Request::PlaylistLibrary {
             session,
             request,

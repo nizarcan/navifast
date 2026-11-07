@@ -687,7 +687,9 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
-                event @ Event::PlaylistLibrary { .. } => self.playlists_event(event),
+                event @ (Event::PlaylistLibrary { .. }
+                | Event::PlaylistDestinations { .. }
+                | Event::PlaylistEdited { .. }) => self.playlists_event(event),
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
                     self.favorite_event(event)
                 }
@@ -823,6 +825,7 @@ impl App {
         }
         changed |= self.poll_search(host);
         self.poll_favorites(host);
+        self.poll_playlists(host);
         changed |= self.poll_controls(host);
         self.sync_media();
         changed
@@ -1074,6 +1077,7 @@ impl App {
                         .then(|| self.albums[0].cover_art.clone())
                         .flatten(),
                     owner: Some("Demo".into()),
+                    writable: id != "list2",
                     songs: if flags.contains(&"empty") {
                         Vec::new()
                     } else {
@@ -1090,6 +1094,34 @@ impl App {
         }
         if flags.contains(&"appearance") || flags.contains(&"about") {
             self.presentation.history = vec![crate::model::Page::Settings];
+        }
+        if matches!(self.presentation.page(), crate::model::Page::Playlist(_)) {
+            self.presentation.navidrome_search.collection_page =
+                Some(self.presentation.page().clone());
+        }
+        if flags.contains(&"playlist-editor") || flags.contains(&"playlist-edits") {
+            let songs = self
+                .album
+                .as_ref()
+                .map_or_else(Vec::new, |a| a.song.iter().take(3).cloned().collect());
+            self.playlist_action(playlists::Action::Open(songs));
+            self.playlist_action(playlists::Action::Toggle("list0".into()));
+            self.playlist_action(playlists::Action::Toggle("list1".into()));
+            if flags.contains(&"playlist-edits") {
+                self.playlist_action(playlists::Action::Add);
+                let jobs = &mut self.presentation.navidrome_playlists.jobs;
+                jobs[0].pending = false;
+                jobs[0].task.sent = true;
+                jobs[0].task.release_data();
+                jobs[1].pending = false;
+                jobs[1].error = Some("The server did not respond in time.".into());
+            }
+        }
+        if flags.contains(&"playlist-create") {
+            self.playlist_action(playlists::Action::Open(Vec::new()));
+        }
+        if flags.contains(&"playlist-delete") {
+            self.playlist_action(playlists::Action::ConfirmDelete);
         }
         if self.restoring_login {
             self.presentation.history = vec![crate::model::Page::Albums];

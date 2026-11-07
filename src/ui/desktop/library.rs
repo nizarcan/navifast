@@ -198,7 +198,28 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
                 }))
+                .child(v.menu_item(
+                    &v.tr(mark("Add to playlists")),
+                    Some(Icon::ListMusic),
+                    |s, tx| s.add_to_playlists(None, tx),
+                ))
         }),
+        Some("playlist") => {
+            let mut menu = v.menu("playlist-more").child(v.menu_item(
+                &v.tr(mark("Add to playlists")),
+                Some(Icon::ListMusic),
+                |s, tx| s.add_to_playlists(None, tx),
+            ));
+            if s.app.playlist_writable() {
+                menu = menu.child(v.menu_item(&v.tr(mark("Delete playlist")), None, |s, tx| {
+                    s.dispatch(
+                        Action::EditPlaylists(navidrome::playlists::Action::ConfirmDelete),
+                        tx,
+                    )
+                }));
+            }
+            Some(menu)
+        }
         Some(key @ ("themes" | "languages")) => Some(preferences::choice_menu(v, key)),
         _ => None,
     } {
@@ -230,6 +251,24 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             ));
         }
         if let Some(key) = menu.row.clone() {
+            let add_key = key.clone();
+            popup = popup.child(
+                v.menu_item(
+                    &v.tr(mark("Add to playlists")),
+                    Some(Icon::ListMusic),
+                    move |s, tx| s.add_to_playlists(Some(&add_key), tx),
+                )
+                .key("playlist-add-selection"),
+            );
+            if s.app.playlist_writable() && matches!(s.app.presentation.page(), Page::Playlist(_)) {
+                let remove_key = key.clone();
+                popup = popup.child(
+                    v.menu_item(&v.tr(mark("Remove from playlist")), None, move |s, tx| {
+                        s.remove_playlist_selection(&remove_key, tx)
+                    })
+                    .key("playlist-remove-selection"),
+                );
+            }
             popup = popup.child(
                 v.menu_item(&v.tr(mark("Play")), Some(Icon::Play), move |s, tx| {
                     if let Some(i) = s.table.index(&key) {
@@ -253,8 +292,12 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         }
         shell = shell.child(popup);
     }
-    if s.app.presentation.dialog.is_some() {
-        shell = shell.child(preferences::shortcuts(v));
+    if let Some(dialog) = &s.app.presentation.dialog {
+        shell = shell.child(match dialog {
+            crate::model::Dialog::Shortcuts => preferences::shortcuts(v),
+            crate::model::Dialog::Playlists => playlists::editor(v),
+            crate::model::Dialog::DeletePlaylist => playlists::confirm_delete(v),
+        });
     }
     autoscroll::shell(shell, s, v.zoom)
 }
@@ -1137,6 +1180,7 @@ fn playlist_header(v: &Paint<'_>) -> El {
         songs,
         cover_art,
         owner,
+        ..
     }) = app.presentation.navidrome_search.collection.get()
     else {
         return collection(v);
@@ -1166,8 +1210,19 @@ fn playlist_header(v: &Paint<'_>) -> El {
         name,
         cover_art.as_deref(),
         byline,
-        collection_actions(v, "playlist-play", active, songs.is_empty()),
+        collection_actions(v, "playlist-play", active, songs.is_empty()).child(
+            v.icon_button(&v.tr(mark("More")), Icon::Ellipsis, 26., |s, _| {
+                s.menu = Some("playlist")
+            })
+            .size(38., 38.)
+            .key("playlist-more"),
+        ),
     );
+    if let Page::Playlist(id) = app.presentation.page()
+        && let Some(progress) = playlists::progress(v, navidrome::decode(id).as_deref())
+    {
+        page = page.child(progress);
+    }
     if songs.is_empty() {
         page = page.child(label(
             v.tr(mark("Nothing here yet.")),
@@ -1705,8 +1760,19 @@ fn playlists_header(v: &Paint<'_>) -> El {
     let mut head = col().w_full().gap(12.).child(
         row()
             .items_center()
+            .flex_wrap()
             .gap(12.)
             .child(heading(v, &v.tr(mark("Playlists"))).grow(1.))
+            .child(
+                v.button(&v.tr(mark("Create playlist")), true, |s, tx| {
+                    s.playlist_name.clear();
+                    s.dispatch(
+                        Action::EditPlaylists(navidrome::playlists::Action::Open(Vec::new())),
+                        tx,
+                    );
+                })
+                .key("create-playlist"),
+            )
             .child(
                 v.button(&v.tr(mark("Refresh")), false, |s, tx| {
                     s.dispatch(Action::Reload(Page::Playlists), tx)
@@ -1714,6 +1780,9 @@ fn playlists_header(v: &Paint<'_>) -> El {
                 .key("refresh-playlists"),
             ),
     );
+    if let Some(progress) = playlists::progress(v, None) {
+        head = head.child(progress);
+    }
     if state.refreshing {
         head = head.child(v.loading());
     }

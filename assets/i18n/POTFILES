@@ -9,6 +9,7 @@ src/ui/desktop/artist.rs
 src/ui/desktop/backdrop.rs
 src/ui/desktop/library.rs
 src/ui/desktop/mod.rs
+src/ui/desktop/playlists.rs
 src/ui/desktop/preferences.rs
 src/ui/desktop/spectrum.rs
 src/ui/desktop/transport.rs

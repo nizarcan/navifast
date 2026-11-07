@@ -194,6 +194,8 @@ pub struct SearchState {
 #[derive(Clone, Debug)]
 pub enum Dialog {
     Shortcuts,
+    Playlists,
+    DeletePlaylist,
 }
 #[derive(Clone, Debug)]
 pub enum Action {
@@ -233,6 +235,7 @@ pub enum Action {
     PlayFavorite(String),
     RetryFavorite(String),
     NavidromeSearch(crate::app::navidrome::search::Action),
+    EditPlaylists(crate::app::navidrome::playlists::Action),
     FocusSearch,
     LoadMore(Page),
     Reload(Page),

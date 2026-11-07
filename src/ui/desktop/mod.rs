@@ -14,6 +14,7 @@ use rune::{Cx, El, Tx};
 pub(crate) mod artist;
 mod backdrop;
 mod library;
+mod playlists;
 mod preferences;
 pub(crate) mod spectrum;
 mod transport;
@@ -474,7 +475,15 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
     }
     let editing = matches!(
         tx.focused(),
-        Some("query" | "filter" | "library-filter" | "server" | "user" | "password")
+        Some(
+            "query"
+                | "filter"
+                | "library-filter"
+                | "server"
+                | "user"
+                | "password"
+                | "playlist-name"
+        )
     );
     let action = match &k.key {
         Key::Command('+' | '=') => {

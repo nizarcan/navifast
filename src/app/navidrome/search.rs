@@ -196,6 +196,7 @@ impl App {
                 result,
             } if session == self.session && request == state.collection_request => {
                 state.collection = Loadable::from_result(result);
+                self.reconcile_playlist_view();
                 self.load_artist_details();
                 self.play_requested_playlist();
             }
@@ -279,7 +280,7 @@ impl App {
         }
     }
 
-    fn play_requested_playlist(&mut self) {
+    pub(super) fn play_requested_playlist(&mut self) {
         let current = self.presentation.page().clone();
         let state = &mut self.presentation.navidrome_search;
         if matches!(state.collection, Loadable::Loading | Loadable::NotLoaded) {
@@ -360,6 +361,10 @@ impl App {
         };
         state.collection_page = Some(page.clone());
         state.collection = Loadable::Loading;
+        self.apply_playlist_overlays();
+        if self.pending_playlist(&id) {
+            return;
+        }
         #[cfg(feature = "navidrome-demo")]
         if self.demo && self.client.is_none() {
             self.demo_collection(kind, &id);
@@ -368,7 +373,7 @@ impl App {
         if let Some(client) = &self.client {
             self.backend.send(Request::Collection {
                 session: self.session,
-                request: state.collection_request,
+                request: self.presentation.navidrome_search.collection_request,
                 client: client.clone(),
                 kind,
                 id,
@@ -505,6 +510,7 @@ impl App {
                 name: "Bonobo favorites".into(),
                 cover_art: self.albums.first().and_then(|a| a.cover_art.clone()),
                 owner: Some("Demo".into()),
+                writable: true,
                 songs: self
                     .albums
                     .first()

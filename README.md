@@ -21,6 +21,9 @@ The current build supports:
   Playlist details share the album header, playback controls
   and sortable track table. Double-click a song occurrence or use its play
   control; repeated songs keep their positions in the selected play order.
+- Creating named playlists and adding selected album or playlist tracks to several
+  writable destinations. Each destination shows its own save status. Playlist
+  menus remove selected occurrences or confirm deletion by name.
 - Opening credited artists from search results, album tracks, playlists, and the
   player bar. Artist pages show Discography, About, Similar artists from your
   library, and Appears on for guest releases. The header shows the artist portrait
@@ -40,7 +43,7 @@ The current build supports:
   player-bar visualizers.
 - Basic native media controls.
 
-This is an early playback build. Playlist management, queue editing,
+This is an early playback build. Queue editing,
 shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
 and tray behavior are not available in the current Navidrome interface.
 The existing interface keeps its translations; the server sign-in form

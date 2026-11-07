@@ -91,6 +91,7 @@ pub(crate) struct State {
     pub(crate) query: TextEdit,
     pub(crate) filter: TextEdit,
     pub(crate) library_filter: TextEdit,
+    pub(crate) playlist_name: TextEdit,
     pub(crate) library_search: bool,
     pub(crate) images: rune::ImageCache,
     pub(crate) icons: RefCell<HashMap<(crate::theme::Icon, crate::color::Srgba, u32), rune::Image>>,
@@ -127,6 +128,60 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn create_playlist(&mut self, tx: &mut Tx) {
+        if !self.app.can_create_playlist() || self.playlist_name.text.trim().is_empty() {
+            return;
+        }
+        let name = self.playlist_name.text.trim().to_owned();
+        self.dispatch(
+            crate::model::Action::EditPlaylists(super::playlists::Action::Create(name)),
+            tx,
+        );
+        self.playlist_name.clear();
+    }
+
+    pub(crate) fn playlist_selection(&self, key: Option<&str>) -> Vec<usize> {
+        if let Some(index) = key.and_then(|key| self.table.index(key)) {
+            if !self.table.selection.rows.contains(&index) {
+                return vec![self.table.source(index)];
+            }
+            self.table
+                .selection
+                .rows
+                .iter()
+                .map(|&i| self.table.source(i))
+                .collect()
+        } else {
+            self.table.order().map(|(i, _)| i).collect()
+        }
+    }
+
+    pub(crate) fn add_to_playlists(&mut self, key: Option<&str>, tx: &mut Tx) {
+        let Some(songs) = self.app.page_songs() else {
+            return;
+        };
+        let selection = self
+            .playlist_selection(key)
+            .into_iter()
+            .filter_map(|i| songs.get(i).cloned())
+            .collect();
+        self.playlist_name.clear();
+        self.dispatch(
+            crate::model::Action::EditPlaylists(super::playlists::Action::Open(selection)),
+            tx,
+        );
+    }
+
+    pub(crate) fn remove_playlist_selection(&mut self, key: &str, tx: &mut Tx) {
+        let positions = self.playlist_selection(Some(key));
+        self.dispatch(
+            crate::model::Action::EditPlaylists(super::playlists::Action::Remove(positions)),
+            tx,
+        );
+        self.table.selection = Default::default();
+        self.sync_tracks();
+    }
+
     fn new(
         launch: Launch,
         instance: Option<crate::single_instance::Guard>,
@@ -169,6 +224,7 @@ impl State {
             query: TextEdit::new(&app.presentation.search.query),
             filter: TextEdit::new(filter),
             library_filter: TextEdit::new(""),
+            playlist_name: TextEdit::new(""),
             library_search: false,
             app,
             window,
@@ -310,6 +366,7 @@ impl State {
             self.artist_views.clear();
             self.table = Default::default();
             self.library_filter.clear();
+            self.playlist_name.clear();
             self.library_search = false;
             self.password.clear();
             self.query.clear();
@@ -335,6 +392,8 @@ impl State {
                 .get();
             self.restore_scroll = (offset > 0. && self.page_loading()).then_some(offset);
             tx.scroll_to_y("page", offset);
+        } else {
+            self.sync_tracks();
         }
         tx.instant();
     }

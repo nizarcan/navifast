@@ -40,6 +40,21 @@ request. Opening a playlist loads its ordered songs with `getPlaylist`.
 The Playlists page requests the full accessible list using `getPlaylists`,
 independently of search. Refresh keeps existing rows available if it fails.
 Leaving the page cancels its pending list request and ignores late results.
+Playlist edits use `createPlaylist`, `updatePlaylist`, and `deletePlaylist` on
+workers. The destination list respects the server's `readonly` flag, falling
+back to ownership when the flag is absent. Each write checks fresh metadata.
+Appends preserve the selected order and duplicate IDs; removals use the original
+server positions only after checking that the server's ordered IDs still match.
+The protocol has no conditional-write revision, so this cannot lock out another
+client changing the same playlist between that check and the write.
+
+Each destination has independent progress, confirmation, and retry. An uncertain
+write keeps its checkpoint: Retry reads the server and never blindly repeats an
+append or creation. Creation reconciles a newly returned server ID, distinguishing
+pre-existing playlists with the same name. Local rows remain visible until reads
+observe the change. A rejected write restores the prior rows and offers recovery.
+Signing out cancels pending work and discards account-specific checkpoints.
+
 Artist links use the IDs from OpenSubsonic's individual credits or the older
 `artistId` field. The artist page uses album-artist IDs from `getArtist` to separate
 the discography from guest appearances. When the server returns only the

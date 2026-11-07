@@ -24,6 +24,75 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn playlist_editor_uses_displayed_selection_order_and_marks_readonly_destinations() {
+    for flags in ["", "light"] {
+        for width in [760., 1280.] {
+            let mut rt = runtime("playlist:list0", flags);
+            rt.set_viewport((width, 800.), 2.);
+            rt.update(|s, tx| {
+                if let Some(Collection::Playlist { songs, .. }) =
+                    s.app.presentation.navidrome_search.collection.get_mut()
+                {
+                    *songs = [("dup", "Beta"), ("last", "Alpha"), ("dup", "Beta")]
+                        .into_iter()
+                        .map(|(id, title)| Song {
+                            id: id.into(),
+                            title: title.into(),
+                            ..Default::default()
+                        })
+                        .collect();
+                }
+                s.sync_tracks();
+                s.sort_collection(crate::model::SortColumn::Title);
+                s.table.selection.rows = [0, 1, 2].into();
+                let key = s.table.key(1).to_owned();
+                s.add_to_playlists(Some(&key), tx);
+            });
+            rt.frame(0.);
+            rt.settle_all();
+            assert_eq!(
+                rt.state
+                    .app
+                    .presentation
+                    .navidrome_playlists
+                    .songs
+                    .iter()
+                    .map(|s| s.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["last", "dup", "dup"]
+            );
+            assert!(rt.accessibility_json().to_string().contains("Read-only"));
+            let destinations = rt
+                .state
+                .app
+                .presentation
+                .navidrome_playlists
+                .destinations
+                .get()
+                .unwrap();
+            assert!(!rt.state.app.playlist_destination_writable(&destinations[2]));
+            assert!(rt.accessibility_action(
+                "destination-list0",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            rt.frame(0.);
+            assert!(
+                rt.state
+                    .app
+                    .presentation
+                    .navidrome_playlists
+                    .selected
+                    .contains("list0")
+            );
+            assert!(rt.accessibility_action("playlist-add", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            assert_eq!(rt.state.app.presentation.navidrome_playlists.jobs.len(), 1);
+        }
+    }
+}
+
+#[test]
 fn playlist_browser_opens_same_named_items_by_id_and_play_starts_at_the_top() {
     for flags in ["", "light"] {
         for width in [760., 1280.] {
@@ -329,6 +398,7 @@ fn playlist_scroll_and_selection_survive_back_navigation_and_reloading() {
         name: "Long playlist".into(),
         cover_art: None,
         owner: None,
+        writable: false,
         songs: (0..90)
             .map(|i| Song {
                 id: i.to_string(),
