@@ -752,18 +752,21 @@ mod tests {
             };
             *artist = name.into();
         });
-        rt.set_viewport((760., 800.), 2.);
-        rt.frame(0.);
-        rt.settle_all();
-        let title = rt
-            .elements()
-            .into_iter()
-            .find(|e| e.text.as_deref() == Some(name))
-            .unwrap();
-        assert!(
-            title.rect[3] >= 90.,
-            "title should wrap to two lines: {title:?}"
-        );
+        // At 800 pt Inter's tighter display cut would incorrectly fit on one line.
+        for width in [760., 800.] {
+            rt.set_viewport((width, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            let title = rt
+                .elements()
+                .into_iter()
+                .find(|e| e.text.as_deref() == Some(name))
+                .unwrap();
+            assert!(
+                title.rect[3] >= 90.,
+                "title should wrap at {width} points: {title:?}"
+            );
+        }
     }
 
     #[test]

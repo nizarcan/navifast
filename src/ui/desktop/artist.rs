@@ -199,9 +199,9 @@ fn hero(
 ) -> El {
     let text_width = ((w - 2. * gutter) * 0.70).max(1.);
     let title_size = (w * 0.065).clamp(38., 84.);
-    // The reference uses Inter's default optical cut even at display sizes.
+    // The reference registers Inter at its 14-point text cut, including large titles.
     let title_style = TextStyle::new(title_size, 700.)
-        .optical_sizing(rune::OpticalSize::FontDefault)
+        .optical_size(14.)
         .lh(title_size * 1.21);
     let (_, measured) = rune::text::measure_with(
         name,
