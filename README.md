@@ -100,18 +100,21 @@ Spotify in normal use. See [privacy](docs/_reference/privacy.md).
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and contribution policy.
-Deterministic Navidrome UI previews require the `demo` feature:
+The normal build uses Rune and excludes Fastframe. Deterministic Navidrome UI
+previews use the same dependency set with the `navidrome-demo` feature:
 
 ```sh
-cargo run --locked --features demo --bin navifast -- --demo --demo-navidrome
+cargo run --locked --features navidrome-demo --bin navifast -- --demo --demo-navidrome
 ```
 
 Add `--demo-page search`, `--demo-page album:alb0`, `--demo-page settings`, `--demo-show about`,
 `--demo-show light,equalizer`, `--demo-show signed-out`, or
 `--demo-show restoring` for the startup loading state.
 `--demo-shot PATH --demo-size 1100x760` captures a PNG.
-The inherited `--demo` without `--demo-navidrome` is available for migration
-comparisons and does not connect to Spotify. Legacy modules and their tests
+Build with `--features demo` to include the inherited egui comparison and its
+Fastframe dependencies. Run it with `--demo` alone. This feature also supports
+the Rune preview through `--demo --demo-navidrome`. Demo sessions use isolated
+profiles and local fixtures. Legacy modules and their tests
 remain until their remaining reusable features have moved over.
 
 The first Navifast release candidate is `0.1.0-rc.1`. Release preparation does

@@ -86,7 +86,7 @@ const TRACKS: &[&str] = &[
 
 /// Invented Hebrew and Arabic titles for `--demo-show rtl`: whole lines,
 /// lines mixed with English, numbers, brackets, and punctuation.
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 const RTL_TRACKS: &[(&str, &str, &str)] = &[
     ("שיר ישן (גרסה חיה)", "להקת הים", "גלים, 2024"),
     ("Song 12 שיר ישן, part 3", "Kasia & נועה", "Sessions: חלק ב"),
@@ -620,7 +620,7 @@ pub fn populate(app: &mut App) {
 
 /// Words to go with the sample track, timed so that the one being sung
 /// sits mid-panel at the demo's playback position.
-#[cfg(any(test, feature = "demo"))]
+#[cfg(any(test, feature = "navidrome-demo"))]
 fn sample_lyrics() -> crate::lyrics::Lyrics {
     let lines = [
         (40_000, "Streetlights blinking down the river road"),
@@ -654,7 +654,7 @@ fn sample_lyrics() -> crate::lyrics::Lyrics {
 /// Applies `--demo-page` and `--demo-show`.
 /// Makes the displayed song this computer's playback, with that song's own
 /// metadata, so the player bar draws the same as without it.
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 fn play_here(app: &mut App) {
     app.local_ready = true;
     let now = app.now_playing();
@@ -687,7 +687,7 @@ fn play_here(app: &mut App) {
 /// through the mids and highs, a bright hi-hat hiss and pink noise
 /// beneath, so a visualizer shows peaks across the whole range rather
 /// than a slope from the bass.
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 fn demo_sound() -> Vec<f64> {
     // Frequency and level of each partial, uneven on purpose so
     // neighbouring bands stand at different heights.
@@ -748,7 +748,7 @@ fn demo_sound() -> Vec<f64> {
         .collect()
 }
 
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
     // Default screenshots to the main window regardless of saved settings.
     app.settings.winamp_window = false;
@@ -1255,7 +1255,10 @@ mod tests {
         app.attach(&ctx);
         populate(&mut app);
         // These frames never advance the clock or take pictures.
-        app.reveal_theme_changes = false;
+        #[cfg(any(test, feature = "demo"))]
+        {
+            app.reveal_theme_changes = false;
+        }
         (ctx, app)
     }
 
@@ -4348,7 +4351,7 @@ mod tests {
 
     /// `--demo-show rtl` fills the playlist with right-to-left titles, which
     /// the page hands to layout in the order they were typed.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn the_rtl_demo_shows_right_to_left_titles() {
         fn playlist(app: &mut App, ui: &mut egui::Ui) {
@@ -4374,7 +4377,7 @@ mod tests {
     /// Emoji titles keep their own text: the colour pictures are painted
     /// over hidden glyphs, so layout, copying and screen readers see the
     /// title exactly as Spotify sent it.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn emoji_titles_are_drawn_whole() {
         fn playlist(app: &mut App, ui: &mut egui::Ui) {
@@ -4396,7 +4399,7 @@ mod tests {
     /// Spotify's own mixes carry only the epoch it stamps on dates it never
     /// recorded: their table has no Date added column, and the album names
     /// sit under their heading rather than a column's width to its right.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn an_undated_mix_has_no_date_added_column() {
         fn playlist(app: &mut App, ui: &mut egui::Ui) {
@@ -4443,7 +4446,7 @@ mod tests {
 
     /// The player bar's visualizer draws only when chosen and while the
     /// song plays on this computer, and asks for frames only then.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn the_player_bar_visualizer_moves_only_when_chosen_and_playing() {
         use crate::settings::PlayerBarVis;
@@ -4517,7 +4520,7 @@ mod tests {
 
     /// A click on the player bar's empty space moves the visualizer to its
     /// next mode, and a click on a control does not.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn clicking_the_player_bars_empty_space_cycles_the_visualizer() {
         let (ctx, mut app) = accessible_app("player-bar-cycle");
@@ -4561,7 +4564,7 @@ mod tests {
 
     /// The empty space's tooltip belongs to the empty space: once shown, it
     /// closes when the pointer moves onto a control drawn over the bar.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn the_visualizer_tooltip_stays_off_the_player_bar_controls() {
         let (ctx, mut app) = accessible_app("player-bar-tooltip");
@@ -5997,7 +6000,7 @@ mod tests {
 
     /// Full screen puts the cover and the lyrics side by side as one centred
     /// group, and a song without words gets its cover alone in the middle.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn full_screen_lyrics_show_the_cover_beside_the_words_or_alone() {
         let find = |shapes: &[egui::epaint::ClippedShape], wanted: &str| {
@@ -6049,7 +6052,7 @@ mod tests {
     /// The cover moves aside only once there are words: while lyrics load,
     /// and when fetching them failed, it stays in the middle, the failure
     /// with its retry beneath.
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn full_screen_lyrics_keep_the_cover_centred_until_there_are_words() {
         let centred = |shapes: &[egui::epaint::ClippedShape], wanted: &str| {
@@ -6191,7 +6194,10 @@ mod tests {
         app.attach(&ctx);
         populate(&mut app);
         // These frames never advance the clock or take pictures.
-        app.reveal_theme_changes = false;
+        #[cfg(any(test, feature = "demo"))]
+        {
+            app.reveal_theme_changes = false;
+        }
 
         let pages = [
             Page::Home,

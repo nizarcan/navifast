@@ -25,6 +25,8 @@ use std::{
 
 pub struct Launch {
     pub dirs: crate::paths::AppDirs,
+    pub receipt: Option<crate::updates::Receipt>,
+    pub update_error: Option<String>,
     pub link: Option<String>,
     pub demo: bool,
     pub size: Option<[f32; 2]>,
@@ -91,7 +93,7 @@ impl Host for Window {
                 p.custom_themes.start(
                     app.dirs.config.join("themes"),
                     p.settings.custom_theme.clone(),
-                    &fastframe_theme::Waker::new(move || wake()),
+                    wake,
                 );
             }
             Action::ShowDialog(dialog) => p.dialog = Some(dialog),
@@ -171,21 +173,17 @@ impl State {
             covers: RefCell::default(),
             wake: wake.clone(),
         };
-        let app = App::with_host(
+        let mut app = App::with_host(
             launch.dirs,
             instance,
             launch.demo,
             &Default::default(),
             wake.clone(),
         );
-        #[cfg(feature = "demo")]
-        let app = {
-            let mut app = app;
-            if launch.demo {
-                app.populate_demo_model(launch.page.as_deref(), launch.flags.as_deref(), &window);
-            }
-            app
-        };
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo {
+            app.populate_demo_model(launch.page.as_deref(), launch.flags.as_deref(), &window);
+        }
         let flags = launch
             .flags
             .as_deref()
@@ -200,6 +198,9 @@ impl State {
             ""
         };
         let page = app.presentation.page().clone();
+        if let Some(error) = launch.update_error {
+            app.presentation.report_update_failure(error);
+        }
         let mut state = Self {
             server: TextEdit::new(&app.login.server),
             user: TextEdit::new(&app.login.username),
@@ -548,7 +549,8 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     changed
 }
 
-pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Result<(), String> {
+pub fn run(mut launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Result<(), String> {
+    let mut receipt = launch.receipt.take();
     let mut args = Vec::new();
     if let Some(path) = &launch.snapshot {
         args.extend([
@@ -583,7 +585,7 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
     let spec = AppSpec {
         poll: Some(poll),
         on_key: Some(views::keys),
-        fonts: &[fastframe_fonts::INTER],
+        fonts: &[crate::theme::INTER],
         min_size: Some((
             crate::window::MAIN_MIN_SIZE[0],
             crate::window::MAIN_MIN_SIZE[1],
@@ -619,6 +621,15 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
             window_mode.restore(handle);
             *observe.borrow_mut() = Some(handle.clone());
         })
+        .on_ready(move |_| {
+            if let Some(receipt) = receipt.take() {
+                std::thread::spawn(move || {
+                    if let Err(error) = receipt.acknowledge() {
+                        log::error!("unable to acknowledge the update: {error}");
+                    }
+                });
+            }
+        })
         .on_close(|s, _| s.save_placement())
         .on_focus(|s, on, _| {
             if !on {
@@ -632,7 +643,7 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
         None
     } else {
         match crate::single_instance::acquire_with_wake(
-            &fastframe_theme::Waker::new(move || notify.wake()),
+            std::sync::Arc::new(move || notify.wake()),
             launch.link.as_deref(),
         ) {
             crate::single_instance::Outcome::Only(guard) => Some(guard),
@@ -650,7 +661,7 @@ pub fn run(launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> Resu
         .try_run()
 }
 
-#[cfg(all(test, feature = "demo"))]
+#[cfg(all(test, feature = "navidrome-demo"))]
 mod tests {
     use super::*;
     use rune::{Env, Key, KeyEvent, Mods, Runtime};
@@ -659,6 +670,8 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("navifast-rune-{:016x}", rand::random::<u64>()));
         let launch = Launch {
+            receipt: None,
+            update_error: None,
             dirs: crate::paths::AppDirs {
                 config: root.join("config"),
                 state: root.join("state"),

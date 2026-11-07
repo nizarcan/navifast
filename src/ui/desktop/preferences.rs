@@ -94,7 +94,7 @@ pub(super) fn choice_menu(v: &Paint<'_>, key: &'static str) -> El {
         ];
         opts.extend(p.custom_themes.themes().iter().map(|t| {
             (
-                fastframe_theme::display_name(&t.filename).to_owned(),
+                crate::theme::display_name(&t.filename).to_owned(),
                 Action::SetCustomTheme(t.filename.clone()),
             )
         }));
@@ -232,7 +232,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         let current = settings
             .custom_theme
             .as_ref()
-            .map(|name| fastframe_theme::display_name(name).to_owned())
+            .map(|name| crate::theme::display_name(name).to_owned())
             .unwrap_or_else(|| {
                 v.tr(match settings.theme {
                     ThemeChoice::Light => "Light",

@@ -1980,25 +1980,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fastframe-i18n"
-version = "0.2.3"
-source = "git+https://github.com/crmne/fastframe?tag=v0.2.3#5202e4a4aaebe94dc08ddd90e7c1320b6ec473e6"
-dependencies = [
- "include-po",
- "polib",
- "sys-locale",
- "tr",
-]
-
-[[package]]
-name = "fastframe-icons"
-version = "0.2.3"
-source = "git+https://github.com/crmne/fastframe?tag=v0.2.3#5202e4a4aaebe94dc08ddd90e7c1320b6ec473e6"
-dependencies = [
- "egui",
-]
-
-[[package]]
 name = "fastframe-log"
 version = "0.2.3"
 source = "git+https://github.com/crmne/fastframe?tag=v0.2.3#5202e4a4aaebe94dc08ddd90e7c1320b6ec473e6"
@@ -2006,18 +1987,6 @@ dependencies = [
  "env_logger",
  "jiff",
  "log",
-]
-
-[[package]]
-name = "fastframe-macos"
-version = "0.2.3"
-source = "git+https://github.com/crmne/fastframe?tag=v0.2.3#5202e4a4aaebe94dc08ddd90e7c1320b6ec473e6"
-dependencies = [
- "eframe",
- "egui",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "raw-window-handle",
 ]
 
 [[package]]
@@ -3902,12 +3871,10 @@ dependencies = [
  "eframe",
  "egui",
  "egui_extras",
+ "env_logger",
  "fastframe-emoji",
  "fastframe-fonts",
- "fastframe-i18n",
- "fastframe-icons",
  "fastframe-log",
- "fastframe-macos",
  "fastframe-shell",
  "fastframe-text",
  "fastframe-theme",
@@ -3920,6 +3887,7 @@ dependencies = [
  "http",
  "hyper-util",
  "image",
+ "include-po",
  "jiff",
  "keyring-core",
  "librespot-connect",
@@ -3932,6 +3900,7 @@ dependencies = [
  "mdns-sd",
  "memmap2",
  "mpris-server",
+ "notify",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
@@ -3955,9 +3924,11 @@ dependencies = [
  "skrifa",
  "souvlaki",
  "symphonia",
+ "sys-locale",
  "thiserror 2.0.20",
  "tiny-skia",
  "tokio",
+ "tr",
  "unicode-bidi",
  "urlencoding",
  "wgpu",

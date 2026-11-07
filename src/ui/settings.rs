@@ -889,7 +889,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                             .settings
                             .custom_theme
                             .as_deref()
-                            .map(|filename| fastframe_theme::display_name(filename).into())
+                            .map(|filename| crate::theme::display_name(filename).into())
                             .unwrap_or_else(|| app.settings.theme.label(locale));
                         let response = egui::ComboBox::from_id_salt("appearance_theme")
                             .selected_text(selected.as_ref())
@@ -915,7 +915,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                                         .selectable_label(
                                             app.settings.custom_theme.as_deref()
                                                 == Some(theme.filename.as_str()),
-                                            fastframe_theme::display_name(&theme.filename),
+                                            crate::theme::display_name(&theme.filename),
                                         )
                                         .clicked()
                                     {
@@ -1429,7 +1429,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     if response.changed() {
                         app.actions.push(Action::SetWinampTaskbar(visible));
                     }
-                    #[cfg(any(test, feature = "demo"))]
+                    #[cfg(any(test, feature = "navidrome-demo"))]
                     if app.demo_windows_controls {
                         let id = egui::Id::new("demo-winamp-taskbar-focus");
                         if !ui.data(|data| data.get_temp::<bool>(id)).unwrap_or(false) {

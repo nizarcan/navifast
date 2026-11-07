@@ -248,14 +248,14 @@ pub struct Settings {
     /// Last accepted appearance, retained if its source file becomes unavailable.
     #[serde(
         default,
-        deserialize_with = "fastframe_theme::read_cached_theme",
+        deserialize_with = "crate::theme::read_cached_theme",
         skip_serializing_if = "Option::is_none"
     )]
     pub custom_theme_cache: Option<crate::theme::CustomTheme>,
     /// Last detected system palette, so following Omarchy survives a restart.
     #[serde(
         default,
-        deserialize_with = "fastframe_theme::read_cached_theme",
+        deserialize_with = "crate::theme::read_cached_theme",
         skip_serializing_if = "Option::is_none"
     )]
     pub system_theme_cache: Option<crate::theme::CustomTheme>,

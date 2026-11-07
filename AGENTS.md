@@ -18,7 +18,9 @@ These instructions add implementation constraints for coding agents.
 - Build Navidrome views in `src/ui/desktop/`. Route Rune control actions
   through `src/app/navidrome/desktop.rs` to the controller in
   `src/app/navidrome.rs`. In the inherited egui views, emit actions during
-  drawing and apply them afterward in `src/app.rs`.
+  drawing and apply them afterward in `src/app.rs`. Keep Fastframe confined
+  to the optional legacy `demo` and its reference tests. Use `navidrome-demo`
+  for Rune screenshots without Fastframe.
 - Run Navidrome requests in `src/navidrome/backend.rs` and playback in
   `src/navidrome/player.rs`. Keep blocking work off the UI thread.
 - Keep platform integrations behind target-specific modules or `cfg` blocks.

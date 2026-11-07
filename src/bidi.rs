@@ -323,8 +323,12 @@ fn reorder_row(row: &mut Row, text: &str, pixels_per_point: f32) {
         // Both ends on whole physical pixels. epaint rasterizes each glyph
         // for its place on the pixel grid; moving the quad by a fraction
         // left the moved runs between pixels, blurred (0.21 px at 133%).
-        let delta = fastframe_text::snap_to_pixels(cursor, pixels_per_point)
-            - fastframe_text::snap_to_pixels(atom.min_x, pixels_per_point);
+        let delta = if pixels_per_point.is_finite() && pixels_per_point > 0.0 {
+            egui::emath::GuiRounding::round_to_pixels(cursor, pixels_per_point)
+                - egui::emath::GuiRounding::round_to_pixels(atom.min_x, pixels_per_point)
+        } else {
+            cursor - atom.min_x
+        };
         if delta.abs() > 0.01 {
             for glyph in &mut row.glyphs[atom.glyphs.clone()] {
                 glyph.pos.x += delta;

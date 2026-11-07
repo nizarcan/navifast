@@ -1,6 +1,6 @@
 //! The tray on a private bus shaped like Flatpak's: the item must register
 //! without owning a name, and a click must reach the app.
-#![cfg(target_os = "linux")]
+#![cfg(all(target_os = "linux", feature = "demo"))]
 
 use std::io::BufRead;
 use std::process::{Command, Stdio};

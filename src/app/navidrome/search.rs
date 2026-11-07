@@ -164,7 +164,7 @@ impl App {
                 part,
             });
         }
-        #[cfg(feature = "demo")]
+        #[cfg(feature = "navidrome-demo")]
         if self.demo && self.client.is_none() {
             self.demo_search_part(part);
         }
@@ -327,7 +327,7 @@ impl App {
         };
         state.collection_page = Some(page.clone());
         state.collection = Loadable::Loading;
-        #[cfg(feature = "demo")]
+        #[cfg(feature = "navidrome-demo")]
         if self.demo && self.client.is_none() {
             self.demo_collection(kind, &id);
             return;
@@ -394,7 +394,7 @@ impl App {
     }
 }
 
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 impl App {
     fn demo_search_part(&mut self, part: SearchPart) {
         let query = self.presentation.search.committed.to_lowercase();

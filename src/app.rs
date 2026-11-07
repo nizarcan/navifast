@@ -246,8 +246,10 @@ pub struct App {
     /// from. Finding the file touches the disk and the controls are synced
     /// every frame, so the answer is kept until the artwork changes.
     media_art: Option<(String, PathBuf)>,
+    #[cfg(feature = "demo")]
     tray: Option<fastframe_tray::Tray>,
     /// Whether the tray menu last offered Pause rather than Play.
+    #[cfg(feature = "demo")]
     tray_playing: bool,
     pub window_hidden: bool,
     /// The window should close but the process should stay in the tray.
@@ -281,13 +283,15 @@ pub struct App {
     /// Whether this window's native backend can leave the mini player out of
     /// the taskbar: Windows and X11.
     pub taskbar_hiding_supported: bool,
-    #[cfg(any(test, feature = "demo"))]
+    #[cfg(any(test, feature = "navidrome-demo"))]
     pub demo_windows_controls: bool,
     applied_dark: Option<bool>,
     /// Reveals new colours from the middle of the window outwards.
+    #[cfg(any(test, feature = "demo"))]
     theme_transition: fastframe_theme::Transition,
     /// Whether colour changes are revealed. Tests that check which palette
     /// applies, on a context that never draws, turn it off.
+    #[cfg(any(test, feature = "demo"))]
     pub(crate) reveal_theme_changes: bool,
     pub custom_themes: theme::Catalog,
 
@@ -574,7 +578,7 @@ pub struct App {
     pub update_source: crate::updates::Source,
     pub update_support: Option<Result<crate::updates::Installation, String>>,
     pub update_restart_arguments: Vec<String>,
-    pub update_receipt: Option<fastframe_update::Receipt>,
+    pub update_receipt: Option<crate::updates::Receipt>,
     /// Winamp window state and active skin.
     pub winamp: crate::winamp::WinampState,
     /// The spectrum behind the player bar, when that is chosen.
@@ -613,14 +617,20 @@ const GLIDE_STOP: f32 = 40.0;
 /// in seconds: the span the release speed is measured over.
 const GLIDE_REST: f64 = 0.1;
 
+#[cfg(feature = "demo")]
 const TRAY_SHOW: &str = "show";
+#[cfg(feature = "demo")]
 const TRAY_PLAY_PAUSE: &str = "play-pause";
+#[cfg(feature = "demo")]
 const TRAY_NEXT: &str = "next";
+#[cfg(feature = "demo")]
 const TRAY_PREVIOUS: &str = "previous";
+#[cfg(feature = "demo")]
 const TRAY_QUIT: &str = "quit";
 
 /// What the shell around `eframe::run_native` does with the app between
 /// windows.
+#[cfg(feature = "demo")]
 impl fastframe_shell::Resident for App {
     /// Quit wins; switching between the main window and the mini player
     /// opens the other at once; closing to the tray runs without a window.
@@ -660,12 +670,14 @@ impl fastframe_shell::Resident for App {
 }
 
 /// The tray menu's Play or Pause entry, for what is playing.
+#[cfg(feature = "demo")]
 fn play_pause_label(playing: bool) -> &'static str {
     if playing { "Pause" } else { "Play" }
 }
 
 /// The tray item: Navifast's icon, and a menu that shows or hides the
 /// window, controls playback and quits.
+#[cfg(feature = "demo")]
 fn tray_config() -> fastframe_tray::Config {
     use fastframe_tray::MenuItem;
     fastframe_tray::Config {
@@ -745,7 +757,9 @@ impl App {
             }
             media_controls
         };
+        #[cfg(feature = "demo")]
         let wake = waker.clone();
+        #[cfg(feature = "demo")]
         let tray = options
             .tray
             .then(|| fastframe_tray::Tray::spawn(tray_config(), move || wake.wake()))
@@ -777,7 +791,9 @@ impl App {
             #[cfg(target_os = "linux")]
             system_appearance,
             media_art: None,
+            #[cfg(feature = "demo")]
             tray,
+            #[cfg(feature = "demo")]
             tray_playing: false,
             window_hidden: false,
             hide_intent: false,
@@ -792,10 +808,12 @@ impl App {
             locale,
             window_level_supported: true,
             taskbar_hiding_supported: cfg!(windows),
-            #[cfg(any(test, feature = "demo"))]
+            #[cfg(any(test, feature = "navidrome-demo"))]
             demo_windows_controls: false,
             applied_dark: None,
+            #[cfg(any(test, feature = "demo"))]
             theme_transition: fastframe_theme::Transition::default(),
+            #[cfg(any(test, feature = "demo"))]
             reveal_theme_changes: true,
             auth: AuthStatus::Starting,
             user: None,
@@ -1013,6 +1031,7 @@ impl App {
         // A new window starts titled "Navifast"; name the playing song
         // again rather than trust what the replaced window was told.
         self.window_title.clear();
+        #[cfg(feature = "demo")]
         if let Some(tray) = &mut self.tray {
             tray.attach();
         }
@@ -1103,7 +1122,14 @@ impl App {
     /// Whether closing the window keeps the app in the tray rather than
     /// quitting.
     pub fn hides_to_tray(&self) -> bool {
-        self.tray.is_some() && self.settings.keep_playing_in_background
+        #[cfg(feature = "demo")]
+        {
+            self.tray.is_some() && self.settings.keep_playing_in_background
+        }
+        #[cfg(not(feature = "demo"))]
+        {
+            false
+        }
     }
 
     // ---- derived state -----------------------------------------------------
@@ -3176,7 +3202,7 @@ impl App {
         self.custom_themes.start(
             self.dirs.config.join("themes"),
             self.settings.custom_theme.clone(),
-            &fastframe_theme::Waker::new(move || waker.wake()),
+            std::sync::Arc::new(move || waker.wake()),
         );
     }
 
@@ -3274,6 +3300,7 @@ impl App {
         if self.applied_dark != Some(dark) || self.palette != palette {
             // The first colours need no reveal, and the mini player's window
             // is drawn by its skin.
+            #[cfg(any(test, feature = "demo"))]
             if self.reveal_theme_changes
                 && self.applied_dark.is_some()
                 && !self.settings.winamp_window
@@ -3291,6 +3318,7 @@ impl App {
         }
     }
 
+    #[cfg(feature = "demo")]
     fn handle_tray(&mut self) {
         use fastframe_tray::Event;
         let Some(events) = self.tray.as_ref().map(fastframe_tray::Tray::events) else {
@@ -3466,11 +3494,11 @@ impl App {
     }
 
     pub fn windows_controls_visible(&self) -> bool {
-        #[cfg(any(test, feature = "demo"))]
+        #[cfg(any(test, feature = "navidrome-demo"))]
         {
             cfg!(windows) || self.demo_windows_controls
         }
-        #[cfg(not(any(test, feature = "demo")))]
+        #[cfg(not(any(test, feature = "navidrome-demo")))]
         {
             cfg!(windows)
         }
@@ -3520,6 +3548,7 @@ impl App {
             controls.update(state);
         }
         let playing = self.now_playing().is_some_and(|now| now.playing);
+        #[cfg(feature = "demo")]
         if let Some(tray) = &mut self.tray
             && self.tray_playing != playing
         {
@@ -9163,7 +9192,9 @@ impl App {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                 }
             }
-            Action::HideWindow => {
+            Action::HideWindow =>
+            {
+                #[cfg(feature = "demo")]
                 if self.tray.is_some() {
                     self.hide_intent = true;
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
@@ -9659,6 +9690,7 @@ impl App {
         self.handle_events();
         self.open_pending_link();
         self.handle_media_commands();
+        #[cfg(feature = "demo")]
         self.handle_tray();
         #[cfg(target_os = "macos")]
         self.handle_dock_menu();
@@ -9842,6 +9874,7 @@ impl App {
             // Close the window and keep the process running in the tray.
             self.hide_intent = true;
         }
+        #[cfg(any(test, feature = "demo"))]
         self.theme_transition.paint(ctx);
         self.frame_now = None;
     }
@@ -15551,6 +15584,7 @@ mod tests {
     /// Quit wins over everything, a switch between the main window and the
     /// mini player reopens at once, and closing to the tray runs headless
     /// until Show or Quit.
+    #[cfg(feature = "demo")]
     #[test]
     fn the_shell_learns_what_a_closed_window_means() {
         use fastframe_shell::{Closed, Headless, Resident};

@@ -12,6 +12,7 @@ src/milkdrop.rs
 src/model.rs
 src/settings.rs
 src/theme.rs
+src/theme/custom.rs
 src/ui/artist.rs
 src/ui/collection.rs
 src/ui/devices.rs

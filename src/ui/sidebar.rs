@@ -2080,7 +2080,7 @@ pub fn liked_cover(ui: &egui::Ui, rect: Rect, radius: f32) {
         .paint_at(ui, icon_rect);
 }
 
-#[cfg(all(test, feature = "demo"))]
+#[cfg(all(test, feature = "navidrome-demo"))]
 mod ordering_tests {
     use super::*;
     use crate::api::models::Playlist;

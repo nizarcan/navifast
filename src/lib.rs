@@ -9,8 +9,9 @@ pub mod autoscroll;
 pub mod backend;
 pub mod bidi;
 pub mod credentials;
-#[cfg(any(test, feature = "demo"))]
+#[cfg(any(test, feature = "navidrome-demo"))]
 pub mod demo;
+#[cfg(any(test, feature = "demo"))]
 pub mod emoji;
 pub mod eq;
 pub mod history;
@@ -20,7 +21,10 @@ pub mod images;
 pub mod liked;
 pub mod limiter;
 pub mod link;
+pub mod logging;
 pub mod lyrics;
+#[cfg(target_os = "macos")]
+pub mod mac_fonts;
 #[cfg(target_os = "macos")]
 pub mod mac_links;
 #[cfg(target_os = "macos")]

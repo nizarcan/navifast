@@ -7,14 +7,13 @@
 #[cfg(target_os = "linux")]
 mod omarchy;
 
-use crate::i18n::{Locale, gettext};
+use crate::i18n::Locale;
 use egui::{Color32, CornerRadius, Response, Sense, Stroke, Vec2};
 use std::borrow::Cow;
 
-/// A palette file from the themes directory.
-pub type CustomTheme = fastframe_theme::CustomTheme<Palette>;
-/// The palette files, and the Omarchy palette where the desktop has one.
-pub type Catalog = fastframe_theme::Catalog<Palette>;
+mod custom;
+mod presets;
+pub use custom::{Catalog, CustomTheme, display_name, read_cached_theme};
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Palette {
@@ -103,38 +102,6 @@ impl Palette {
     }
 }
 
-impl fastframe_theme::Palette for Palette {
-    fn base(base: fastframe_theme::Base) -> Self {
-        match base {
-            fastframe_theme::Base::Dark => Self::dark(),
-            fastframe_theme::Base::Light => Self::light(),
-        }
-    }
-
-    fn set(&mut self, name: &str, color: Color32) -> bool {
-        match name {
-            "window" => self.window = color,
-            "panel" => self.panel = color,
-            "surface" => self.surface = color,
-            "surface_hover" => self.surface_hover = color,
-            "surface_active" => self.surface_active = color,
-            "outline" => self.outline = color,
-            "text" => self.text = color,
-            "secondary" => self.secondary = color,
-            "dim" => self.dim = color,
-            "accent" => self.accent = color,
-            "accent_hover" => self.accent_hover = color,
-            "on_accent" => self.on_accent = color,
-            "danger" => self.danger = color,
-            "warning" => self.warning = color,
-            "overlay" => self.overlay = color,
-            "shadow" => self.shadow = color,
-            _ => return false,
-        }
-        true
-    }
-}
-
 /// Whether a launch may follow the desktop's themes with this themes
 /// folder. An updater trial of the legacy Fastpotify profile does not, so the
 /// old hook and profile stay together until the update is accepted.
@@ -152,13 +119,7 @@ pub fn enable_desktop_themes(catalog: &mut Catalog, themes: &std::path::Path) {
     }
     #[cfg(target_os = "linux")]
     omarchy::upgrade_legacy_hook();
-    catalog.enable_desktop_themes(fastframe_theme::DesktopThemes {
-        slug: "navifast",
-        omarchy_template: include_str!("../contrib/omarchy/navifast.json.tpl"),
-        // The template has not changed since it first shipped.
-        omarchy_previous_templates: &[],
-        presets: true,
-    });
+    catalog.enable_desktop_themes();
 }
 
 /// The status line under the Theme setting, empty when all is well.
@@ -167,37 +128,7 @@ pub fn catalog_detail(
     locale: Locale,
     selected: Option<&str>,
 ) -> Cow<'static, str> {
-    use fastframe_theme::{Problem, Status};
-    let Some(status) = catalog.status(selected) else {
-        return Cow::Borrowed("");
-    };
-    match status {
-        Status::Loading => gettext(locale, "Loading local themes…"),
-        Status::SelectedUnavailable => gettext(
-            locale,
-            "The selected theme is unavailable. Keeping the last usable appearance. See the log for details.",
-        ),
-        Status::Problem(Problem::Unreadable) => gettext(
-            locale,
-            "The themes folder could not be read. See the log for details.",
-        ),
-        Status::Problem(Problem::TooManyEntries) => gettext(
-            locale,
-            "The themes folder has more than 512 entries. Keep fewer files there to list the custom palettes.",
-        ),
-        Status::Problem(Problem::TooManyThemes) => gettext(
-            locale,
-            "Only 128 custom palettes can be listed. Keep fewer JSON files in the themes folder to see the rest.",
-        ),
-        Status::Problem(Problem::OmarchyUnreadable) => gettext(
-            locale,
-            "The Omarchy palette could not be loaded. Keeping the last usable appearance. See the log for details.",
-        ),
-        Status::Problem(_) => gettext(
-            locale,
-            "Custom themes could not be loaded. Run navifast reload-themes to try again.",
-        ),
-    }
+    catalog.detail_in(locale, selected)
 }
 
 pub const RADIUS: u8 = 8;
@@ -226,26 +157,33 @@ pub fn titlebar_inset(ctx: &egui::Context) -> f32 {
     }
 }
 
+pub const INTER: &[u8] = include_bytes!("../assets/fonts/InterVariable.ttf");
+
+const INTER_MEDIUM: &str = "inter-medium";
+const INTER_SEMIBOLD: &str = "inter-semibold";
+const INTER_BOLD: &str = "inter-bold";
+
 pub fn regular(size: f32) -> egui::FontId {
-    fastframe_fonts::Weight::Regular.font_id(size)
+    egui::FontId::new(size, egui::FontFamily::Proportional)
 }
 
 pub fn medium(size: f32) -> egui::FontId {
-    fastframe_fonts::Weight::Medium.font_id(size)
+    egui::FontId::new(size, egui::FontFamily::Name(INTER_MEDIUM.into()))
 }
 
 pub fn semibold(size: f32) -> egui::FontId {
-    fastframe_fonts::Weight::SemiBold.font_id(size)
+    egui::FontId::new(size, egui::FontFamily::Name(INTER_SEMIBOLD.into()))
 }
 
 pub fn bold(size: f32) -> egui::FontId {
-    fastframe_fonts::Weight::Bold.font_id(size)
+    egui::FontId::new(size, egui::FontFamily::Name(INTER_BOLD.into()))
 }
 
 /// How the desktop renders text, read once per process.
 ///
 /// Tests use the platform's default instead of asking the desktop, so they
 /// neither wait on D-Bus nor depend on the machine's settings.
+#[cfg(any(test, feature = "demo"))]
 pub fn text_rendering() -> fastframe_text::TextRendering {
     static RENDERING: std::sync::OnceLock<fastframe_text::TextRendering> =
         std::sync::OnceLock::new();
@@ -260,10 +198,11 @@ pub fn text_rendering() -> fastframe_text::TextRendering {
 
 /// Install fonts, icons, and the base style once.
 pub fn install(ctx: &egui::Context) {
+    #[cfg(any(test, feature = "demo"))]
     install_fonts(ctx);
     egui_extras::install_image_loaders(ctx);
-    fastframe_icons::install::<Icon>(ctx);
     // Colour emoji over every text egui draws (see `crate::emoji`).
+    #[cfg(any(test, feature = "demo"))]
     ctx.add_plugin(fastframe_emoji::EmojiPlugin::default());
 }
 
@@ -291,6 +230,7 @@ fn apply_to_style(style: &mut egui::Style, palette: &Palette) {
     // Glyph coverage, hinting and sub-pixel positions as the desktop draws
     // them: linear coverage in both themes on Linux, where egui's dark curve
     // (2c - c²) made text heavier than GTK's.
+    #[cfg(any(test, feature = "demo"))]
     text_rendering().apply_to_visuals(visuals);
     visuals.panel_fill = palette.panel;
     visuals.window_fill = palette.overlay;
@@ -386,6 +326,7 @@ fn apply_to_style(style: &mut egui::Style, palette: &Palette) {
 /// (so every emoji wears the same style, ahead of egui's own pair), then the
 /// installed faces for the scripts Inter lacks, drawn the way the desktop
 /// renders text.
+#[cfg(any(test, feature = "demo"))]
 fn install_fonts(ctx: &egui::Context) {
     let emoji = egui::FontData::from_static(include_bytes!("../assets/fonts/NotoEmoji.ttf"));
     let mut fonts = fastframe_fonts::FontSetup::default()
@@ -395,104 +336,118 @@ fn install_fonts(ctx: &egui::Context) {
     ctx.set_fonts(fonts);
 }
 
-fastframe_icons::icons! {
-    /// Every icon the interface draws. The shared Lucide icons come from
-    /// fastframe-icons; the rest are Navifast's own files.
-    pub enum Icon {
-        prefix: "navifast-icon-",
-        directory: "../assets/icons/",
-        ArrowLeft => lucide "arrow-left",
-        ArrowRight => "arrow-right",
-        AudioLines => "audio-lines",
-        BadgeCheck => "badge-check",
-        Bookmark => "bookmark",
-        BookmarkFilled => "bookmark-filled",
-        Car => "car",
-        Cast => "cast",
-        Check => lucide "check",
-        ChevronDown => lucide "chevron-down",
-        ChevronLeft => lucide "chevron-left",
-        ChevronRight => lucide "chevron-right",
-        ChevronUp => lucide "chevron-up",
-        CircleAlert => lucide "circle-alert",
-        CircleCheck => lucide "circle-check",
-        CirclePlay => "circle-play",
-        CirclePlus => "circle-plus",
-        CircleX => lucide "circle-x",
-        Clock => lucide "clock",
-        Compass => "compass",
-        Copy => lucide "copy",
-        Disc => "disc-3",
-        Ellipsis => lucide "ellipsis",
-        Expand => "expand",
-        ExternalLink => lucide "external-link",
-        Gamepad => "gamepad-2",
-        Globe => "globe",
-        GripVertical => "grip-vertical",
-        Headphones => "headphones",
-        Star => "star",
-        StarFilled => "star-filled",
-        Heart => "heart",
-        HeartFilled => "heart-filled",
-        House => "house",
-        Info => lucide "info",
-        Laptop => "laptop",
-        Library => "library",
-        LayoutGrid => "layout-grid",
-        LayoutList => "layout-list",
-        ListEnd => "list-end",
-        ListMusic => "list-music",
-        ListPlus => "list-plus",
-        ListVideo => "list-video",
-        Loader => "loader-circle",
-        Lock => lucide "lock",
-        LogOut => lucide "log-out",
-        Mic => lucide "mic",
-        Minus => lucide "minus",
-        Monitor => lucide "monitor",
-        Moon => lucide "moon",
-        Music => "music",
-        Pause => lucide "pause",
-        PauseFilled => "pause-filled",
-        PanelLeft => lucide "panel-left",
-        Pin => lucide "pin",
-        PinOff => lucide "pin-off",
-        Pencil => lucide "pencil",
-        Play => lucide "play",
-        PlayFilled => "play-filled",
-        Plus => lucide "plus",
-        Radio => "radio",
-        Refresh => lucide "refresh-cw",
-        Repeat => "repeat",
-        Repeat1 => "repeat-1",
-        Search => lucide "search",
-        Settings => lucide "settings",
-        Shrink => "shrink",
-        Shuffle => "shuffle",
-        SkipBack => "skip-back",
-        SkipBackFilled => "skip-back-filled",
-        SkipForward => "skip-forward",
-        SkipForwardFilled => "skip-forward-filled",
-        Smartphone => lucide "smartphone",
-        Sparkles => "sparkles",
-        Speaker => "speaker",
-        Square => "square",
-        SquarePen => lucide "square-pen",
-        Sun => lucide "sun",
-        Tablet => "tablet",
-        Trash => lucide "trash-2",
-        TrendingUp => "trending-up",
-        Tv => "tv",
-        User => lucide "user",
-        Users => lucide "users",
-        Volume => "volume",
-        Volume1 => "volume-1",
-        Volume2 => lucide "volume-2",
-        VolumeX => lucide "volume-x",
-        Watch => "watch",
-        X => lucide "x",
-        Zap => "zap",
-    }
+macro_rules! icons {
+    ($($name:ident => $file:literal),+ $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        pub enum Icon { $($name),+ }
+
+        impl Icon {
+            pub const ALL: &[Self] = &[$(Self::$name),+];
+            pub const fn bytes(self) -> &'static [u8] {
+                match self { $(Self::$name => include_bytes!(concat!("../assets/icons/", $file, ".svg"))),+ }
+            }
+            pub const fn uri(self) -> &'static str {
+                match self { $(Self::$name => concat!("bytes://navifast-icon-", $file, ".svg")),+ }
+            }
+            pub fn image(self, tint: Color32, size: f32) -> egui::Image<'static> {
+                egui::Image::from_bytes(self.uri(), self.bytes()).tint(tint).fit_to_exact_size(Vec2::splat(size))
+            }
+        }
+    };
+}
+
+icons! {
+    ArrowLeft => "arrow-left",
+    ArrowRight => "arrow-right",
+    AudioLines => "audio-lines",
+    BadgeCheck => "badge-check",
+    Bookmark => "bookmark",
+    BookmarkFilled => "bookmark-filled",
+    Car => "car",
+    Cast => "cast",
+    Check => "check",
+    ChevronDown => "chevron-down",
+    ChevronLeft => "chevron-left",
+    ChevronRight => "chevron-right",
+    ChevronUp => "chevron-up",
+    CircleAlert => "circle-alert",
+    CircleCheck => "circle-check",
+    CirclePlay => "circle-play",
+    CirclePlus => "circle-plus",
+    CircleX => "circle-x",
+    Clock => "clock",
+    Compass => "compass",
+    Copy => "copy",
+    Disc => "disc-3",
+    Ellipsis => "ellipsis",
+    Expand => "expand",
+    ExternalLink => "external-link",
+    Gamepad => "gamepad-2",
+    Globe => "globe",
+    GripVertical => "grip-vertical",
+    Headphones => "headphones",
+    Star => "star",
+    StarFilled => "star-filled",
+    Heart => "heart",
+    HeartFilled => "heart-filled",
+    House => "house",
+    Info => "info",
+    Laptop => "laptop",
+    Library => "library",
+    LayoutGrid => "layout-grid",
+    LayoutList => "layout-list",
+    ListEnd => "list-end",
+    ListMusic => "list-music",
+    ListPlus => "list-plus",
+    ListVideo => "list-video",
+    Loader => "loader-circle",
+    Lock => "lock",
+    LogOut => "log-out",
+    Mic => "mic",
+    Minus => "minus",
+    Monitor => "monitor",
+    Moon => "moon",
+    Music => "music",
+    Pause => "pause",
+    PauseFilled => "pause-filled",
+    PanelLeft => "panel-left",
+    Pin => "pin",
+    PinOff => "pin-off",
+    Pencil => "pencil",
+    Play => "play",
+    PlayFilled => "play-filled",
+    Plus => "plus",
+    Radio => "radio",
+    Refresh => "refresh-cw",
+    Repeat => "repeat",
+    Repeat1 => "repeat-1",
+    Search => "search",
+    Settings => "settings",
+    Shrink => "shrink",
+    Shuffle => "shuffle",
+    SkipBack => "skip-back",
+    SkipBackFilled => "skip-back-filled",
+    SkipForward => "skip-forward",
+    SkipForwardFilled => "skip-forward-filled",
+    Smartphone => "smartphone",
+    Sparkles => "sparkles",
+    Speaker => "speaker",
+    Square => "square",
+    SquarePen => "square-pen",
+    Sun => "sun",
+    Tablet => "tablet",
+    Trash => "trash-2",
+    TrendingUp => "trending-up",
+    Tv => "tv",
+    User => "user",
+    Users => "users",
+    Volume => "volume",
+    Volume1 => "volume-1",
+    Volume2 => "volume-2",
+    VolumeX => "volume-x",
+    Watch => "watch",
+    X => "x",
+    Zap => "zap",
 }
 
 /// A static icon.
@@ -918,7 +873,45 @@ pub fn subtle(ui: &mut egui::Ui, palette: &Palette, label: &str) -> Response {
 }
 
 #[cfg(test)]
+impl fastframe_theme::Palette for Palette {
+    fn base(base: fastframe_theme::Base) -> Self {
+        match base {
+            fastframe_theme::Base::Dark => Self::dark(),
+            fastframe_theme::Base::Light => Self::light(),
+        }
+    }
+
+    fn set(&mut self, name: &str, color: Color32) -> bool {
+        match name {
+            "window" => self.window = color,
+            "panel" => self.panel = color,
+            "surface" => self.surface = color,
+            "surface_hover" => self.surface_hover = color,
+            "surface_active" => self.surface_active = color,
+            "outline" => self.outline = color,
+            "text" => self.text = color,
+            "secondary" => self.secondary = color,
+            "dim" => self.dim = color,
+            "accent" => self.accent = color,
+            "accent_hover" => self.accent_hover = color,
+            "on_accent" => self.on_accent = color,
+            "danger" => self.danger = color,
+            "warning" => self.warning = color,
+            "overlay" => self.overlay = color,
+            "shadow" => self.shadow = color,
+            _ => return false,
+        }
+        true
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    #[test]
+    fn rune_uses_the_exact_reference_font() {
+        assert_eq!(INTER, fastframe_fonts::INTER);
+    }
+
     use super::*;
 
     /// The logo drawn in the app is the app icon's own picture, not a
@@ -956,16 +949,17 @@ mod tests {
     /// those: a typo is an invalid file, not an ignored colour.
     #[test]
     fn palette_files_set_every_base_colour() {
-        use fastframe_theme::Palette as _;
         for name in fastframe_theme::BASE_COLORS {
-            let mut palette = Palette::dark();
-            assert!(palette.set(name, Color32::from_rgb(1, 2, 3)), "{name}");
-            assert_ne!(palette, Palette::dark(), "{name}");
+            let json = serde_json::json!({"colors":{(*name):"#010203"}}).to_string();
+            assert_ne!(
+                custom::parse_palette(&json).unwrap(),
+                Palette::dark(),
+                "{name}"
+            );
         }
-        assert!(!Palette::dark().set("typo", Color32::RED));
-        let light: Palette =
-            fastframe_theme::parse_palette(r##"{"base":"light","colors":{"accent":"#8c3fa5"}}"##)
-                .unwrap();
+        assert!(custom::parse_palette(r##"{"colors":{"typo":"#123456"}}"##).is_err());
+        let light =
+            custom::parse_palette(r##"{"base":"light","colors":{"accent":"#8c3fa5"}}"##).unwrap();
         assert!(!light.dark);
         assert_eq!(light.accent, Color32::from_rgb(140, 63, 165));
         assert_eq!(light.window, Palette::light().window);

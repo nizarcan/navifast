@@ -428,7 +428,7 @@ impl App {
     }
 }
 
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 impl App {
     pub(super) fn populate_demo_favorites(&mut self, on_favorites: bool, flags: &[&str]) {
         let mut list = Catalogue::default();

@@ -202,7 +202,7 @@ pub struct App {
     media: Option<crate::media_controls::MediaService>,
     demo: bool,
     _instance: Option<crate::single_instance::Guard>,
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     pub shot: Option<(std::path::PathBuf, Instant, bool)>,
 }
 
@@ -293,7 +293,7 @@ impl App {
         presentation.custom_themes.start(
             dirs.config.join("themes"),
             presentation.settings.custom_theme.clone(),
-            &fastframe_theme::Waker::new(move || theme_wake()),
+            theme_wake,
         );
         let eq = presentation.winamp.eq.clone();
         let tap = presentation.winamp.tap.clone();
@@ -370,7 +370,7 @@ impl App {
             media,
             demo,
             _instance: instance,
-            #[cfg(feature = "demo")]
+            #[cfg(feature = "navidrome-demo")]
             shot: None,
         }
     }
@@ -1029,7 +1029,7 @@ impl eframe::App for App {
         if self.transport.song().is_some() && !self.transport.paused {
             ctx.request_repaint_after(Duration::from_millis(33));
         }
-        #[cfg(feature = "demo")]
+        #[cfg(feature = "navidrome-demo")]
         self.capture(ctx);
     }
     fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
@@ -1041,7 +1041,7 @@ impl eframe::App for App {
     }
 }
 
-#[cfg(feature = "demo")]
+#[cfg(feature = "navidrome-demo")]
 impl App {
     pub fn populate_demo(&mut self, page: Option<&str>, flags: Option<&str>, ctx: &egui::Context) {
         self.populate_demo_model(page, flags, ctx);

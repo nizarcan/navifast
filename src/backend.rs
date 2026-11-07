@@ -870,7 +870,28 @@ pub enum LocalPlayback {
 /// windows: the window is destroyed when it closes to the tray and created
 /// again on demand. They therefore hold this handle, which repaints
 /// whichever window exists, instead of an `egui::Context`.
+#[cfg(feature = "demo")]
 pub use fastframe_shell::Waker;
+#[cfg(not(feature = "demo"))]
+#[derive(Clone, Debug, Default)]
+pub struct Waker(Arc<std::sync::Mutex<Option<egui::Context>>>);
+
+#[cfg(not(feature = "demo"))]
+impl Waker {
+    pub fn attach(&self, ctx: &egui::Context) {
+        *self.0.lock().unwrap_or_else(|p| p.into_inner()) = Some(ctx.clone());
+    }
+
+    pub fn detach(&self) {
+        *self.0.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    }
+
+    pub fn wake(&self) {
+        if let Some(ctx) = self.0.lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
+            ctx.request_repaint();
+        }
+    }
+}
 
 /// The interface's handle to the runtime.
 pub struct Backend {
@@ -996,7 +1017,7 @@ impl Backend {
 
     /// Stops Spotify-bound commands from leaving the process; artwork and
     /// shutdown still work. Used by the demo mode and by headless tests.
-    #[cfg_attr(not(any(test, feature = "demo")), allow(dead_code))]
+    #[cfg_attr(not(any(test, feature = "navidrome-demo")), allow(dead_code))]
     pub fn set_offline(&mut self, offline: bool) {
         self.offline = offline;
     }

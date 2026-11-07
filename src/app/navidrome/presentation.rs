@@ -1154,7 +1154,7 @@ mod tests {
         assert!(artwork.drain().is_empty());
     }
 
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     #[test]
     fn demo_library_repaints_covers_after_scrolling_in_both_themes_and_sizes() {
         fn painted_artwork(
