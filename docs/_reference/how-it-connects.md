@@ -38,6 +38,23 @@ page grows only through demand paging; leaving an oversized page evicts it.
 Tables and grids virtualize their rows. Back navigation restores cached selection
 and scroll position. No browse index is persisted to disk yet.
 
+Listening stats performs a complete, sequential `search3` song scan on first entry
+or explicit Refresh, on the library worker using one shared request slot. Leaving
+the page or signing out cancels it. The summary is cached only for this account
+session, with no background refresh or persisted listening database. Failed scans
+retain the previous completed summary and timestamp. Repeated full pages, more
+than one million songs or more than 64 MiB of scanned identifying metadata stop
+the scan with an error instead of reporting incomplete totals as complete.
+
+Each unique song's optional `playCount` contributes once to total plays. Missing
+counts differ from zero; album and artist groups use stable IDs, with duplicate
+artist credits removed per song. Ties use ID order. Every credited artist receives
+the song's count, so artist totals must not be summed into account totals.
+Listening time is an estimate from known duration × play count. Missing metadata
+is labeled partial; no available counts is labeled unavailable. Only ten entries
+per ranking reach the UI. The scan retains IDs and compact group counts, not the
+full song catalogue. UTC timestamps record completed scans, not server freshness.
+
 The Albums order menu extends `getAlbumList2` with `frequent`, `recent`, `random`
 and `byYear`. Year bounds are inclusive integers from 1 to 9999 with `fromYear`
 no later than `toYear`; invalid inputs never start a request. Frequent and recent

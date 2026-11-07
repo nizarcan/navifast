@@ -135,6 +135,8 @@ impl App {
                 self.fetch_playlists();
                 self.apply(Action::Browse(self.newest));
             }
+            UiAction::Open(Page::Stats) if self.connected => self.presentation.open(Page::Stats),
+            UiAction::Reload(Page::Stats) if self.connected => self.refresh_stats(),
             UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
             UiAction::Back | UiAction::Forward => {
                 host.local_action(self, action);
@@ -309,6 +311,7 @@ impl App {
             self.fetch_collection(&self.presentation.page().clone());
         }
         self.sync_browse();
+        self.sync_stats();
     }
 }
 

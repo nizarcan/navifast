@@ -110,6 +110,7 @@ pub(crate) struct State {
     browse_table_revision: Option<(Page, u64, Option<crate::model::TableSort>)>,
     pub(crate) offsets: HashMap<Page, Live<f32>>,
     restore_scroll: Option<f32>,
+    stats_song: Option<(Page, String)>,
     pub(crate) analyser: crate::vis::WideAnalyser,
     samples: Vec<f32>,
     next_visual_frame: Option<(crate::settings::PlayerBarVis, std::time::Instant)>,
@@ -147,6 +148,33 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn open_stats_song(&mut self, page: Page, id: String, tx: &mut Tx) {
+        self.dispatch(Action::Open(page.clone()), tx);
+        self.stats_song = Some((page, id));
+        self.focus_stats_song(tx);
+    }
+    fn focus_stats_song(&mut self, tx: &mut Tx) {
+        let Some((page, id)) = &self.stats_song else {
+            return;
+        };
+        if self.app.presentation.page() != page {
+            self.stats_song = None;
+            return;
+        }
+        if self.page_loading() {
+            return;
+        }
+        let index = self
+            .app
+            .page_songs()
+            .and_then(|songs| self.table.order().position(|(i, _)| songs[i].id == *id));
+        if let Some(index) = index {
+            self.table.pick(index, crate::model::RowPick::Only);
+            self.restore_scroll = None;
+            tx.scroll_into_view(self.table.key(index));
+        }
+        self.stats_song = None;
+    }
     pub(crate) fn set_scrobbling(&mut self, enabled: bool) {
         self.app
             .scrobble_action(super::scrobble::Action::Enabled(enabled));
@@ -347,6 +375,7 @@ impl State {
             browse_table_revision: None,
             offsets: HashMap::from([(page, Live::new(0.))]),
             restore_scroll: None,
+            stats_song: None,
             analyser: Default::default(),
             samples: Vec::new(),
             next_visual_frame: None,
@@ -754,6 +783,7 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     }
     if changed {
         s.sync_tracks();
+        s.focus_stats_song(tx);
         if !s.page_loading()
             && let Some(y) = s.restore_scroll.take()
         {
@@ -980,6 +1010,31 @@ pub fn run(mut launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> 
 mod tests {
     use super::*;
     use rune::{Env, Key, KeyEvent, Mods, Runtime};
+
+    #[test]
+    fn stats_song_opens_its_album_and_selects_the_loaded_track_without_playing() {
+        for width in [760., 1280.] {
+            let mut rt = runtime("stats", "restored");
+            rt.set_viewport((width, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            assert!(rt.accessibility_action("stats-0-trk1", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            assert_eq!(
+                rt.state.app.presentation.page(),
+                &Page::Album(super::super::encode("alb1"))
+            );
+            rt.update(|s, tx| {
+                s.app.album = Some(crate::demo::album(1));
+                s.app.album_loading = false;
+                s.sync_tracks();
+                s.focus_stats_song(tx);
+            });
+            assert_eq!(rt.state.table.cursor, Some(1));
+            assert!(rt.state.app.transport.paused);
+            assert!(rt.state.app.pending_play.is_none());
+        }
+    }
 
     pub(super) fn runtime(page: &str, flags: &str) -> Runtime<State> {
         let root =

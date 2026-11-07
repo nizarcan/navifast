@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 19:32+0300\n"
+"POT-Creation-Date: 2026-11-07 19:54+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Japanese\n"
@@ -54,8 +54,8 @@ msgstr "{name}、フォルダ、折りたたみ"
 msgid "{name}, folder, expanded"
 msgstr "{name}、フォルダ、展開"
 
-#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:476
-#: src/ui/desktop/library.rs:663
+#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:477
+#: src/ui/desktop/library.rs:664
 msgid "Home"
 msgstr "ホーム"
 
@@ -147,16 +147,16 @@ msgstr "表示を減らす"
 msgid "See more"
 msgstr "もっと見る"
 
-#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1264
-#: src/ui/desktop/library.rs:1797 src/ui/desktop/library.rs:2133
-#: src/ui/desktop/library.rs:2259 src/ui/desktop/library.rs:2288
+#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1266
+#: src/ui/desktop/library.rs:1799 src/ui/desktop/library.rs:2135
+#: src/ui/desktop/library.rs:2261 src/ui/desktop/library.rs:2290
 #: src/ui/desktop/playlists.rs:182 src/ui/desktop/playlists.rs:289
 #: src/ui/desktop/ratings.rs:106 src/ui/desktop/scrobble.rs:36
 msgid "Retry"
 msgstr "再試行"
 
-#: src/ui/desktop/artist.rs:82 src/ui/desktop/library.rs:866
-#: src/ui/desktop/library.rs:1303
+#: src/ui/desktop/artist.rs:82 src/ui/desktop/library.rs:868
+#: src/ui/desktop/library.rs:1305
 msgid "Album"
 msgstr "アルバム"
 
@@ -168,7 +168,7 @@ msgstr "シングル"
 msgid "EP"
 msgstr "EP"
 
-#: src/ui/desktop/artist.rs:278 src/ui/desktop/library.rs:2341
+#: src/ui/desktop/artist.rs:278 src/ui/desktop/library.rs:2343
 #: src/ui/desktop/home.rs:143
 msgid "Artist"
 msgstr "アーティスト"
@@ -177,10 +177,10 @@ msgstr "アーティスト"
 msgid "Discography"
 msgstr "ディスコグラフィ"
 
-#: src/ui/desktop/artist.rs:323 src/ui/desktop/library.rs:664
-#: src/ui/desktop/library.rs:742 src/ui/desktop/library.rs:744
-#: src/ui/desktop/library.rs:2040 src/ui/desktop/library.rs:2055
-#: src/ui/desktop/library.rs:2159 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
+#: src/ui/desktop/artist.rs:323 src/ui/desktop/library.rs:665
+#: src/ui/desktop/library.rs:744 src/ui/desktop/library.rs:746
+#: src/ui/desktop/library.rs:2042 src/ui/desktop/library.rs:2057
+#: src/ui/desktop/library.rs:2161 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
 #: src/ui/desktop/albums.rs:40
 msgid "Albums"
 msgstr "アルバム"
@@ -213,247 +213,251 @@ msgstr "参加作品"
 msgid "No featured releases in your library."
 msgstr "ライブラリに客演作品はありません。"
 
-#: src/ui/desktop/library.rs:221 src/ui/desktop/library.rs:275
-#: src/ui/desktop/library.rs:1393
+#: src/ui/desktop/library.rs:222 src/ui/desktop/library.rs:276
+#: src/ui/desktop/library.rs:1395
 msgid "Remove from Favorites"
 msgstr "お気に入りから削除"
 
-#: src/ui/desktop/library.rs:223 src/ui/desktop/library.rs:277
-#: src/ui/desktop/library.rs:1395
+#: src/ui/desktop/library.rs:224 src/ui/desktop/library.rs:278
+#: src/ui/desktop/library.rs:1397
 msgid "Add to Favorites"
 msgstr "お気に入りに追加"
 
-#: src/ui/desktop/library.rs:231 src/ui/desktop/library.rs:239
-#: src/ui/desktop/library.rs:308 src/ui/desktop/playlists.rs:44
+#: src/ui/desktop/library.rs:232 src/ui/desktop/library.rs:240
+#: src/ui/desktop/library.rs:309 src/ui/desktop/playlists.rs:44
 msgid "Add to playlists"
 msgstr "プレイリストに追加"
 
-#: src/ui/desktop/library.rs:244 src/ui/desktop/playlists.rs:234
+#: src/ui/desktop/library.rs:245 src/ui/desktop/playlists.rs:234
 #: src/ui/desktop/playlists.rs:239
 msgid "Delete playlist"
 msgstr "プレイリストを削除"
 
-#: src/ui/desktop/library.rs:298
+#: src/ui/desktop/library.rs:299
 msgid "Open album"
 msgstr "アルバムを開く"
 
-#: src/ui/desktop/library.rs:317
+#: src/ui/desktop/library.rs:318
 msgid "Remove from playlist"
 msgstr "プレイリストから削除"
 
-#: src/ui/desktop/library.rs:324 src/ui/desktop/library.rs:1019
-#: src/ui/desktop/library.rs:1233 src/ui/desktop/library.rs:1602
+#: src/ui/desktop/library.rs:325 src/ui/desktop/library.rs:1021
+#: src/ui/desktop/library.rs:1235 src/ui/desktop/library.rs:1604
 #: src/ui/desktop/queue.rs:189 src/ui/desktop/queue.rs:277
 #: src/ui/desktop/transport.rs:259
 msgid "Play"
 msgstr "再生"
 
-#: src/ui/desktop/library.rs:338 src/ui/desktop/library.rs:402
+#: src/ui/desktop/library.rs:339 src/ui/desktop/library.rs:403
 msgid "Play next"
 msgstr "次に再生"
 
-#: src/ui/desktop/library.rs:340 src/ui/desktop/library.rs:404
+#: src/ui/desktop/library.rs:341 src/ui/desktop/library.rs:405
 msgid "Add to queue"
 msgstr "再生待ちリストに追加"
 
-#: src/ui/desktop/library.rs:499
+#: src/ui/desktop/library.rs:500
 msgid "Back"
 msgstr "戻る"
 
-#: src/ui/desktop/library.rs:505
+#: src/ui/desktop/library.rs:506
 msgid "Forward"
 msgstr "進む"
 
-#: src/ui/desktop/library.rs:510 src/ui/desktop/library.rs:1977
+#: src/ui/desktop/library.rs:511 src/ui/desktop/library.rs:1979
 msgid "What do you want to play?"
 msgstr "何を再生しますか？"
 
-#: src/ui/desktop/library.rs:551 src/ui/desktop/library.rs:598
+#: src/ui/desktop/library.rs:552 src/ui/desktop/library.rs:599
 #: src/ui/desktop/preferences.rs:183 src/ui/keys.rs:55
 msgid "Settings"
 msgstr "設定"
 
-#: src/ui/desktop/library.rs:563 src/ui/desktop/preferences.rs:186
+#: src/ui/desktop/library.rs:564 src/ui/desktop/preferences.rs:186
 msgid "Account"
 msgstr "アカウント"
 
-#: src/ui/desktop/library.rs:604 src/ui/desktop/preferences.rs:480
+#: src/ui/desktop/library.rs:605 src/ui/desktop/preferences.rs:480
 #: src/ui/desktop/preferences.rs:683 src/ui/desktop/preferences.rs:684
 msgid "Keyboard shortcuts"
 msgstr "キーボードショートカット"
 
-#: src/ui/desktop/library.rs:612 src/ui/desktop/preferences.rs:187
+#: src/ui/desktop/library.rs:613 src/ui/desktop/preferences.rs:187
 msgid "Sign out"
 msgstr "ログアウト"
 
-#: src/ui/desktop/library.rs:619 src/ui/desktop/library.rs:752
-#: src/ui/desktop/library.rs:1479
+#: src/ui/desktop/library.rs:620 src/ui/desktop/library.rs:754
+#: src/ui/desktop/library.rs:1481
 msgid "Library order"
 msgstr "ライブラリ順"
 
-#: src/ui/desktop/library.rs:622 src/ui/desktop/home.rs:250
+#: src/ui/desktop/library.rs:623 src/ui/desktop/home.rs:250
 msgid "Recently played"
 msgstr "最近再生した順"
 
-#: src/ui/desktop/library.rs:624 src/ui/desktop/albums.rs:18
+#: src/ui/desktop/library.rs:625 src/ui/desktop/albums.rs:18
 msgid "Name"
 msgstr "名前順"
 
-#: src/ui/desktop/library.rs:627 src/ui/desktop/albums.rs:17
+#: src/ui/desktop/library.rs:628 src/ui/desktop/albums.rs:17
 msgid "Recently added"
 msgstr "最近追加した順"
 
-#: src/ui/desktop/library.rs:665 src/ui/desktop/library.rs:2039
-#: src/ui/desktop/library.rs:2054 src/ui/desktop/library.rs:2153
+#: src/ui/desktop/library.rs:666 src/ui/desktop/library.rs:2041
+#: src/ui/desktop/library.rs:2056 src/ui/desktop/library.rs:2155
 #: src/ui/desktop/browse.rs:14 src/ui/desktop/browse.rs:32
 msgid "Songs"
 msgstr "曲"
 
-#: src/ui/desktop/library.rs:666 src/ui/desktop/browse.rs:13
+#: src/ui/desktop/library.rs:667 src/ui/desktop/browse.rs:13
 msgid "Genres"
 msgstr "ジャンル"
 
-#: src/ui/desktop/library.rs:667 src/ui/desktop/library.rs:2237
+#: src/ui/desktop/library.rs:668 src/ui/desktop/library.rs:2239
 #: src/ui/keys.rs:47
 msgid "Favorites"
 msgstr "お気に入り"
 
-#: src/ui/desktop/library.rs:668 src/ui/desktop/library.rs:1931
-#: src/ui/desktop/library.rs:2057 src/ui/desktop/library.rs:2104
+#: src/ui/desktop/library.rs:669 src/ui/desktop/library.rs:1933
+#: src/ui/desktop/library.rs:2059 src/ui/desktop/library.rs:2106
 msgid "Playlists"
 msgstr "プレイリスト"
 
-#: src/ui/desktop/library.rs:704
+#: src/ui/desktop/library.rs:670 src/ui/desktop/stats.rs:16
+msgid "Listening stats"
+msgstr "再生統計"
+
+#: src/ui/desktop/library.rs:706
 msgid "Library"
 msgstr "ライブラリ"
 
-#: src/ui/desktop/library.rs:706 src/ui/desktop/library.rs:778
+#: src/ui/desktop/library.rs:708 src/ui/desktop/library.rs:780
 msgid "Search in Your Library"
 msgstr "ライブラリ内を検索"
 
-#: src/ui/desktop/library.rs:727 src/ui/keys.rs:38
+#: src/ui/desktop/library.rs:729 src/ui/keys.rs:38
 msgid "Show or hide the sidebar"
 msgstr "サイドバーの表示／非表示"
 
-#: src/ui/desktop/library.rs:1083 src/ui/desktop/library.rs:1348
+#: src/ui/desktop/library.rs:1085 src/ui/desktop/library.rs:1350
 #: src/ui/desktop/home.rs:258
 msgid "Playlist"
 msgstr "プレイリスト"
 
-#: src/ui/desktop/library.rs:1174
+#: src/ui/desktop/library.rs:1176
 msgid "No albums"
 msgstr "アルバムがありません"
 
-#: src/ui/desktop/library.rs:1175 src/ui/desktop/home.rs:101
+#: src/ui/desktop/library.rs:1177 src/ui/desktop/home.rs:101
 msgid "Albums in your Navidrome library appear here."
 msgstr "Navidromeライブラリのアルバムがここに表示されます。"
 
-#: src/ui/desktop/library.rs:1233 src/ui/desktop/library.rs:1600
+#: src/ui/desktop/library.rs:1235 src/ui/desktop/library.rs:1602
 #: src/ui/desktop/transport.rs:259
 msgid "Pause"
 msgstr "一時停止"
 
-#: src/ui/desktop/library.rs:1291 src/ui/desktop/library.rs:1353
-#: src/ui/desktop/library.rs:1657 src/ui/desktop/library.rs:2089
+#: src/ui/desktop/library.rs:1293 src/ui/desktop/library.rs:1355
+#: src/ui/desktop/library.rs:1659 src/ui/desktop/library.rs:2091
 #: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:238
 msgid "More"
 msgstr "その他"
 
-#: src/ui/desktop/library.rs:1367 src/ui/desktop/queue.rs:49
+#: src/ui/desktop/library.rs:1369 src/ui/desktop/queue.rs:49
 msgid "Nothing here yet."
 msgstr "まだ何もありません。"
 
-#: src/ui/desktop/library.rs:1423
+#: src/ui/desktop/library.rs:1425
 msgctxt "column heading"
 msgid "TITLE"
 msgstr "タイトル"
 
-#: src/ui/desktop/library.rs:1481
+#: src/ui/desktop/library.rs:1483
 msgid "Sort by playlist order"
 msgstr "プレイリストの順に並べ替え"
 
-#: src/ui/desktop/library.rs:1488
+#: src/ui/desktop/library.rs:1490
 #, rust-format
 msgid "Sort by {column}"
 msgstr "{column}で並べ替え"
 
-#: src/ui/desktop/library.rs:1495
+#: src/ui/desktop/library.rs:1497
 msgid "Sort by duration"
 msgstr "再生時間で並べ替え"
 
-#: src/ui/desktop/library.rs:1933 src/ui/desktop/playlists.rs:42
+#: src/ui/desktop/library.rs:1935 src/ui/desktop/playlists.rs:42
 msgid "Create playlist"
 msgstr "プレイリストを作成"
 
-#: src/ui/desktop/library.rs:1943 src/ui/desktop/library.rs:2248
+#: src/ui/desktop/library.rs:1945 src/ui/desktop/library.rs:2250
 #: src/ui/desktop/home.rs:184 src/ui/desktop/browse.rs:23
-#: src/ui/desktop/albums.rs:65
+#: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "更新"
 
-#: src/ui/desktop/library.rs:1961
+#: src/ui/desktop/library.rs:1963
 msgid "No playlists"
 msgstr "プレイリストがありません"
 
-#: src/ui/desktop/library.rs:1962
+#: src/ui/desktop/library.rs:1964
 msgid "Playlists available on your server appear here."
 msgstr "サーバーで利用可能なプレイリストがここに表示されます。"
 
-#: src/ui/desktop/library.rs:1976
+#: src/ui/desktop/library.rs:1978
 msgid "Search"
 msgstr "検索"
 
-#: src/ui/desktop/library.rs:1985
+#: src/ui/desktop/library.rs:1987
 msgid "Recent searches"
 msgstr "最近の検索"
 
-#: src/ui/desktop/library.rs:1995
+#: src/ui/desktop/library.rs:1997
 msgid "Remove"
 msgstr "削除"
 
-#: src/ui/desktop/library.rs:2041 src/ui/desktop/library.rs:2056
-#: src/ui/desktop/library.rs:2165
+#: src/ui/desktop/library.rs:2043 src/ui/desktop/library.rs:2058
+#: src/ui/desktop/library.rs:2167
 msgid "Artists"
 msgstr "アーティスト"
 
-#: src/ui/desktop/library.rs:2115
+#: src/ui/desktop/library.rs:2117
 #, rust-format
 msgid "No results for “{query}”"
 msgstr "「{query}」の検索結果はありません"
 
-#: src/ui/desktop/library.rs:2117
+#: src/ui/desktop/library.rs:2119
 msgid "Check the spelling, or try fewer words."
 msgstr "スペルを確認するか、語句を減らしてください。"
 
-#: src/ui/desktop/library.rs:2154
+#: src/ui/desktop/library.rs:2156
 msgid "Songs you favorite appear here."
 msgstr "お気に入りの曲がここに表示されます。"
 
-#: src/ui/desktop/library.rs:2160
+#: src/ui/desktop/library.rs:2162
 msgid "Albums you favorite appear here."
 msgstr "お気に入りのアルバムがここに表示されます。"
 
-#: src/ui/desktop/library.rs:2166
+#: src/ui/desktop/library.rs:2168
 msgid "Artists you favorite appear here."
 msgstr "お気に入りのアーティストがここに表示されます。"
 
-#: src/ui/desktop/library.rs:2179 src/ui/desktop/home.rs:87
+#: src/ui/desktop/library.rs:2181 src/ui/desktop/home.rs:87
 msgid "See all"
 msgstr "すべて表示"
 
-#: src/ui/desktop/library.rs:2238
+#: src/ui/desktop/library.rs:2240
 msgid "Favorite Songs"
 msgstr "お気に入りの曲"
 
-#: src/ui/desktop/library.rs:2239
+#: src/ui/desktop/library.rs:2241
 msgid "Favorite Albums"
 msgstr "お気に入りのアルバム"
 
-#: src/ui/desktop/library.rs:2240
+#: src/ui/desktop/library.rs:2242
 msgid "Favorite Artists"
 msgstr "お気に入りのアーティスト"
 
-#: src/ui/desktop/library.rs:2280
+#: src/ui/desktop/library.rs:2282
 #, rust-format
 msgid "Could not update Favorites for {name}. {error}"
 msgstr "「{name}」のお気に入りの設定を更新できませんでした。{error}"
@@ -502,27 +506,27 @@ msgstr "あなたの音楽を、すぐそばに。"
 msgid "Your recent listening will appear here as you play."
 msgstr "音楽を再生すると、最近聴いた音楽がここに表示されます。"
 
-#: src/ui/desktop/mod.rs:106 src/ui/desktop/queue.rs:220
+#: src/ui/desktop/mod.rs:107 src/ui/desktop/queue.rs:220
 msgid "Loading…"
 msgstr "読み込み中…"
 
-#: src/ui/desktop/mod.rs:187 src/ui/desktop/queue.rs:143
+#: src/ui/desktop/mod.rs:188 src/ui/desktop/queue.rs:143
 msgid "Clear"
 msgstr "クリア"
 
-#: src/ui/desktop/mod.rs:367
+#: src/ui/desktop/mod.rs:368
 msgid "Username"
 msgstr "ユーザー名"
 
-#: src/ui/desktop/mod.rs:368
+#: src/ui/desktop/mod.rs:369
 msgid "Password"
 msgstr "パスワード"
 
-#: src/ui/desktop/mod.rs:413
+#: src/ui/desktop/mod.rs:414
 msgid "Connecting…"
 msgstr "接続中…"
 
-#: src/ui/desktop/mod.rs:414 src/ui/desktop/playlists.rs:230
+#: src/ui/desktop/mod.rs:415 src/ui/desktop/playlists.rs:230
 #: src/ui/desktop/lyrics_card.rs:231
 msgid "Cancel"
 msgstr "キャンセル"
@@ -634,7 +638,9 @@ msgstr "Navidromeに再生を記録"
 msgid ""
 "Send now playing and qualifying listens to your server. Your server may "
 "forward reports to services you configured."
-msgstr "再生中の曲と条件を満たした再生をサーバーに送信します。サーバーは設定済みのサービスに報告を転送する場合があります。"
+msgstr ""
+"再生中の曲と条件を満たした再生をサーバーに送信します。サーバーは設定済みの"
+"サービスに報告を転送する場合があります。"
 
 #: src/ui/desktop/preferences.rs:243 src/ui/desktop/transport.rs:355
 #: src/ui/desktop/lyrics.rs:21 src/ui/desktop/lyrics.rs:158
@@ -1124,8 +1130,74 @@ msgstr "{name}が再生中であることを報告できませんでした。{er
 msgid ""
 "The server may have counted this listen. It will not be sent again "
 "automatically."
-msgstr "サーバーがこの再生を記録済みの可能性があります。自動では再送信しません。"
+msgstr ""
+"サーバーがこの再生を記録済みの可能性があります。自動では再送信しません。"
 
 #: src/ui/desktop/scrobble.rs:31
 msgid "A new song will send a fresh update."
 msgstr "次の曲で新しい更新を送信します。"
+
+#: src/ui/desktop/stats.rs:31
+msgid "Your Navidrome account’s library play counts, including other clients."
+msgstr "他のクライアントを含む、Navidromeアカウントのライブラリ再生回数です。"
+
+#: src/ui/desktop/stats.rs:52
+msgid "Last completed refresh"
+msgstr "前回の更新完了"
+
+#: src/ui/desktop/stats.rs:64
+msgid "Listening history unavailable"
+msgstr "再生履歴を取得できません"
+
+#: src/ui/desktop/stats.rs:65
+msgid "This server did not provide song play counts."
+msgstr "このサーバーは曲の再生回数を提供していません。"
+
+#: src/ui/desktop/stats.rs:69
+msgid ""
+"Partial summary: some play counts, durations or library destinations are "
+"missing."
+msgstr ""
+"一部の情報が不足しています。再生回数、再生時間、またはライブラリへのリンクが"
+"欠けています。"
+
+#: src/ui/desktop/stats.rs:77
+msgid "Total plays"
+msgstr "合計再生回数"
+
+#: src/ui/desktop/stats.rs:82
+msgid "Estimated listening time"
+msgstr "推定再生時間"
+
+#: src/ui/desktop/stats.rs:83
+#, rust-format
+msgid "{hours} h {minutes} min"
+msgstr "{hours}時間{minutes}分"
+
+#: src/ui/desktop/stats.rs:100
+msgid "No listening history yet"
+msgstr "再生履歴はまだありません"
+
+#: src/ui/desktop/stats.rs:102
+msgid "Play music, then refresh to see your account’s listening summary."
+msgstr "音楽を再生してから更新すると、アカウントの再生統計が表示されます。"
+
+#: src/ui/desktop/stats.rs:106
+msgid ""
+"Artist counts include every credited artist. Listening time uses song "
+"duration × plays."
+msgstr ""
+"曲に参加する各アーティストに再生回数を加算します。再生時間は曲の長さ×再生回数"
+"です。"
+
+#: src/ui/desktop/stats.rs:115
+msgid "Top songs"
+msgstr "よく聴く曲"
+
+#: src/ui/desktop/stats.rs:116
+msgid "Top albums"
+msgstr "よく聴くアルバム"
+
+#: src/ui/desktop/stats.rs:117
+msgid "Top artists"
+msgstr "よく聴くアーティスト"

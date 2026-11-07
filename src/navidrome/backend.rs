@@ -9,6 +9,12 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Stats {
+        session: u64,
+        request: u64,
+        client: Client,
+    },
+    CancelStats,
     Scrobble {
         session: u64,
         epoch: u64,
@@ -168,6 +174,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    Stats {
+        session: u64,
+        request: u64,
+        result: Result<super::stats::Summary, String>,
+    },
     Scrobbled {
         session: u64,
         epoch: u64,
@@ -339,6 +350,7 @@ impl Backend {
                 let mut collections = tokio::task::JoinSet::new();
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
+                let mut statistics = tokio::task::JoinSet::new();
                 let mut browsing = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
                 let mut lyrics = tokio::task::JoinSet::new();
@@ -363,6 +375,7 @@ impl Backend {
                                     searches.abort_all();
                                     playlists.abort_all();
                                     browsing.abort_all();
+                                    statistics.abort_all();
                                     queue_reads.abort_all();
                                     queue_handles.clear();
                                 }
@@ -426,6 +439,7 @@ impl Backend {
                                 Request::CancelSearch => searches.abort_all(),
                                 Request::CancelPlaylistLibrary => playlists.abort_all(),
                                 Request::CancelBrowse => browsing.abort_all(),
+                                Request::CancelStats => statistics.abort_all(),
                                 Request::Forget { session } => {
                                     // Persist revocation off the UI thread before queuing deletion.
                                     // A locked keyring must not restore a signed-out account.
@@ -475,6 +489,7 @@ impl Backend {
                                         Request::Search { .. } => &mut searches,
                                         Request::PlaylistLibrary { .. } => &mut playlists,
                                         Request::Browse { .. } => &mut browsing,
+                                        Request::Stats { .. } => &mut statistics,
                                         Request::Collection { .. } | Request::ArtistInfo { .. } | Request::Appearances { .. } => &mut collections,
                                         _ => &mut tasks,
                                     };
@@ -513,6 +528,7 @@ impl Backend {
                         _ = searches.join_next(), if !searches.is_empty() => {}
                         _ = playlists.join_next(), if !playlists.is_empty() => {}
                         _ = browsing.join_next(), if !browsing.is_empty() => {}
+                        _ = statistics.join_next(), if !statistics.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
                     }
@@ -561,6 +577,15 @@ async fn execute(
     provider: &super::lyrics::lrclib::Lookup,
 ) -> Option<Event> {
     Some(match request {
+        Request::Stats {
+            session,
+            request,
+            client,
+        } => Event::Stats {
+            session,
+            request,
+            result: client.listening_stats().await,
+        },
         Request::RatingWrite {
             session,
             request,
@@ -813,6 +838,7 @@ async fn execute(
         | Request::QueueAlbum { .. }
         | Request::CancelQueueAlbum(_)
         | Request::ClearQueueAlbums
+        | Request::CancelStats
         | Request::CancelBrowse
         | Request::Scrobble { .. }
         | Request::CancelScrobbles

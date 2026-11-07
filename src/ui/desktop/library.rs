@@ -61,6 +61,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     let page = s.app.presentation.page();
     let content = match page {
         Page::Home => home::page(v),
+        Page::Stats => stats::page(v),
         page if page.is_browse() => browse::page(v),
         Page::Album(_) | Page::Playlist(_) => songs(v),
         Page::Playlists => playlists(v),
@@ -666,6 +667,7 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
         (mark("Genres"), Icon::LayoutGrid, Page::Genres),
         (mark("Favorites"), Icon::Star, Page::LikedSongs),
         (mark("Playlists"), Icon::ListMusic, Page::Playlists),
+        (mark("Listening stats"), Icon::Clock, Page::Stats),
     ] {
         let ink = if &page == app.presentation.page()
             || page == Page::Albums && matches!(app.presentation.page(), Page::AlbumList(_))

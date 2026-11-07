@@ -66,6 +66,7 @@ pub(crate) fn album(index: usize) -> Album {
                 let album_index = track % ALBUMS.len();
                 Song {
                     id: format!("trk{track}"),
+                    play_count: Some((12 - track) as u64 * 7),
                     user_rating: None,
                     title: TRACKS[track % TRACKS.len()].into(),
                     credits: ArtistCredits {

@@ -25,6 +25,7 @@ mod queue;
 mod ratings;
 mod scrobble;
 pub(crate) mod spectrum;
+mod stats;
 mod transport;
 
 fn color(c: Srgba) -> Color {

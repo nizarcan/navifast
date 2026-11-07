@@ -4,6 +4,7 @@ use std::{sync::Arc, time::Instant};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Page {
     Home,
+    Stats,
     Search,
     LikedSongs,
     FavoriteGroup(FavoriteKind),
@@ -37,6 +38,7 @@ impl Page {
     pub fn encode(&self) -> String {
         match self {
             Page::Home => "home".into(),
+            Page::Stats => "stats".into(),
             Page::Search => "search".into(),
             Page::LikedSongs => "liked".into(),
             Page::FavoriteGroup(FavoriteKind::Song) => "favorite-songs".into(),
@@ -59,6 +61,7 @@ impl Page {
     pub fn decode(text: &str) -> Option<Self> {
         Some(match text {
             "home" => Page::Home,
+            "stats" => Page::Stats,
             "search" => Page::Search,
             "liked" => Page::LikedSongs,
             "favorite-songs" => Page::FavoriteGroup(FavoriteKind::Song),

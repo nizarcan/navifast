@@ -65,6 +65,17 @@ of invented listening history. Loading and failed refreshes keep their own inlin
 feedback, with usable cached cards retained. The recent list is local to the
 current server/account, never a claim about listening in other clients.
 
+## Listening stats
+
+Use a standard sidebar destination, 28-pixel heading and the existing refresh
+icon. Put source and last completed refresh in muted text, then quiet total-play
+and estimated-time metrics. Top songs, albums and artists use compact 58-pixel
+ranked rows with ordinary hover and keyboard focus. Show three columns when the
+content is at least 780 pixels wide, otherwise stack the sections. Preserve the
+shell, player and collection grids. Selecting a song opens its album and selects
+that track; ranking rows do not start playback. Show partial, unavailable, empty,
+loading and failed-refresh states inline and retain a usable previous summary.
+
 ## Album discovery
 
 Keep the Albums heading and shared sleeve grid. Beside the heading, use the existing
