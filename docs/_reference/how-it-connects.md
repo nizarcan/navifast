@@ -38,6 +38,17 @@ page grows only through demand paging; leaving an oversized page evicts it.
 Tables and grids virtualize their rows. Back navigation restores cached selection
 and scroll position. No browse index is persisted to disk yet.
 
+The Albums order menu extends `getAlbumList2` with `frequent`, `recent`, `random`
+and `byYear`. Year bounds are inclusive integers from 1 to 9999 with `fromYear`
+no later than `toYear`; invalid inputs never start a request. Frequent and recent
+are this account's server-reported history, including other clients, not the local
+sidebar's recent contexts. Discovery views share the paged-query cache and stale
+response guards above while leaving the sidebar library available. Random fetches
+one selection of up to 60 albums and disables further paging because independent
+random requests do not define a stable continuation. This small sample stays cached
+for the account session even when other query caches expire. Only explicit Refresh
+requests a new sample; failures and cancelled refreshes keep the prior selection.
+
 After sign-in, opening Favorites, or a manual refresh, `getStarred2` reads
 the account’s starred songs, albums and artists. The UI shares one membership
 set across the overview and full grids. Cards load visible artwork from the

@@ -17,6 +17,10 @@ The current build supports:
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
+- Choosing **Year range**, **Frequently played**, **Recently played on server**
+  or **Random selection** from the Albums order menu. Year bounds are inclusive.
+  Server history belongs to this account and stays separate from local sidebar
+  history. Random offers up to 60 albums and stays fixed until Refresh or sign-out.
 - Browsing **Songs** and **Genres** from the sidebar. Songs requires the server's
   OpenSubsonic declaration; genres offer separate song and album views, including
   tracks on compilations. Pages load as you scroll, with retry and end-of-list

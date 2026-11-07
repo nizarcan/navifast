@@ -34,7 +34,7 @@ impl Listing {
         Self {
             items: match query {
                 Query::Songs | Query::GenreSongs(_) => Items::Songs(Vec::new()),
-                Query::GenreAlbums(_) => Items::Albums(Vec::new()),
+                Query::GenreAlbums(_) | Query::Albums(_) => Items::Albums(Vec::new()),
                 Query::Genres => Items::Genres(Vec::new()),
             },
             loaded: false,
@@ -82,6 +82,7 @@ pub struct State {
 impl State {
     pub fn query(page: &Page) -> Option<Query> {
         match page {
+            Page::AlbumList(order) => Some(Query::Albums(*order)),
             Page::Songs => Some(Query::Songs),
             Page::Genres => Some(Query::Genres),
             Page::Genre(name) => Some(Query::GenreSongs(name.clone())),
@@ -109,6 +110,7 @@ impl State {
     fn trim(&mut self) {
         // Keep the current listing regardless of size. Inactive pages share a
         // 20k-item allowance and at most eight query slots for back navigation.
+        // The random sample is at most one page and stays fixed until refresh.
         while !self.cache.is_empty()
             && (self.cache.len() > 8
                 || self
@@ -122,7 +124,10 @@ impl State {
             let index = self
                 .cache
                 .iter()
-                .position(|(q, _)| Some(q) != self.active.as_ref())
+                .position(|(q, _)| {
+                    Some(q) != self.active.as_ref()
+                        && *q != Query::Albums(crate::navidrome::albums::Order::Random)
+                })
                 .unwrap();
             self.cache.remove(index);
         }
@@ -269,7 +274,9 @@ impl App {
             list.retry_offset = Some(offset);
         } else {
             list.offset = offset.saturating_add(length);
-            list.more = query != Query::Genres && length == PAGE_SIZE;
+            list.more = query != Query::Genres
+                && query != Query::Albums(crate::navidrome::albums::Order::Random)
+                && length == PAGE_SIZE;
         }
         self.browse.trim();
     }
@@ -278,6 +285,7 @@ impl App {
 #[cfg(feature = "navidrome-demo")]
 impl App {
     pub(super) fn configure_demo_browse(&mut self, flags: &[&str]) {
+        let album_list = matches!(self.browse.active, Some(Query::Albums(_)));
         if flags.contains(&"browse-end") && !flags.contains(&"error") {
             for _ in 0..2 {
                 self.browse_action(Action::More);
@@ -300,12 +308,35 @@ impl App {
         }
         if flags.contains(&"error") {
             list.error = Some("The server did not respond in time. Try again.".into());
-            list.retry_offset = Some(list.offset);
+            list.retry_offset = Some(if album_list { 0 } else { list.offset });
         }
     }
     fn demo_browse_page(&mut self, offset: usize) {
         let query = self.browse.active.clone().unwrap();
         let items = match &query {
+            Query::Albums(order) => {
+                let mut albums: Vec<_> = self
+                    .albums
+                    .iter()
+                    .filter(|album| match order {
+                        crate::navidrome::albums::Order::Year { from, to } => {
+                            (u32::from(*from)..=u32::from(*to)).contains(&album.year)
+                        }
+                        _ => true,
+                    })
+                    .cloned()
+                    .collect();
+                match order {
+                    crate::navidrome::albums::Order::Random => {
+                        use rand::{SeedableRng, seq::SliceRandom};
+                        albums.shuffle(&mut rand::rngs::StdRng::seed_from_u64(self.browse.serial));
+                    }
+                    crate::navidrome::albums::Order::Recent
+                    | crate::navidrome::albums::Order::Frequent => albums.reverse(),
+                    _ => {}
+                }
+                Items::Albums(albums.into_iter().skip(offset).take(PAGE_SIZE).collect())
+            }
             Query::Genres => Items::Genres(
                 [
                     "Electronic",
@@ -393,6 +424,64 @@ mod tests {
             offset,
             result,
         );
+    }
+
+    #[test]
+    fn random_albums_stay_cached_and_only_refresh_replaces_the_selection() {
+        use crate::navidrome::albums::Order;
+        with_app(|app, _| {
+            let page = Page::AlbumList(Order::Random);
+            open(app, page.clone());
+            let albums = || {
+                Items::Albums(
+                    (0..PAGE_SIZE)
+                        .map(|i| Album {
+                            id: format!("a{i}"),
+                            ..Default::default()
+                        })
+                        .collect(),
+                )
+            };
+            finish(app, Ok(albums()));
+            assert!(!app.browse.current().unwrap().more);
+            let serial = app.browse.serial;
+            app.browse_action(Action::More);
+            assert_eq!(app.browse.serial, serial);
+            // Browsing enough other views to evict ordinary caches keeps this
+            // small random sample for the full account session.
+            for i in 0..12 {
+                open(app, Page::Genre(format!("genre-{i}")));
+                finish(app, Ok(songs(i, 1)));
+            }
+            open(app, page.clone());
+            assert_eq!(app.browse.current().unwrap().albums()[0].id, "a0");
+            assert!(!app.browse.current().unwrap().loading);
+            app.browse_action(Action::Refresh);
+            finish(app, Err("offline".into()));
+            assert_eq!(app.browse.current().unwrap().albums().len(), PAGE_SIZE);
+            app.browse_action(Action::Retry);
+            assert_eq!(app.browse.current().unwrap().pending, Some(0));
+            let stale = app.browse.serial;
+            open(app, Page::Home);
+            app.browse_result(
+                app.session,
+                stale,
+                Query::Albums(Order::Random),
+                0,
+                Ok(Items::Albums(Vec::new())),
+            );
+            open(app, page);
+            assert_eq!(app.browse.current().unwrap().albums().len(), PAGE_SIZE);
+            app.browse_action(Action::Refresh);
+            finish(
+                app,
+                Ok(Items::Albums(vec![Album {
+                    id: "new".into(),
+                    ..Default::default()
+                }])),
+            );
+            assert_eq!(app.browse.current().unwrap().albums()[0].id, "new");
+        });
     }
 
     #[test]

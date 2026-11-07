@@ -5,6 +5,9 @@ use std::borrow::Cow;
 
 pub(super) fn heading(v: &Paint<'_>) -> El {
     let page = v.s.app.presentation.page();
+    if matches!(page, Page::AlbumList(_)) {
+        return albums::heading(v);
+    }
     let title = match page {
         Page::Genre(name) | Page::GenreAlbums(name) => name.clone(),
         Page::Genres => v.tr(mark("Genres")),

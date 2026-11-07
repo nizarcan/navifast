@@ -11,6 +11,7 @@ use crate::{i18n::gettext, theme::Icon};
 use rune::{Color, ScrollSpec, TextStyle, col, el, row, text, text_input};
 use rune::{Cx, El, Tx};
 
+mod albums;
 pub(crate) mod artist;
 mod backdrop;
 mod browse;

@@ -65,6 +65,17 @@ of invented listening history. Loading and failed refreshes keep their own inlin
 feedback, with usable cached cards retained. The recent list is local to the
 current server/account, never a claim about listening in other clients.
 
+## Album discovery
+
+Keep the Albums heading and shared sleeve grid. Beside the heading, use the existing
+pill menu and refresh icon for the active order. Offer recently added, name,
+frequently played, recently played on server, random selection and year range.
+Keep the selected order visible, with the applied year bounds when relevant.
+Year inputs reuse the existing 34-pixel text fields, muted labels and Apply button;
+the row wraps at narrow widths. Invalid input shows inline feedback while retaining
+the last applied range and its albums. Server-history modes explain their source
+in muted text. Their results do not replace the sidebar's local listening history.
+
 ## Songs and genres
 
 Songs and Genres use standard sidebar destinations and 28-pixel bold headings.

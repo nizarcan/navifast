@@ -1,5 +1,6 @@
 //! Native Navidrome playback and library browsing.
 
+pub mod albums;
 pub mod api;
 pub mod backend;
 pub mod browse;

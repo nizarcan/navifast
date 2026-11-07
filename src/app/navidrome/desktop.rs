@@ -94,6 +94,8 @@ pub(crate) struct State {
     pub(crate) filter: TextEdit,
     pub(crate) library_filter: TextEdit,
     pub(crate) playlist_name: TextEdit,
+    pub(crate) album_years: [TextEdit; 2],
+    pub(crate) album_year_error: bool,
     pub(crate) library_search: bool,
     pub(crate) home_expanded: [bool; 2],
     #[cfg(feature = "navidrome-demo")]
@@ -144,6 +146,17 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn apply_album_years(&mut self, tx: &mut Tx) {
+        if let Some(order) = crate::navidrome::albums::Order::years(
+            &self.album_years[0].text,
+            &self.album_years[1].text,
+        ) {
+            self.album_year_error = false;
+            self.dispatch(Action::Open(Page::AlbumList(order)), tx);
+        } else {
+            self.album_year_error = true;
+        }
+    }
     pub(crate) fn toggle_queue(&mut self, tx: &mut Tx) {
         self.queue_open = !self.queue_open;
         if self.queue_open {
@@ -278,6 +291,19 @@ impl State {
             filter: TextEdit::new(filter),
             library_filter: TextEdit::new(""),
             playlist_name: TextEdit::new(""),
+            album_years: if let Page::AlbumList(crate::navidrome::albums::Order::Year {
+                from,
+                to,
+            }) = &page
+            {
+                [
+                    TextEdit::new(from.to_string()),
+                    TextEdit::new(to.to_string()),
+                ]
+            } else {
+                [TextEdit::new("1990"), TextEdit::new("1999")]
+            },
+            album_year_error: false,
             library_search: false,
             home_expanded: [launch.demo && flags.contains(&"home-expanded"); 2],
             #[cfg(feature = "navidrome-demo")]
@@ -351,6 +377,16 @@ impl State {
             state.populate_lyric_share_demo(&flags);
         }
         state.sync_tracks();
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo && flags.contains(&"album-order") {
+            state.menu = Some("album-order");
+        }
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo && flags.contains(&"album-year-error") {
+            state.album_years[0].replace_text("2022");
+            state.album_years[1].replace_text("2010");
+            state.album_year_error = true;
+        }
         #[cfg(feature = "navidrome-demo")]
         if launch.demo
             && flags.contains(&"browse-menu")
@@ -530,6 +566,11 @@ impl State {
         }
         let page = self.app.presentation.page().clone();
         if previous != page {
+            self.album_year_error = false;
+            if let Page::AlbumList(crate::navidrome::albums::Order::Year { from, to }) = &page {
+                self.album_years[0].replace_text(from.to_string());
+                self.album_years[1].replace_text(to.to_string());
+            }
             self.browse_table_revision = None;
             self.query.focused = page == Page::Search;
             if page != Page::Search {

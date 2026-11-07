@@ -206,6 +206,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if let Some(menu) = match s.menu {
         Some("account") => Some(account_menu(v)),
         Some("sort") => Some(sort_menu(v)),
+        Some("album-order") => Some(albums::menu(v)),
         Some("album") => s.app.album.as_ref().map(|a| {
             let uri = FavoriteKind::Album.uri(&a.id);
             let saved = s.app.presentation.navidrome_favorites.contains(&uri) == Some(true);
@@ -642,6 +643,7 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
         (mark("Playlists"), Icon::ListMusic, Page::Playlists),
     ] {
         let ink = if &page == app.presentation.page()
+            || page == Page::Albums && matches!(app.presentation.page(), Page::AlbumList(_))
             || page == Page::Genres
                 && matches!(
                     app.presentation.page(),
@@ -1095,7 +1097,7 @@ fn albums(v: &Paint<'_>, width: f32) -> El {
                     height: bounds.1,
                 };
                 if r == 0 {
-                    return heading(&v, &v.tr(mark("Albums")));
+                    return albums::heading(&v);
                 }
                 if r == rows + 1 {
                     return album_status(&v);

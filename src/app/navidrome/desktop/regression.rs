@@ -24,6 +24,109 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn album_discovery_menu_preserves_local_history_and_random_back_navigation() {
+    use crate::navidrome::albums::Order;
+    let mut rt = runtime("albums", "restored");
+    let history = rt.state.app.presentation.recent_contexts.clone();
+    assert!(rt.accessibility_action("album-order", rune::accesskit::Action::Click, None));
+    click_label(&mut rt, "Random selection", 0);
+    assert_eq!(
+        rt.state.app.presentation.page(),
+        &Page::AlbumList(Order::Random)
+    );
+    let ids: Vec<_> = rt
+        .state
+        .app
+        .browse
+        .current()
+        .unwrap()
+        .albums()
+        .iter()
+        .map(|a| a.id.clone())
+        .collect();
+    rt.update(|s, tx| s.dispatch(Action::Open(Page::Settings), tx));
+    rt.frame(0.);
+    rt.update(|s, tx| s.dispatch(Action::Back, tx));
+    rt.frame(0.);
+    assert_eq!(
+        ids,
+        rt.state
+            .app
+            .browse
+            .current()
+            .unwrap()
+            .albums()
+            .iter()
+            .map(|a| a.id.clone())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(history, rt.state.app.presentation.recent_contexts);
+    assert!(rt.state.app.transport.paused);
+    assert!(rt.accessibility_action(
+        "album-discovery-refresh",
+        rune::accesskit::Action::Click,
+        None
+    ));
+    rt.frame(0.);
+    assert_eq!(
+        rt.state.app.presentation.page(),
+        &Page::AlbumList(Order::Random)
+    );
+    assert!(!rt.state.app.browse.current().unwrap().loading);
+}
+
+#[test]
+fn album_year_controls_validate_without_changing_the_active_range() {
+    use crate::navidrome::albums::Order;
+    for theme in ["restored", "restored,light"] {
+        let mut rt = runtime("albums:year:2010:2022", theme);
+        rt.set_viewport((760., 800.), 2.);
+        rt.update(|s, tx| {
+            s.album_years[0].replace_text("2022");
+            s.album_years[1].replace_text("2010");
+            s.apply_album_years(tx);
+        });
+        rt.frame(0.);
+        assert!(rt.state.album_year_error);
+        assert_eq!(
+            rt.state.app.presentation.page(),
+            &Page::AlbumList(Order::Year {
+                from: 2010,
+                to: 2022
+            })
+        );
+        rt.update(|s, tx| {
+            s.album_years[0].replace_text("2021");
+            s.album_years[1].replace_text("2021");
+            s.apply_album_years(tx);
+        });
+        rt.frame(0.);
+        assert!(!rt.state.album_year_error);
+        assert_eq!(
+            rt.state.app.presentation.page(),
+            &Page::AlbumList(Order::Year {
+                from: 2021,
+                to: 2021
+            })
+        );
+        assert!(
+            rt.state
+                .app
+                .browse
+                .current()
+                .unwrap()
+                .albums()
+                .iter()
+                .all(|a| a.year == 2021)
+        );
+        rt.update(|s, tx| s.dispatch(Action::Back, tx));
+        rt.frame(0.);
+        assert_eq!(rt.state.album_years[0].text, "2010");
+        assert_eq!(rt.state.album_years[1].text, "2022");
+    }
+}
+
+#[test]
 fn browse_paging_preserves_playback_context_and_back_scroll() {
     let mut rt = runtime("songs", "restored");
     assert_eq!(rt.state.app.page_songs().unwrap().len(), 60);

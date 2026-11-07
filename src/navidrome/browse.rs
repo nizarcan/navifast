@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Query {
+    Albums(super::albums::Order),
     Songs,
     Genres,
     GenreSongs(String),
@@ -43,6 +44,9 @@ impl Client {
     pub async fn browse(&self, query: &Query, offset: usize) -> Result<Items, String> {
         let mut params = vec![("offset", offset.to_string())];
         let (endpoint, container, field) = match query {
+            Query::Albums(order) => {
+                return self.album_list(offset, *order).await.map(Items::Albums);
+            }
             Query::Songs => {
                 params = vec![
                     ("query", String::new()),
@@ -90,7 +94,7 @@ impl Client {
             .unwrap_or_else(|| serde_json::json!([]));
         let items = match query {
             Query::Songs | Query::GenreSongs(_) => Items::Songs(decode(values)?),
-            Query::GenreAlbums(_) => Items::Albums(decode(values)?),
+            Query::GenreAlbums(_) | Query::Albums(_) => Items::Albums(decode(values)?),
             Query::Genres => Items::Genres(decode(values)?),
         };
         if *query != Query::Genres && items.len() > PAGE_SIZE {

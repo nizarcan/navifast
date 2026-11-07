@@ -8,6 +8,7 @@ pub enum Page {
     LikedSongs,
     FavoriteGroup(FavoriteKind),
     Albums,
+    AlbumList(crate::navidrome::albums::Order),
     Songs,
     Genres,
     Genre(String),
@@ -23,7 +24,7 @@ impl Page {
     pub fn is_browse(&self) -> bool {
         matches!(
             self,
-            Self::Songs | Self::Genres | Self::Genre(_) | Self::GenreAlbums(_)
+            Self::Songs | Self::Genres | Self::Genre(_) | Self::GenreAlbums(_) | Self::AlbumList(_)
         )
     }
     pub fn is_browse_songs(&self) -> bool {
@@ -42,6 +43,7 @@ impl Page {
             Page::FavoriteGroup(FavoriteKind::Album) => "favorite-albums".into(),
             Page::FavoriteGroup(FavoriteKind::Artist) => "favorite-artists".into(),
             Page::Albums => "albums".into(),
+            Page::AlbumList(order) => format!("albums:{}", order.encode()),
             Page::Songs => "songs".into(),
             Page::Genres => "genres".into(),
             Page::Genre(genre) => format!("genre:{genre}"),
@@ -72,6 +74,7 @@ impl Page {
                 match kind {
                     "playlist" => Page::Playlist(id.into()),
                     "album" => Page::Album(id.into()),
+                    "albums" => Page::AlbumList(crate::navidrome::albums::Order::decode(id)?),
                     "artist" => Page::Artist(id.into()),
                     "genre" => Page::Genre(id.into()),
                     "genre-albums" => Page::GenreAlbums(id.into()),

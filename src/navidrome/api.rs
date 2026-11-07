@@ -434,31 +434,15 @@ impl Client {
     }
 
     pub async fn albums(&self, offset: usize, newest: bool) -> Result<Vec<Album>, String> {
-        let body = self
-            .request(
-                "getAlbumList2",
-                &[
-                    (
-                        "type",
-                        if newest {
-                            "newest"
-                        } else {
-                            "alphabeticalByName"
-                        }
-                        .into(),
-                    ),
-                    ("size", PAGE_SIZE.to_string()),
-                    ("offset", offset.to_string()),
-                ],
-            )
-            .await?;
-        decode(
-            body.get("albumList2")
-                .and_then(|v| v.get("album"))
-                .filter(|v| !v.is_null())
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!([])),
+        self.album_list(
+            offset,
+            if newest {
+                super::albums::Order::Newest
+            } else {
+                super::albums::Order::Name
+            },
         )
+        .await
     }
 
     pub async fn album(&self, id: &str) -> Result<Album, String> {
