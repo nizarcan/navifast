@@ -32,7 +32,7 @@ defaults:
       topics:
         - Navidrome client
         - Rust
-        - egui
+        - Rune
         - OpenSubsonic
         - local playback
         - Linux music player

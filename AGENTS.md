@@ -15,11 +15,12 @@ These instructions add implementation constraints for coding agents.
 
 ## Architecture
 
-- `src/ui/` draws views and emits `Action`s. Apply actions after drawing in
-  `src/app.rs`; do not mutate application state from inside a borrowed view.
-- Network and playback work belongs on the runtime in `src/backend.rs` or in
-  the player engine in `src/player.rs`, never as blocking work on the UI
-  thread.
+- Build Navidrome views in `src/ui/desktop/`. Route Rune control actions
+  through `src/app/navidrome/desktop.rs` to the controller in
+  `src/app/navidrome.rs`. In the inherited egui views, emit actions during
+  drawing and apply them afterward in `src/app.rs`.
+- Run Navidrome requests in `src/navidrome/backend.rs` and playback in
+  `src/navidrome/player.rs`. Keep blocking work off the UI thread.
 - Keep platform integrations behind target-specific modules or `cfg` blocks.
   A fix for one platform must keep the other two targets compiling.
 - Settings and state files must remain readable, backward compatible, and
@@ -34,9 +35,9 @@ These instructions add implementation constraints for coding agents.
   new revision together. On Wayland, eframe from that fork paces frames by
   the compositor's frame callbacks instead of a vsync swap, so a hidden window
   cannot freeze the app (#266). Do not add a vsync decision of our own.
-- The egui fork shapes right-to-left runs in their own direction but leaves
-  them in logical order. Pass logical text to `crate::bidi`, which reorders
-  the laid-out runs; never reorder the string before layout.
+- In the egui views, pass logical text to `crate::bidi`. The fork shapes
+  right-to-left runs in their own direction and the helper reorders the
+  laid-out runs. Never reorder the string before layout.
 
 Read `docs/_reference/how-it-connects.md` before changing authentication,
 server requests, credential storage or network behaviour. Read

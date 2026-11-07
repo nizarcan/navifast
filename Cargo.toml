@@ -7,7 +7,7 @@ rust-version = "1.98"
 license = "MIT"
 description = "A native Navidrome client"
 repository = "https://github.com/nizarcan/navifast"
-keywords = ["navidrome", "subsonic", "music", "egui", "player"]
+keywords = ["navidrome", "subsonic", "music", "rune", "player"]
 categories = ["multimedia::audio"]
 
 [lib]

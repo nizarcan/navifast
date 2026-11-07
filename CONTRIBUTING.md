@@ -1,9 +1,10 @@
 # Contributing to Navifast
 
-Navifast is a native Navidrome client. Reuse the inherited native UI and DSP
-where practical, replacing Spotify-specific services with OpenSubsonic. Keep
-network and decoding work off the UI thread. Do not add a browser engine,
-telemetry or a hosted backend.
+Navifast uses Rune for its native Navidrome desktop. Implement desktop views
+in `src/ui/desktop/` and use the existing egui interface as the visual
+reference. Reuse the player and DSP, access Navidrome through OpenSubsonic,
+and keep network and decoding work off the UI thread. Do not add a browser
+engine, telemetry or a hosted backend.
 
 Navifast is maintained independently from Spotifast. There is no routine
 upstream merge or release synchronization. Keep the original MIT notices and

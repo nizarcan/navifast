@@ -90,6 +90,24 @@ struct Cli {
     demo_drag: Option<[egui::Pos2; 2]>,
 }
 
+impl Cli {
+    #[cfg(feature = "demo")]
+    fn requests_demo(&self) -> bool {
+        self.demo || self.demo_shot.is_some()
+    }
+
+    fn uses_navidrome_desktop(&self) -> bool {
+        #[cfg(feature = "demo")]
+        {
+            !self.requests_demo() || self.demo_navidrome
+        }
+        #[cfg(not(feature = "demo"))]
+        {
+            true
+        }
+    }
+}
+
 /// Remote control of the running instance, for Raycast scripts, launchers,
 /// and hands on keyboards.
 #[derive(Debug, clap::Subcommand)]
@@ -391,7 +409,7 @@ pub(crate) fn run() -> eframe::Result<()> {
     // they would pass for the user's history and stop the next real launch
     // from moving an older profile across.
     #[cfg(feature = "demo")]
-    let cli = if (cli.demo || cli.demo_shot.is_some()) && cli.demo_data.is_none() {
+    let cli = if cli.requests_demo() && cli.demo_data.is_none() {
         Cli {
             demo_data: Some(
                 std::env::temp_dir().join(format!("navifast-demo-{}", std::process::id())),
@@ -418,25 +436,9 @@ pub(crate) fn run() -> eframe::Result<()> {
                 std::process::exit(2);
             }
         });
-    // The application (audio engine, Web API, MPRIS, tray) outlives any
-    // window. Closing to the tray destroys the window and the shell below
-    // creates a new one when the tray or MPRIS asks for it. Plain window
-    // lifecycle, portable across desktops.
-    let waker = backend::Waker::default();
-
-    // A second launch surfaces the instance already running instead of
-    // starting a rival one. Held for the lifetime of the process.
     #[cfg(feature = "demo")]
-    let demo = cli.demo || cli.demo_shot.is_some();
-    #[cfg(feature = "demo")]
-    let guarded = !demo;
-    #[cfg(not(feature = "demo"))]
-    let guarded = true;
-    #[cfg(feature = "demo")]
-    let navidrome = !demo || cli.demo_navidrome;
-    #[cfg(not(feature = "demo"))]
-    let navidrome = true;
-    if navidrome {
+    let demo = cli.requests_demo();
+    if cli.uses_navidrome_desktop() {
         let dirs = paths::AppDirs::discover();
         #[cfg(feature = "demo")]
         let dirs = cli
@@ -477,6 +479,12 @@ pub(crate) fn run() -> eframe::Result<()> {
         )
         .map_err(|error| eframe::Error::AppCreation(error.into()));
     }
+    // The inherited demo runs its own eframe event loop.
+    let waker = backend::Waker::default();
+    #[cfg(feature = "demo")]
+    let guarded = !demo;
+    #[cfg(not(feature = "demo"))]
+    let guarded = true;
     let instance = if guarded {
         match single_instance::acquire(&waker, link.as_deref()) {
             single_instance::Outcome::Only(guard) => Some(guard),
@@ -1428,6 +1436,32 @@ fn app_icon() -> egui::IconData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn both_commands_launch_the_navidrome_desktop_by_default() {
+        for name in ["navifast", "fastpotify"] {
+            assert!(
+                Cli::try_parse_from([name])
+                    .unwrap()
+                    .uses_navidrome_desktop()
+            );
+        }
+    }
+
+    #[cfg(feature = "demo")]
+    #[test]
+    fn navidrome_previews_use_the_same_desktop_as_a_normal_launch() {
+        for (args, navidrome) in [
+            (vec!["navifast", "--demo", "--demo-navidrome"], true),
+            (vec!["navifast", "--demo"], false),
+            (vec!["navifast", "--demo-shot", "screen.png"], false),
+        ] {
+            assert_eq!(
+                Cli::try_parse_from(args).unwrap().uses_navidrome_desktop(),
+                navidrome
+            );
+        }
+    }
 
     #[cfg(target_os = "linux")]
     #[test]
