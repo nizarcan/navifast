@@ -31,6 +31,7 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                     )
                     .grow(1.),
                 )
+                .child(sleep::button(v))
                 .child(
                     v.icon_button(&v.tr(mark("Close queue")), Icon::X, 20., |s, tx| {
                         s.toggle_queue(tx)
@@ -38,6 +39,13 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                     .key("queue-close"),
                 ),
         );
+    if v.s.app.sleep.mode.is_some() {
+        body = body.child(
+            label(sleep::status(v), 12.5, 400., v.p.secondary)
+                .wrap()
+                .mt(10.),
+        );
+    }
     if let Some(current) = queue.current() {
         body = body
             .child(heading(v, mark("Now playing")))

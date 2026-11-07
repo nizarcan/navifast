@@ -70,6 +70,9 @@ The current build supports:
   **Clear** removes manual additions while preserving the current song and collection.
 - Shuffle keeps one visible order for remaining collection tracks, after manual
   additions. Repeat cycles through Off, All and One without changing playback position.
+- A sleep timer in **Queue** pauses after 15/30/60/120 minutes, a chosen number
+  of songs, or the end of the current queue. Replace or cancel it at any time.
+  Timed pauses keep the resume position; boundary timers take priority over repeat.
 - The queue, position, shuffle order and repeat mode survive restart for the same
   server and account. Restoration stays paused until you choose to play.
 - The existing ten-band equalizer and a spectrum visualizer that follows the

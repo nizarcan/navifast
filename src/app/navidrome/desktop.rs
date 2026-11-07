@@ -95,6 +95,8 @@ pub(crate) struct State {
     pub(crate) filter: TextEdit,
     pub(crate) library_filter: TextEdit,
     pub(crate) playlist_name: TextEdit,
+    pub(crate) sleep_songs: TextEdit,
+    pub(crate) sleep_invalid: bool,
     pub(crate) album_years: [TextEdit; 2],
     pub(crate) album_year_error: bool,
     pub(crate) library_search: bool,
@@ -148,6 +150,20 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn set_sleep_songs(&mut self, tx: &mut Tx) {
+        let count = self
+            .sleep_songs
+            .text
+            .trim()
+            .parse::<u32>()
+            .ok()
+            .filter(|n| *n > 0);
+        self.sleep_invalid = count.is_none();
+        if let Some(count) = count {
+            self.dispatch(Action::Sleep(super::sleep::Action::Songs(count)), tx);
+        }
+    }
+
     pub(crate) fn copy_music_link(&mut self, id: &str, tx: &mut Tx) {
         let Some(url) = self.app.shares.copy_url(id).map(str::to_owned) else {
             return;
@@ -364,6 +380,14 @@ impl State {
             filter: TextEdit::new(filter),
             library_filter: TextEdit::new(""),
             playlist_name: TextEdit::new(""),
+            sleep_songs: TextEdit::new(if launch.demo && flags.contains(&"sleep-invalid") {
+                "0"
+            } else if launch.demo && flags.contains(&"sleep-songs") {
+                "2"
+            } else {
+                "1"
+            }),
+            sleep_invalid: launch.demo && flags.contains(&"sleep-invalid"),
             album_years: if let Page::AlbumList(crate::navidrome::albums::Order::Year {
                 from,
                 to,
@@ -409,7 +433,10 @@ impl State {
             menu: None,
             lyrics_view: Default::default(),
             lyrics_share: Default::default(),
-            queue_open: launch.demo && flags.iter().any(|flag| flag.starts_with("queue")),
+            queue_open: launch.demo
+                && flags
+                    .iter()
+                    .any(|flag| flag.starts_with("queue") || *flag == "sleep-active"),
             queue_compact: Cell::new(false),
             queue_selected: None,
             queue_menu: None,
@@ -860,6 +887,13 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     }
     if s.app.connected && !s.password.text.is_empty() {
         s.password.clear();
+    }
+    if let Some(deadline) = s.app.sleep.deadline() {
+        tx.wake_after(
+            deadline
+                .duration_since(std::time::SystemTime::now())
+                .unwrap_or_default(),
+        );
     }
     if s.app.dirty.is_some() {
         tx.wake_after(Duration::from_millis(500));

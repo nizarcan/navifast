@@ -82,6 +82,32 @@ albums can resolve before the next cycle is prepared.
 The existing command and media interfaces report and set the same modes as the
 native controls.
 
+## Sleep timer
+
+Open the clock in the Queue heading. Choose 15, 30, 60 or 120 minutes, a positive
+whole number of songs including the current one, or **Pause at end of queue**.
+The queue and dialog show the deadline in local time or the remaining song count.
+A new choice replaces the previous timer. **Cancel timer** leaves playback and
+position unchanged. Timers belong to this session and clear on sign-out or exit.
+
+The duration uses wall-clock time, including time paused or with the window hidden.
+Expiry pauses the current source and retains its buffered audio and resume position.
+The output worker enforces the deadline independently of window redraws.
+
+Natural completion and manual Next each consume one song. Repeated copies of a
+song and Repeat One plays count separately. Seeking, Previous and editing the
+queue do not consume a song. Selecting another song or collection keeps the
+remaining count, with that selection becoming the current song. Next waits for a
+pending album without counting again when the album resolves. A one-song timer
+pauses before advancing, including when Next is pressed early.
+
+The queue timer follows additions, removals and the current collection. It ignores
+Repeat One so this pass can reach its end, then pauses before a future Repeat All
+cycle or automatic refill. Repeat settings remain selected. A song boundary is
+checked before the controller selects or submits the next source, so a timer stop
+cannot play the beginning of the following song. Playback stays paused until the
+listener resumes; stale completion reports cannot restart it.
+
 ## Listening history
 
 With scrobbling enabled, audio consumed within one play accumulates across seeks

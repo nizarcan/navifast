@@ -42,6 +42,11 @@ pub enum Command {
         epoch: u64,
         enabled: bool,
     },
+    Sleep {
+        token: u64,
+        deadline: Option<std::time::SystemTime>,
+        held: bool,
+    },
     Pause(bool),
     Volume(f32),
     Stop,
@@ -63,6 +68,9 @@ pub enum Event {
         seconds: f64,
         paused: bool,
         started: bool,
+    },
+    SleepExpired {
+        token: u64,
     },
     Finished(u64),
     Failed {
@@ -201,8 +209,19 @@ fn output_loop(
     let mut volume = 0.7;
     let mut reported = Instant::now();
     let mut listening = super::scrobble::Listening::default();
+    let mut sleep = super::sleep::OutputTimer::default();
     loop {
-        match receive.recv_timeout(Duration::from_millis(20)) {
+        let command = receive.recv_timeout(Duration::from_millis(20));
+        // Check before accepting a Load or unpausing already buffered PCM.
+        if sleep.deadline.is_some() {
+            pause_at_deadline(
+                &mut sleep,
+                playing.as_ref(),
+                std::time::SystemTime::now(),
+                &*notify,
+            );
+        }
+        match command {
             Ok(Command::Load {
                 generation,
                 listening: context,
@@ -234,10 +253,13 @@ fn output_loop(
                 let Some(stream) = &output else {
                     continue;
                 };
+                if sleep.deadline.is_some() {
+                    pause_at_deadline(&mut sleep, None, std::time::SystemTime::now(), &*notify);
+                }
                 tap.clear();
                 let sink = rodio::Sink::connect_new(stream.mixer());
                 sink.set_volume(volume);
-                if paused {
+                if paused || sleep.held {
                     sink.pause();
                 }
                 let (send, audio) = mpsc::sync_channel(PCM_BUFFER_BLOCKS);
@@ -266,9 +288,23 @@ fn output_loop(
                 }
                 listening.configure(epoch, enabled);
             }
+            Ok(Command::Sleep {
+                token,
+                deadline,
+                held,
+            }) => {
+                sleep = super::sleep::OutputTimer {
+                    token,
+                    deadline,
+                    held,
+                };
+                if held && let Some(play) = &playing {
+                    play.sink.pause();
+                }
+            }
             Ok(Command::Pause(paused)) => {
                 if let Some(play) = &playing {
-                    if paused {
+                    if paused || sleep.held {
                         play.sink.pause();
                     } else {
                         play.sink.play();
@@ -305,6 +341,14 @@ fn output_loop(
             Ok(Command::Shutdown) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
             Err(mpsc::RecvTimeoutError::Timeout) => {}
         }
+        if sleep.deadline.is_some() {
+            pause_at_deadline(
+                &mut sleep,
+                playing.as_ref(),
+                std::time::SystemTime::now(),
+                &*notify,
+            );
+        }
         if let Some(play) = &playing {
             if play.sink.empty() && play.completed.load(Ordering::Acquire) {
                 play.report_listening(&mut listening, &*notify);
@@ -327,6 +371,20 @@ fn output_loop(
     if let Some(play) = playing {
         play.sink.stop();
         play.report_listening(&mut listening, &*notify);
+    }
+}
+
+fn pause_at_deadline(
+    timer: &mut super::sleep::OutputTimer,
+    playing: Option<&Playing>,
+    now: std::time::SystemTime,
+    notify: &dyn Fn(Event),
+) {
+    if timer.expired(now) {
+        if let Some(play) = playing {
+            play.sink.pause();
+        }
+        notify(Event::SleepExpired { token: timer.token });
     }
 }
 
@@ -606,6 +664,63 @@ fn decode(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sleep_deadline_pauses_before_buffered_next_audio_and_reports_once() {
+        let (sink, mut output) = rodio::Sink::new();
+        let (send, receive) = mpsc::sync_channel(PCM_BUFFER_BLOCKS);
+        let samples = Arc::new(AtomicU64::new(0));
+        for _ in 0..10 {
+            send.send(vec![0.5; PCM_BLOCK_SAMPLES]).unwrap();
+        }
+        sink.append(PcmSource::new(
+            receive,
+            samples.clone(),
+            crate::vis::AudioTap::new(),
+        ));
+        let play = Playing {
+            generation: 7,
+            offset: 19.,
+            samples: samples.clone(),
+            completed: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            sink,
+        };
+        let now = std::time::SystemTime::now();
+        let mut timer = super::super::sleep::OutputTimer {
+            token: 3,
+            deadline: Some(now),
+            held: false,
+        };
+        let reports = std::sync::Mutex::new(Vec::new());
+        let notify = |event| reports.lock().unwrap().push(event);
+        pause_at_deadline(&mut timer, Some(&play), now, &notify);
+        assert!(play.sink.is_paused());
+        assert!(timer.held);
+        // Drive the real Rodio source chain without opening an audio device.
+        for _ in 0..PCM_PREBUFFER_SAMPLES {
+            assert_eq!(output.next(), Some(0.));
+        }
+        assert_eq!(
+            samples.load(Ordering::Relaxed),
+            0,
+            "buffered next song stays unconsumed"
+        );
+        pause_at_deadline(&mut timer, Some(&play), now, &notify);
+        assert!(matches!(
+            reports.lock().unwrap().as_slice(),
+            [Event::SleepExpired { token: 3 }]
+        ));
+        play.sink.play();
+        assert!(
+            output
+                .take(PCM_PREBUFFER_SAMPLES)
+                .any(|sample| sample == 0.5)
+        );
+        assert!(
+            samples.load(Ordering::Relaxed) > 0,
+            "resume keeps buffered audio"
+        );
+    }
 
     #[test]
     fn buffering_silence_does_not_advance_the_playback_clock() {

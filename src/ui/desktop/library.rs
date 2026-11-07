@@ -384,6 +384,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     }
     if let Some(dialog) = &s.app.presentation.dialog {
         shell = shell.child(match dialog {
+            crate::model::Dialog::SleepTimer => sleep::dialog(v),
             crate::model::Dialog::Shares => shares::dialog(v),
             crate::model::Dialog::Shortcuts => preferences::shortcuts(v),
             crate::model::Dialog::Playlists => playlists::editor(v),

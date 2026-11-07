@@ -12,6 +12,7 @@ pub mod ratings;
 pub mod scrobble;
 pub mod session;
 pub mod shares;
+pub mod sleep;
 pub mod stats;
 pub mod stream;
 
