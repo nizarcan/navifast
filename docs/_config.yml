@@ -1,5 +1,4 @@
 title: Navifast
-navifast_version: "0.11.2"
 description: A fast, lightweight Navidrome app for Linux, macOS, and Windows.
 lang: en-US
 timezone: Europe/Berlin
@@ -20,6 +19,9 @@ collections:
     output: true
     permalink: "/:name/"
   reference:
+    output: true
+    permalink: "/:name/"
+  legacy:
     output: true
     permalink: "/:name/"
 
@@ -97,10 +99,6 @@ jekyll_vitepress:
     repository: nizarcan/navifast
     text: Star
     show_count: true
-  github_sponsor:
-    enabled: false
-    user: crmne
-    text: Sponsor
 
 plugins:
   - jekyll-redirect-from

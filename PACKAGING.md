@@ -18,8 +18,8 @@ Navifast names and the application ID `io.github.nizarcan.Navifast`.
 Install Navifast alongside the upstream app. Current packages install only
 `navifast`, its launcher and its icon, and do not replace the upstream package,
 claim its command name or migrate its Spotify profile. The Cargo compatibility
-binary and older payload fixtures remain migration references. Historical
-release notes describe the upstream releases, not Navifast releases.
+binary and older payload fixtures remain migration references. `packaging/release-notes/` contains only Navifast releases. Upstream release
+history remains in the credited Spotifast repository and Git history.
 
 `python3 packaging/test-launchers.py` exercises AUR and Flatpak installation
 commands using isolated payload fixtures and Ruby to read YAML. Nix installs

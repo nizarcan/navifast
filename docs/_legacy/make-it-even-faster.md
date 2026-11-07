@@ -46,7 +46,7 @@ compared with twenty on the shared connection.
 Setting up playback on this computer also helps playlists load faster.
 Navifast can load playlists that would otherwise use the shared allowance
 through its music connection instead.
-[How it connects](/how-it-connects/) explains which connection each feature uses.
+[How it connects](/legacy/spotify-architecture/) explains which connection each feature uses.
 
 ## Make a Spotify app
 

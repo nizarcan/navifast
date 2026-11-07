@@ -97,6 +97,35 @@ Navifast's config directory. Spotify profiles and
 credentials are not imported. The app does not check for updates or contact
 Spotify in normal use. See [privacy](docs/_reference/privacy.md).
 
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `src/entrypoint.rs`, `src/navifast.rs` | Application launch and command handling |
+| `src/ui/desktop/` | Active Rune views |
+| `src/app/navidrome.rs`, `src/app/navidrome/` | Navidrome state, actions and desktop integration |
+| `src/navidrome/` | OpenSubsonic requests, streaming and local playback |
+| `src/eq.rs`, `src/limiter.rs`, `src/vis.rs` | Shared audio processing and visualizers |
+| `src/settings.rs`, `src/theme/`, `src/i18n.rs`, `assets/` | Shared preferences, themes, translations and assets |
+| `src/entrypoint/legacy.rs`, other `src/ui/` views | Inherited egui comparison and shared UI helpers |
+| `tests/`, `examples/` | Regression coverage and development utilities |
+| `packaging/`, `.github/` | Current installers, release automation and CI |
+| `docs/_guide/`, `docs/_reference/` | Current product guides and technical contracts |
+| `docs/_legacy/` | Inherited feature and architecture references |
+
+The legacy comparison still shares models and helpers with the active client.
+The inherited `src/api/`, `src/backend.rs` and `src/player.rs` describe Spotify;
+current Navidrome requests and playback live in `src/navidrome/`. Compatibility
+names and installation fixtures protect older data and coexistence with the
+upstream app. These are deliberate retained code, not abandoned build outputs.
+
+Keep generated binaries, dependency downloads and local QA evidence out of the
+tracked source. Cargo output belongs in the ignored, mbx-managed `target/`;
+packaged output belongs in ignored `dist/`. Local toolchains and reusable caches
+can live in the user's cache directories. `packaging/release-notes/` contains
+Navifast release notes only; upstream history remains in Git and
+[Spotifast's releases](https://github.com/crmne/spotifast/releases).
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and contribution policy.
@@ -120,7 +149,8 @@ remain until their remaining reusable features have moved over.
 The first Navifast release candidate is `0.1.0-rc.1`. Release preparation does
 not mean the downloads have been published: use the assets listed on
 [GitHub Releases](https://github.com/nizarcan/navifast/releases), or build from
-source until they are available. Earlier release notes document Spotifast history.
+source until they are available. Upstream release history is available in the
+credited Spotifast repository.
 
 The Mac preview is not Developer ID-signed or notarized. After copying Navifast
 from the DMG to Applications and trying to open it, macOS may require

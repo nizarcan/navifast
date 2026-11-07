@@ -20,5 +20,5 @@ The first migration stage provides server sign-in, library search, albums, artwo
 playback, transport controls, an equalizer and spectrum display. See the
 [getting started guide](/getting-started/) for scope and limitations.
 
-Build from source while migration is in progress. The inherited release
-history and archived Spotify reference pages are not current feature claims.
+Build from source while migration is in progress. The [legacy reference](/legacy/) is kept separately for the inherited
+comparison demo and does not describe current features.

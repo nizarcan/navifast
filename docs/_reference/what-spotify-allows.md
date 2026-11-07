@@ -1,5 +1,5 @@
 ---
-title: What Spotify Lets a Client Do
+title: Legacy Spotify Capabilities
 description: What Spotify's Web API and librespot provide, and what neither supports.
 nav_order: 3
 ---
@@ -44,7 +44,7 @@ Spotify-owned playlists, related artists, recommendations, or audio features.
 This is why a personal app cannot handle every request. Complete playlist
 library views stay on the shared app. Playlists other people own, and every
 playlist when there is no personal app, are read over the librespot session
-while local playback is signed in. See [How It Connects](/how-it-connects/).
+while local playback is signed in. See [How It Connects](/legacy/spotify-architecture/).
 
 ## librespot session
 

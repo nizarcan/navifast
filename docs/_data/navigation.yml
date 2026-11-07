@@ -8,3 +8,7 @@
     - reference
 - title: Download
   url: /download/
+- title: Legacy reference
+  url: /legacy/
+  collections:
+    - legacy

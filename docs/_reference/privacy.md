@@ -54,5 +54,4 @@ allows that bounded reserve to fill; stopping or signing out cancels further
 downloads and discards buffered audio. An in-flight request retains its existing
 15-second deadline.
 There is no offline audio cache. The local log records startup diagnostics,
-not passwords or authentication responses. The private migration plan and
-local QA artifacts are ignored and are not part of the distributed app.
+not passwords or authentication responses. Local development tools and QA artifacts are not part of the distributed app.
