@@ -215,6 +215,26 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             );
         page = page.child(section(v, &account, vec![account_row]));
     }
+    let lyrics = v.tr(mark("Lyrics"));
+    let name = v.tr(mark("Use LRCLIB for missing lyrics"));
+    let detail = v.tr(mark("When Navidrome has no lyrics, send the song's artist, title, album and duration to lrclib.net. Off by default. You can disable this at any time."));
+    if matches(&[&lyrics, &name, &detail]) {
+        visible = true;
+        page = page.child(section(
+            v,
+            &lyrics,
+            vec![setting(
+                v,
+                &name,
+                &detail,
+                switch(v, &name, settings.lrclib_lyrics, |s| {
+                    s.set_lrclib_lyrics(!s.app.presentation.settings.lrclib_lyrics);
+                })
+                .key("lyrics-provider-toggle"),
+                40.,
+            )],
+        ));
+    }
     let appearance = v.tr(mark("Appearance"));
     let mut rows = vec![];
     let detail =

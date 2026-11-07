@@ -1,5 +1,8 @@
 use super::*;
-use crate::{model::Loadable, navidrome::lyrics::Outcome};
+use crate::{
+    model::Loadable,
+    navidrome::lyrics::{Outcome, Source},
+};
 
 pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
     let mut body = col()
@@ -15,13 +18,9 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
         .pb(16.)
         .fill(color(if wide { v.p.panel } else { v.p.window }));
     let mut header = row().w_full().items_center().gap(8.).child(
-        label(
-            v.tr(mark("Lyrics")),
-            if wide { 22. } else { 28. },
-            700.,
-            v.p.text,
-        )
-        .grow(1.),
+        label(v.tr(mark("Lyrics")), 28., 700., v.p.text)
+            .key("lyrics-heading")
+            .grow(1.),
     );
     if !v.s.lyrics_view.following.get()
         && matches!(&v.s.app.lyrics.data, Loadable::Loaded(Outcome::Found(lyrics)) if lyrics.timed)
@@ -37,7 +36,14 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
         })
         .key("lyrics-close"),
     );
-    body = body.child(header);
+    body = body.child(header).child(
+        el().w_full()
+            .h(1.)
+            .fill(color(v.p.outline))
+            .mt(12.)
+            .mb(10.)
+            .a11y_hidden(),
+    );
     if v.s.app.transport.song().is_none() {
         return body.child(v.empty(
             Icon::Mic,
@@ -65,6 +71,13 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
             Icon::Music,
             &v.tr(mark("Instrumental")),
             &v.tr(mark("No words for this track.")),
+        )),
+        Loadable::Loaded(Outcome::Ambiguous) => body.child(v.empty(
+            Icon::Mic,
+            &v.tr(mark("No matching recording")),
+            &v.tr(mark(
+                "The artist, title, album and duration must identify the same recording.",
+            )),
         )),
         Loadable::Loaded(Outcome::Found(lyrics)) => {
             if lyrics.invalid_timing {
@@ -128,7 +141,21 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                     true
                 })
                 .on_scroll_offset(v.s.lyrics_scroll_observer())
-                .child(rows);
+                .child(rows)
+                .child(
+                    label(
+                        v.tr(match v.s.app.lyrics.source {
+                            Source::Server => mark("Lyrics from Navidrome"),
+                            Source::Lrclib => mark("Lyrics from LRCLIB"),
+                        }),
+                        11.,
+                        400.,
+                        v.p.dim,
+                    )
+                    .key("lyrics-source")
+                    .wrap()
+                    .pb(12.),
+                );
             body.child(scroller)
         }
     }
@@ -142,14 +169,25 @@ fn line(v: &Paint<'_>, index: usize) -> El {
         return el();
     };
     let active = v.s.lyric_active() == Some(index);
+    let ink = if active && line.words.is_empty() {
+        v.p.accent
+    } else {
+        v.p.secondary
+    };
+    let spans: Vec<_> = if active {
+        line.active_words((v.s.app.transport.position.max(0.) * 1000.) as u64)
+            .map(|i| {
+                let range = &line.words[i].range;
+                rune::Span::new(range.start, range.end).color(color(v.p.accent))
+            })
+            .collect()
+    } else {
+        vec![]
+    };
     let mut row = col().key(format!("lyric-{index}")).w_full().py(6.).child(
-        label(
-            &line.text,
-            19.,
-            if active { 700. } else { 400. },
-            if active { v.p.accent } else { v.p.secondary },
-        )
-        .wrap(),
+        label(&line.text, 19., if active { 700. } else { 400. }, ink)
+            .spans(spans)
+            .wrap(),
     );
     if let Some(at) = line.at_ms {
         row = row

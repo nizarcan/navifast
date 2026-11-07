@@ -13,6 +13,7 @@ pub(crate) struct View {
     shown: Option<usize>,
     painted_following: bool,
     painted_active: Option<usize>,
+    painted_words: Vec<usize>,
 }
 impl Default for View {
     fn default() -> Self {
@@ -25,10 +26,23 @@ impl Default for View {
             shown: None,
             painted_following: true,
             painted_active: None,
+            painted_words: Vec::new(),
         }
     }
 }
 impl State {
+    pub(crate) fn set_lrclib_lyrics(&mut self, enabled: bool) {
+        self.app.set_lrclib_lyrics(enabled);
+    }
+    pub(crate) fn lyric_words(&self) -> impl Iterator<Item = usize> + '_ {
+        let line = match (&self.app.lyrics.data, self.lyric_active()) {
+            (Loadable::Loaded(Outcome::Found(lyrics)), Some(index)) => lyrics.lines.get(index),
+            _ => None,
+        };
+        let position = (self.app.transport.position.max(0.) * 1000.) as u64;
+        line.into_iter()
+            .flat_map(move |line| line.active_words(position))
+    }
     pub(crate) fn retry_lyrics(&mut self) {
         self.app.retry_lyrics();
     }
@@ -82,6 +96,8 @@ impl State {
         self.lyrics_view.pending = false;
     }
     pub(crate) fn poll_lyrics_view(&mut self, tx: &mut Tx) -> bool {
+        let reset_to_top =
+            self.lyrics_view.song != self.app.lyrics.song && self.lyric_active().is_none();
         let view = &mut self.lyrics_view;
         let mut changed = false;
         if view.pending {
@@ -94,7 +110,9 @@ impl State {
                 ..Default::default()
             };
             changed = true;
-            tx.scroll_to_y("lyrics-scroll", 0.);
+            if reset_to_top {
+                tx.scroll_to_y("lyrics-scroll", 0.);
+            }
         }
         if !self.app.lyrics.enabled {
             return changed;
@@ -104,7 +122,15 @@ impl State {
             changed = true;
         }
         let active = self.lyric_active();
+        let words = self
+            .lyric_words()
+            .ne(self.lyrics_view.painted_words.iter().copied())
+            .then(|| self.lyric_words().collect());
         let view = &mut self.lyrics_view;
+        if let Some(words) = words {
+            view.painted_words = words;
+            changed = true;
+        }
         if view.painted_active != active {
             view.painted_active = active;
             changed = true;

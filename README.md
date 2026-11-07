@@ -49,10 +49,11 @@ The current build supports:
   including system/light/dark and custom themes, language, interface zoom and
   player-bar visualizers.
 - Lyrics from your Navidrome server, with timed-line highlighting, click-to-seek
-  and a Follow control after reading ahead. Plain lyrics remain readable without timing.
+  and a Follow control after reading ahead. Opt-in LRCLIB lookup can fill missing
+  lyrics. Word highlighting uses genuine timestamps from either source.
 - Basic native media controls.
 
-This is an early playback build. External lyric providers, scrobbling, transcoding preferences,
+This is an early playback build. Scrobbling, transcoding preferences,
 and tray behavior are not available in the current Navidrome interface.
 The existing interface keeps its translations; the server sign-in form
 currently uses English.

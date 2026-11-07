@@ -222,6 +222,8 @@ pub struct Settings {
     pub search_history: Vec<String>,
     /// Ask GitHub once a day whether a newer release exists.
     pub check_for_updates: bool,
+    /// Explicit opt-in to sending recording metadata to LRCLIB for missing lyrics.
+    pub lrclib_lyrics: bool,
     /// Explicit order per Library shelf. Missing shelves keep their previous
     /// behaviour; selecting another order never deletes the local arrangement.
     pub library_sort: std::collections::BTreeMap<LibraryShelf, LibrarySort>,
@@ -305,6 +307,7 @@ impl Default for Settings {
             middle_click_autoscroll: false,
             search_history: Vec::new(),
             check_for_updates: true,
+            lrclib_lyrics: false,
             library_sort: std::collections::BTreeMap::new(),
             zoom: 1.0,
             eq_on: false,
@@ -858,6 +861,19 @@ mod tests {
         let json = serde_json::to_string(&settings).unwrap();
         let restored: Settings = serde_json::from_str(&json).unwrap();
         assert!(restored.middle_click_autoscroll);
+    }
+
+    #[test]
+    fn external_lyrics_are_off_for_existing_settings_and_persist_only_explicit_opt_in() {
+        let settings: Settings = serde_json::from_str("{}").unwrap();
+        assert!(!settings.lrclib_lyrics);
+        let settings = Settings {
+            lrclib_lyrics: true,
+            ..settings
+        };
+        let restored: Settings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert!(restored.lrclib_lyrics);
     }
 
     #[test]

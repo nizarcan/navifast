@@ -2,6 +2,10 @@
 use super::api::{Client, RequestError, Song};
 use serde::Deserialize;
 use serde_json::Value;
+pub mod lrclib;
+mod lyricsfile;
+mod words;
+pub use words::Word;
 
 const MAX_LINES: usize = 10_000;
 const MAX_TEXT: usize = 1024 * 1024;
@@ -10,6 +14,7 @@ const MAX_TEXT: usize = 1024 * 1024;
 pub struct Line {
     pub text: String,
     pub at_ms: Option<u64>,
+    pub words: Vec<Word>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Lyrics {
@@ -22,6 +27,13 @@ pub enum Outcome {
     Found(Lyrics),
     Missing,
     Instrumental,
+    Ambiguous,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Source {
+    #[default]
+    Server,
+    Lrclib,
 }
 impl Lyrics {
     pub fn active_line(&self, position_ms: u64) -> Option<usize> {
@@ -36,6 +48,10 @@ impl Lyrics {
 
 #[derive(Deserialize)]
 struct Structured {
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default, rename = "cueLine")]
+    cues: Vec<Value>,
     #[serde(default)]
     synced: bool,
     #[serde(default)]
@@ -103,6 +119,7 @@ fn parse(lyrics: Structured) -> Result<Outcome, String> {
             Line {
                 text: line.value,
                 at_ms,
+                words: Vec::new(),
             }
         })
         .collect();
@@ -111,6 +128,8 @@ fn parse(lyrics: Structured) -> Result<Outcome, String> {
         for line in &mut lines {
             line.at_ms = None;
         }
+    } else {
+        words::attach(&mut lines, lyrics.cues, offset.unwrap_or(0));
     }
     Ok(Outcome::Found(Lyrics {
         lines,
@@ -131,6 +150,9 @@ pub fn structured(body: Value) -> Result<Outcome, String> {
             malformed = true;
             continue;
         };
+        if entry.kind.as_deref().is_some_and(|kind| kind != "main") {
+            continue;
+        }
         let result = parse(entry)?;
         match result {
             Outcome::Found(ref lyrics) if lyrics.timed => return Ok(result),
@@ -159,6 +181,8 @@ pub fn plain(body: Value) -> Result<Outcome, String> {
         return Err("The server's lyrics are too large.".into());
     }
     parse(Structured {
+        kind: None,
+        cues: Vec::new(),
         synced: false,
         offset: Value::Null,
         instrumental: value
@@ -175,10 +199,14 @@ pub fn plain(body: Value) -> Result<Outcome, String> {
     })
 }
 
-pub async fn fetch(client: &Client, song: &Song) -> Result<Outcome, String> {
+pub async fn fetch_server(client: &Client, song: &Song) -> Result<Outcome, String> {
     if client.supports_extension("songLyrics", 1).await? {
+        let mut parameters = vec![("id", song.id.clone())];
+        if client.supports_extension("songLyrics", 2).await? {
+            parameters.push(("enhanced", "true".into()));
+        }
         match client
-            .checked_request("getLyricsBySongId", &[("id", song.id.clone())])
+            .checked_request("getLyricsBySongId", &parameters)
             .await
         {
             Ok(body) => return structured(body),
@@ -286,7 +314,11 @@ mod network_tests {
                     );
                     assert!(
                         !url.query_pairs()
-                            .any(|(k, _)| k == "artist" || k == "title" || k == "enhanced")
+                            .any(|(k, _)| k == "artist" || k == "title")
+                    );
+                    assert!(
+                        url.query_pairs()
+                            .any(|(k, v)| k == "enhanced" && v == "true")
                     );
                     serde_json::json!({"status":"ok","lyricsList":{"structuredLyrics":[{"synced":true,"line":[{"start":1000,"value":"Line"}]}]}})
                 }
@@ -313,7 +345,7 @@ mod network_tests {
         };
         for _ in 0..2 {
             assert!(matches!(
-                fetch(&client.clone(), &song).await.unwrap(),
+                fetch_server(&client.clone(), &song).await.unwrap(),
                 Outcome::Found(Lyrics { timed: true, .. })
             ));
         }
@@ -368,7 +400,7 @@ mod network_tests {
             ..Default::default()
         };
         assert!(matches!(
-            fetch(&client, &song).await.unwrap(),
+            fetch_server(&client, &song).await.unwrap(),
             Outcome::Found(Lyrics { timed: false, .. })
         ));
     }

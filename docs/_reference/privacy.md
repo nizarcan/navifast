@@ -26,11 +26,20 @@ Playback restores paused. Adding an album also reads `getAlbum`; no server play
 queue is read or saved.
 Opening Lyrics checks `getOpenSubsonicExtensions` once for the authenticated client.
 When `songLyrics` version 1 is supported, `getLyricsBySongId` receives the opaque
-song ID. Legacy servers use `getLyrics` with the artist and title instead. All
-requests go to the configured server. Its administrator controls any server-side
+song ID. Version 2 adds `enhanced=true` for word timestamps. Legacy servers use
+`getLyrics` with the artist and title instead. These requests go to the configured
+server. Its administrator controls any server-side
 external lyric integrations. The current song's lyrics stay only in memory; closing
 the panel cancels its lookup, and sign-out clears the document and capability cache.
-Navifast does not contact an external lyric provider directly.
+**Use LRCLIB for missing lyrics** is off by default. When explicitly enabled in
+Settings, a missing server result can trigger a direct HTTPS request to
+`lrclib.net/api/get`. It sends only the recording's artist, title, album and duration,
+plus Navifast's name/version and project URL as the client identifier. LRCLIB also
+receives the connection's IP address. No Navidrome URL, account, credentials, song
+IDs, audio or artwork are sent. The configured proxy policy applies. Redirects
+are refused. No provider lookup runs for a server hit or server error. Disabling
+the setting cancels pending lookups and removes external lyrics immediately.
+Provider lyrics remain in memory only and are never uploaded or published by Navifast.
 
 It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.

@@ -149,8 +149,22 @@ widths. Reuse the panel padding, heading, Close control, Palette and Inter. Clos
 returns to browsing without replacing the player. This carries forward the previous
 lyrics panel's ownership and the approved queue pattern.
 
+The Lyrics heading is 28-pixel bold primary text at both window sizes. A subtle
+one-pixel outline divider and breathing room separate it from the lyric content.
+Keep the header fixed while the lyrics scroll underneath it.
+
 Lyrics use wrapping 19-pixel text. The active timed line uses bold accent text;
 other lines use the secondary text color. Automatic follow brings the active line
 into view. Manual scrolling suspends following, with the existing pill-shaped
 **Follow** control to return. Plain lines are text, timed lines are accessible seek
 buttons. Do not reorder mixed-direction strings. Virtualize long documents.
+
+When genuine word timestamps exist, keep the active line bold and apply the accent
+only to currently timed UTF-8 ranges within the same shaped text element. Keep
+wrapping and bidi layout intact; do not split a line into separately laid-out words.
+Plain and line-only lyrics never simulate word timing. Put the source credit after
+the final lyric line, inside the scrolling content, in 11-pixel muted text. It is
+visible at the end of the lyrics rather than beside the heading. Keep provider
+controls in Settings; the lyrics panel has no provider-disable button.
+Use the existing Settings section and switch components for provider opt-in, with
+the provider's destination and metadata disclosure visible before enabling it.

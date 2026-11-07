@@ -18,7 +18,7 @@ own Navifast profile. Logs use the state directory's `navifast.log`.
 
 `settings.json` keeps the original interface preferences: system/light/dark or
 custom theme, language, zoom, sidebar layout, player-bar visualization,
-volume and EQ. Its playback preferences take precedence on startup; older
+volume, EQ and the `lrclib_lyrics` opt-in (false for existing profiles). Its playback preferences take precedence on startup; older
 profiles containing only `navidrome.json` remain readable. Custom JSON themes
 live in the config directory's `themes/` folder. Both settings files are written
 atomically on the background worker and contain no password. Unknown historical settings are retained as data, and automatic update checks remain disabled.
@@ -34,7 +34,8 @@ fallback if the credential store is locked or unavailable.
 the system store cannot delete the password immediately.
 
 Historical service caches and credentials are not imported. In-memory artwork and album metadata
-are cleared on sign-out. Preferences are local; queues are not saved yet.
+are cleared on sign-out. Preferences are local; queue checkpoints are described
+in [The queue's rules](/reference/queue/).
 
 ## Custom themes
 

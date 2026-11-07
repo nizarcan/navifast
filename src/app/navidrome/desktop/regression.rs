@@ -752,6 +752,7 @@ fn lyric_states_and_large_mixed_direction_text_use_the_same_native_panel() {
         "lyrics-malformed",
         "lyrics-rtl",
         "lyrics-long",
+        "lyrics-ambiguous",
     ] {
         let mut rt = runtime("album:alb0", flags);
         rt.update(|s, tx| {
@@ -781,5 +782,86 @@ fn lyric_states_and_large_mixed_direction_text_use_the_same_native_panel() {
         rt.frame(0.);
         assert!(rt.state.app.lyrics.enabled);
         assert!(!rt.state.queue_open);
+    }
+}
+
+#[test]
+fn word_lyrics_follow_audible_position_through_pause_seek_and_opt_out() {
+    for flags in [
+        "lyrics-words,lyrics-provider,restored",
+        "lyrics-words,lyrics-provider,lyrics-words-rtl,light,restored",
+    ] {
+        let mut rt = runtime("album:alb0", flags);
+        rt.update(|s, tx| {
+            s.poll_lyrics_view(tx);
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(rt.state.lyric_words().collect::<Vec<_>>(), [3]);
+        let bounds = |key| {
+            rt.elements()
+                .iter()
+                .find(|e| e.key.as_deref() == Some(key))
+                .unwrap()
+                .rect
+        };
+        let [_, top, _, height] = bounds("lyrics-scroll");
+        let [_, line_top, _, line_height] = bounds("lyric-8");
+        assert!(
+            (line_top + line_height / 2. - (top + height / 2.)).abs() < 2.,
+            "Follow should center a wrapped current line"
+        );
+        assert!(rt.state.app.transport.paused);
+        assert!(rt.accessibility_action("lyric-8", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(rt.state.lyric_words().collect::<Vec<_>>(), [0]);
+        assert!(rt.state.app.transport.paused);
+        let elements = rt.elements();
+        assert!(
+            !elements
+                .iter()
+                .any(|e| e.key.as_deref() == Some("lyrics-disable-provider"))
+        );
+        let footer = elements
+            .iter()
+            .find(|e| e.key.as_deref() == Some("lyrics-source"))
+            .unwrap()
+            .rect;
+        assert!(
+            footer[1] >= top + height,
+            "source belongs after the lyrics, offscreen initially"
+        );
+        rt.update(|s, tx| {
+            s.pause_lyrics_follow();
+            tx.scroll_to_bottom_instant("lyrics-scroll");
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        let elements = rt.elements();
+        let footer = elements
+            .iter()
+            .find(|e| e.key.as_deref() == Some("lyrics-source"))
+            .unwrap()
+            .rect;
+        assert!(footer[1] >= top && footer[1] + footer[3] <= top + height + 1.);
+        rt.update(|s, tx| {
+            s.toggle_lyrics(tx);
+            s.dispatch(Action::Open(Page::Settings), tx);
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(rt.accessibility_action(
+            "lyrics-provider-toggle",
+            rune::accesskit::Action::Click,
+            None
+        ));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(!rt.state.app.presentation.settings.lrclib_lyrics);
+        assert!(matches!(
+            rt.state.app.lyrics.data,
+            crate::model::Loadable::NotLoaded
+        ));
     }
 }

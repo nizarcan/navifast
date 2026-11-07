@@ -14,6 +14,7 @@ pub enum Request {
         request: u64,
         client: Client,
         song: Box<super::api::Song>,
+        external: Option<Box<crate::settings::ProxyConfig>>,
     },
     CancelLyrics,
     RestoreSession {
@@ -140,7 +141,7 @@ pub enum Event {
         session: u64,
         request: u64,
         song: String,
-        result: Result<super::lyrics::Outcome, String>,
+        result: Result<(super::lyrics::Source, super::lyrics::Outcome), String>,
     },
     SessionRestored {
         session: u64,
@@ -279,6 +280,7 @@ impl Backend {
                 let mut playlists = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
                 let mut lyrics = tokio::task::JoinSet::new();
+                let lyrics_provider = Arc::new(super::lyrics::lrclib::Lookup::default());
                 let mut restores = tokio::task::JoinSet::new();
                 let mut queue_reads = tokio::task::JoinSet::new();
                 let mut queue_handles: std::collections::HashMap<u64, tokio::task::AbortHandle> = std::collections::HashMap::new();
@@ -389,6 +391,7 @@ impl Backend {
                                     let wake = wake.clone();
                                     let permits = permits.clone();
                                     let lease = credentials.lease(Slot::Navidrome);
+                                    let lyrics_provider = lyrics_provider.clone();
                                     let group = match request {
                                         Request::Lyrics { .. } => &mut lyrics,
                                         Request::Search { .. } => &mut searches,
@@ -398,7 +401,7 @@ impl Backend {
                                     };
                                     group.spawn(async move {
                                         let Ok(_permit) = permits.acquire().await else { return; };
-                                        let event = execute(request, &lease).await;
+                                        let event = execute(request, &lease, &lyrics_provider).await;
                                         // Queue persistence before showing success, without making
                                         // the library wait for an unlocked system credential store.
                                         let saving = match &event {
@@ -458,15 +461,21 @@ impl Drop for Backend {
     }
 }
 
-async fn execute(request: Request, lease: &Lease) -> Option<Event> {
+async fn execute(
+    request: Request,
+    lease: &Lease,
+    provider: &super::lyrics::lrclib::Lookup,
+) -> Option<Event> {
     Some(match request {
         Request::Lyrics {
             session,
             request,
             client,
             song,
+            external,
         } => {
-            let result = super::lyrics::fetch(&client, &song).await;
+            let result =
+                super::lyrics::lrclib::fetch(&client, &song, provider, external.as_deref()).await;
             Event::Lyrics {
                 session,
                 request,
@@ -936,6 +945,7 @@ mod tests {
                 cached: Some(bytes.clone()),
             },
             &fixture.store.lease(Slot::Navidrome),
+            &super::super::lyrics::lrclib::Lookup::default(),
         )
         .await
         else {

@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 16:41+0300\n"
+"POT-Creation-Date: 2026-11-07 17:34+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: German\n"
@@ -73,7 +73,7 @@ msgid "Light"
 msgstr "Hell"
 
 #: src/settings.rs:118 src/ui/desktop/preferences.rs:93
-#: src/ui/desktop/preferences.rs:247
+#: src/ui/desktop/preferences.rs:267
 msgid "Follow system"
 msgstr "System folgen"
 
@@ -192,7 +192,7 @@ msgstr "Alben"
 msgid "Singles & EPs"
 msgstr "Singles und EPs"
 
-#: src/ui/desktop/artist.rs:349 src/ui/desktop/preferences.rs:434
+#: src/ui/desktop/artist.rs:349 src/ui/desktop/preferences.rs:454
 msgid "About"
 msgstr "Über"
 
@@ -276,8 +276,8 @@ msgstr "Einstellungen"
 msgid "Account"
 msgstr "Konto"
 
-#: src/ui/desktop/library.rs:553 src/ui/desktop/preferences.rs:435
-#: src/ui/desktop/preferences.rs:638 src/ui/desktop/preferences.rs:639
+#: src/ui/desktop/library.rs:553 src/ui/desktop/preferences.rs:455
+#: src/ui/desktop/preferences.rs:658 src/ui/desktop/preferences.rs:659
 msgid "Keyboard shortcuts"
 msgstr "Tastenkürzel"
 
@@ -483,7 +483,7 @@ msgstr "Erstellen"
 msgid "Read-only"
 msgstr "Schreibgeschützt"
 
-#: src/ui/desktop/playlists.rs:191 src/ui/desktop/preferences.rs:625
+#: src/ui/desktop/playlists.rs:191 src/ui/desktop/preferences.rs:645
 msgid "Done"
 msgstr "Fertig"
 
@@ -554,7 +554,7 @@ msgstr "Nach unten"
 msgid "Remove from queue"
 msgstr "Aus der Warteschlange entfernen"
 
-#: src/ui/desktop/preferences.rs:107 src/ui/desktop/preferences.rs:281
+#: src/ui/desktop/preferences.rs:107 src/ui/desktop/preferences.rs:301
 msgctxt "language"
 msgid "System"
 msgstr "System"
@@ -568,108 +568,126 @@ msgstr "Einstellungen durchsuchen"
 msgid "Connected as {username}"
 msgstr "Verbunden als {username}"
 
-#: src/ui/desktop/preferences.rs:218
+#: src/ui/desktop/preferences.rs:218 src/ui/desktop/transport.rs:355
+#: src/ui/desktop/lyrics.rs:21 src/ui/desktop/lyrics.rs:125
+msgid "Lyrics"
+msgstr "Songtext"
+
+#: src/ui/desktop/preferences.rs:219
+msgid "Use LRCLIB for missing lyrics"
+msgstr "LRCLIB für fehlende Liedtexte verwenden"
+
+#: src/ui/desktop/preferences.rs:220
+msgid ""
+"When Navidrome has no lyrics, send the song's artist, title, album and "
+"duration to lrclib.net. Off by default. You can disable this at any time."
+msgstr ""
+"Wenn Navidrome keine Liedtexte hat, Interpret, Titel, Album und Dauer des "
+"Liedes an lrclib.net senden. Standardmäßig deaktiviert. Du kannst dies "
+"jederzeit deaktivieren."
+
+#: src/ui/desktop/preferences.rs:238
 msgid "Appearance"
 msgstr "Darstellung"
 
-#: src/ui/desktop/preferences.rs:225
+#: src/ui/desktop/preferences.rs:245
 msgid "Follow system uses your Omarchy colours."
 msgstr "„System folgen“ verwendet deine Omarchy-Farben."
 
-#: src/ui/desktop/preferences.rs:228
+#: src/ui/desktop/preferences.rs:248
 msgid "Follow system uses your desktop's light or dark appearance."
 msgstr ""
 "„System folgen“ übernimmt die helle oder dunkle Darstellung deines Desktops."
 
-#: src/ui/desktop/preferences.rs:231
+#: src/ui/desktop/preferences.rs:251
 msgid "Theme"
 msgstr "Design"
 
-#: src/ui/desktop/preferences.rs:236 src/ui/desktop/preferences.rs:259
+#: src/ui/desktop/preferences.rs:256 src/ui/desktop/preferences.rs:279
 msgid "Open themes folder"
 msgstr "Designordner öffnen"
 
-#: src/ui/desktop/preferences.rs:237 src/ui/desktop/preferences.rs:265
+#: src/ui/desktop/preferences.rs:257 src/ui/desktop/preferences.rs:285
 msgid "How to make a theme"
 msgstr "Eigenes Design erstellen"
 
-#: src/ui/desktop/preferences.rs:276
+#: src/ui/desktop/preferences.rs:296
 msgid "Language"
 msgstr "Sprache"
 
-#: src/ui/desktop/preferences.rs:278
+#: src/ui/desktop/preferences.rs:298
 msgid ""
 "System follows your computer's language. Untranslated text stays in English."
 msgstr ""
 "„System“ folgt der Sprache deines Computers. Nicht übersetzter Text bleibt "
 "auf Englisch."
 
-#: src/ui/desktop/preferences.rs:310
+#: src/ui/desktop/preferences.rs:330
 msgid "Colour from album art"
 msgstr "Farbe aus dem Albumcover"
 
-#: src/ui/desktop/preferences.rs:311
+#: src/ui/desktop/preferences.rs:331
 msgid "Use the current cover's colour on pages and the player bar."
 msgstr ""
 "Die Farbe des aktuellen Covers auf Seiten und in der Wiedergabeleiste "
 "verwenden."
 
-#: src/ui/desktop/preferences.rs:315 src/ui/desktop/transport.rs:456
+#: src/ui/desktop/preferences.rs:335 src/ui/desktop/transport.rs:456
 msgid "Player bar visualizer"
 msgstr "Visualizer in der Wiedergabeleiste"
 
-#: src/ui/desktop/preferences.rs:317
+#: src/ui/desktop/preferences.rs:337
 msgid ""
 "Show the song moving behind the player bar's controls while it plays here."
 msgstr ""
 "Zeigt den Song in Bewegung hinter den Steuerelementen der Wiedergabeleiste, "
 "während er hier läuft."
 
-#: src/ui/desktop/preferences.rs:322
+#: src/ui/desktop/preferences.rs:342
 msgid "Off"
 msgstr "Aus"
 
-#: src/ui/desktop/preferences.rs:323
+#: src/ui/desktop/preferences.rs:343
 msgid "Spectrum"
 msgstr "Spektrum"
 
-#: src/ui/desktop/preferences.rs:324
+#: src/ui/desktop/preferences.rs:344
 msgid "Waveform"
 msgstr "Wellenform"
 
-#: src/ui/desktop/preferences.rs:337
+#: src/ui/desktop/preferences.rs:357
 msgid "Compact library sidebar"
 msgstr "Kompakte Bibliotheksleiste"
 
-#: src/ui/desktop/preferences.rs:338
+#: src/ui/desktop/preferences.rs:358
 msgid "Show names without covers in the sidebar."
 msgstr "Namen ohne Cover in der Seitenleiste anzeigen."
 
-#: src/ui/desktop/preferences.rs:343
+#: src/ui/desktop/preferences.rs:363
 msgid "Compact track list"
 msgstr "Kompakte Titelliste"
 
-#: src/ui/desktop/preferences.rs:344
+#: src/ui/desktop/preferences.rs:364
 msgid "Show each track on one line without a cover."
 msgstr "Jeden Titel ohne Cover in einer Zeile anzeigen."
 
-#: src/ui/desktop/preferences.rs:348
+#: src/ui/desktop/preferences.rs:368
 msgid "Interface zoom"
 msgstr "Zoom der Oberfläche"
 
-#: src/ui/desktop/preferences.rs:350
+#: src/ui/desktop/preferences.rs:370
 msgid "Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets."
 msgstr "Strg+Plus und Strg+Minus funktionieren überall; Strg+0 setzt zurück."
 
-#: src/ui/desktop/preferences.rs:351
+#: src/ui/desktop/preferences.rs:371
 msgid "Cmd+Plus and Cmd+Minus work anywhere; Cmd+0 resets."
 msgstr "Cmd+Plus und Cmd+Minus funktionieren überall; Cmd+0 setzt zurück."
 
-#: src/ui/desktop/preferences.rs:368
+#: src/ui/desktop/preferences.rs:388
 msgid "Middle-click autoscroll"
 msgstr "Autoscroll per Mittelklick"
 
-#: src/ui/desktop/preferences.rs:368
+#: src/ui/desktop/preferences.rs:388
 msgid ""
 "Middle-click a list, then move the pointer to scroll it. Off by default, "
 "because a middle click usually pastes on Linux."
@@ -678,11 +696,11 @@ msgstr ""
 "um sie zu scrollen. Standardmäßig aus, da ein Mittelklick unter Linux meist "
 "einfügt."
 
-#: src/ui/desktop/preferences.rs:373
+#: src/ui/desktop/preferences.rs:393
 msgid "Equalizer"
 msgstr "Equalizer"
 
-#: src/ui/desktop/preferences.rs:375
+#: src/ui/desktop/preferences.rs:395
 msgid ""
 "A ten-band equalizer for playback on this computer. It does not affect other "
 "devices."
@@ -690,33 +708,33 @@ msgstr ""
 "Ein Zehnband-Equalizer für die Wiedergabe auf diesem Computer. Andere Geräte "
 "sind nicht betroffen."
 
-#: src/ui/desktop/preferences.rs:391
+#: src/ui/desktop/preferences.rs:411
 msgid "Presets"
 msgstr "Presets"
 
-#: src/ui/desktop/preferences.rs:392
+#: src/ui/desktop/preferences.rs:412
 msgid "Preamp"
 msgstr "Vorverstärker"
 
-#: src/ui/desktop/preferences.rs:393
+#: src/ui/desktop/preferences.rs:413
 msgid "Bands"
 msgstr "Bänder"
 
-#: src/ui/desktop/preferences.rs:422
+#: src/ui/desktop/preferences.rs:442
 msgctxt "equalizer"
 msgid "Pre"
 msgstr "Pre"
 
-#: src/ui/desktop/preferences.rs:436
+#: src/ui/desktop/preferences.rs:456
 msgid "Source code"
 msgstr "Quellcode"
 
-#: src/ui/desktop/preferences.rs:465
+#: src/ui/desktop/preferences.rs:485
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "Keine Einstellungen für „{query}“"
 
-#: src/ui/desktop/preferences.rs:472
+#: src/ui/desktop/preferences.rs:492
 msgid "Try fewer words, or check the spelling."
 msgstr "Versuche es mit weniger Wörtern oder prüfe die Schreibweise."
 
@@ -736,7 +754,7 @@ msgstr "Alle wiederholen"
 msgid "Repeat one"
 msgstr "Einen Titel wiederholen"
 
-#: src/ui/desktop/transport.rs:224 src/ui/desktop/lyrics.rs:44
+#: src/ui/desktop/transport.rs:224 src/ui/desktop/lyrics.rs:50
 msgid "Nothing playing"
 msgstr "Keine Wiedergabe"
 
@@ -755,11 +773,6 @@ msgstr "Weiter"
 #: src/ui/desktop/transport.rs:316
 msgid "Playback position (%)"
 msgstr "Wiedergabeposition (%)"
-
-#: src/ui/desktop/transport.rs:355 src/ui/desktop/lyrics.rs:19
-#: src/ui/desktop/lyrics.rs:112
-msgid "Lyrics"
-msgstr "Songtext"
 
 #: src/ui/desktop/transport.rs:383
 msgid "Connect to a device"
@@ -855,38 +868,56 @@ msgstr "{minutes} Min. {seconds} Sek."
 msgid "{seconds} sec"
 msgstr "{seconds} Sek."
 
-#: src/ui/desktop/lyrics.rs:30
+#: src/ui/desktop/lyrics.rs:29
 msgid "Follow"
 msgstr "Folgen"
 
-#: src/ui/desktop/lyrics.rs:35
+#: src/ui/desktop/lyrics.rs:34
 msgid "Close lyrics"
 msgstr "Liedtext schließen"
 
-#: src/ui/desktop/lyrics.rs:45
+#: src/ui/desktop/lyrics.rs:51
 msgid "Play a song to see its lyrics."
 msgstr "Spiele einen Song ab, um den Songtext zu sehen."
 
-#: src/ui/desktop/lyrics.rs:55
+#: src/ui/desktop/lyrics.rs:61
 msgid "Try again"
 msgstr "Erneut versuchen"
 
-#: src/ui/desktop/lyrics.rs:61
+#: src/ui/desktop/lyrics.rs:67
 msgid "No lyrics"
 msgstr "Kein Songtext"
 
-#: src/ui/desktop/lyrics.rs:62
+#: src/ui/desktop/lyrics.rs:68
 msgid "No lyrics found for this track."
 msgstr "Für diesen Titel wurde kein Songtext gefunden."
 
-#: src/ui/desktop/lyrics.rs:66
+#: src/ui/desktop/lyrics.rs:72
 msgid "Instrumental"
 msgstr "Instrumental"
 
-#: src/ui/desktop/lyrics.rs:67
+#: src/ui/desktop/lyrics.rs:73
 msgid "No words for this track."
 msgstr "Dieser Titel enthält keinen Gesang."
 
-#: src/ui/desktop/lyrics.rs:73
+#: src/ui/desktop/lyrics.rs:77
+msgid "No matching recording"
+msgstr "Keine passende Aufnahme"
+
+#: src/ui/desktop/lyrics.rs:79
+msgid "The artist, title, album and duration must identify the same recording."
+msgstr "Interpret, Titel, Album und Dauer müssen dieselbe Aufnahme bezeichnen."
+
+#: src/ui/desktop/lyrics.rs:86
 msgid "Timing is unavailable. Showing plain lyrics."
-msgstr "Zeitangaben sind nicht verfügbar. Der Liedtext wird ohne Synchronisierung angezeigt."
+msgstr ""
+"Zeitangaben sind nicht verfügbar. Der Liedtext wird ohne Synchronisierung "
+"angezeigt."
+
+#: src/ui/desktop/lyrics.rs:148
+msgid "Lyrics from Navidrome"
+msgstr "Liedtexte von Navidrome"
+
+#: src/ui/desktop/lyrics.rs:149
+msgid "Lyrics from LRCLIB"
+msgstr "Liedtexte von LRCLIB"

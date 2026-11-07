@@ -1,15 +1,39 @@
 //! One account-scoped lyrics document follows the playing song.
 use super::{App, Request};
-use crate::{model::Loadable, navidrome::lyrics::Outcome};
+use crate::{
+    model::Loadable,
+    navidrome::lyrics::{Outcome, Source},
+};
 
 #[derive(Default)]
 pub struct State {
     pub enabled: bool,
     pub song: Option<String>,
     pub data: Loadable<Outcome>,
+    pub source: Source,
     request: u64,
 }
 impl App {
+    pub(super) fn set_lrclib_lyrics(&mut self, enabled: bool) {
+        if self.presentation.settings.lrclib_lyrics == enabled {
+            return;
+        }
+        self.presentation.settings.lrclib_lyrics = enabled;
+        self.mark_dirty();
+        self.backend.send(Request::CancelLyrics);
+        self.lyrics.request = self.lyrics.request.wrapping_add(1);
+        // A server hit remains valid. External data disappears immediately on opt-out.
+        if self.lyrics.source == Source::Lrclib
+            || !matches!(
+                self.lyrics.data,
+                Loadable::Loaded(Outcome::Found(_) | Outcome::Instrumental)
+            )
+        {
+            self.lyrics.data = Loadable::NotLoaded;
+            self.lyrics.source = Source::Server;
+            self.sync_lyrics();
+        }
+    }
     pub(super) fn enable_lyrics(&mut self, enabled: bool) {
         self.lyrics.enabled = enabled;
         if enabled {
@@ -33,6 +57,7 @@ impl App {
             self.lyrics.request = self.lyrics.request.wrapping_add(1);
             self.lyrics.song = id.map(str::to_owned);
             self.lyrics.data = Loadable::NotLoaded;
+            self.lyrics.source = Source::Server;
         }
         if !self.lyrics.enabled || !matches!(self.lyrics.data, Loadable::NotLoaded) {
             return;
@@ -47,6 +72,11 @@ impl App {
                 request: self.lyrics.request,
                 client: client.clone(),
                 song: Box::new(song.clone()),
+                external: self
+                    .presentation
+                    .settings
+                    .lrclib_lyrics
+                    .then(|| Box::new(self.proxy.clone())),
             });
             self.lyrics.data = Loadable::Loading;
         }
@@ -56,7 +86,7 @@ impl App {
         session: u64,
         request: u64,
         song: &str,
-        result: Result<Outcome, String>,
+        result: Result<(Source, Outcome), String>,
     ) {
         if session != self.session
             || request != self.lyrics.request
@@ -66,7 +96,10 @@ impl App {
             return;
         }
         self.lyrics.data = match result {
-            Ok(data) => Loadable::Loaded(data),
+            Ok((source, data)) => {
+                self.lyrics.source = source;
+                Loadable::Loaded(data)
+            }
             Err(error) => Loadable::Failed(error),
         };
     }
@@ -76,10 +109,17 @@ impl App {
 impl App {
     pub(super) fn populate_demo_lyrics(&mut self, flags: &[&str]) {
         use crate::navidrome::lyrics::{Line, Lyrics};
+        if flags.contains(&"lrclib-enabled") {
+            self.presentation.settings.lrclib_lyrics = true;
+        }
         if !flags.iter().any(|f| f.starts_with("lyrics")) {
             return;
         }
         self.lyrics.enabled = true;
+        if flags.contains(&"lyrics-provider") {
+            self.presentation.settings.lrclib_lyrics = true;
+            self.lyrics.source = Source::Lrclib;
+        }
         self.lyrics.song = self.transport.song().map(|s| s.id.clone());
         self.lyrics.data = if flags.contains(&"lyrics-loading") {
             Loadable::Loading
@@ -89,6 +129,8 @@ impl App {
             Loadable::Loaded(Outcome::Missing)
         } else if flags.contains(&"lyrics-instrumental") {
             Loadable::Loaded(Outcome::Instrumental)
+        } else if flags.contains(&"lyrics-ambiguous") {
+            Loadable::Loaded(Outcome::Ambiguous)
         } else {
             let timed = !flags.contains(&"lyrics-plain") && !flags.contains(&"lyrics-malformed");
             let phrases = [
@@ -105,20 +147,47 @@ impl App {
                 "Keep a little room for wonder",
                 "Carry daylight through the night",
             ];
-            let lines = (0..if flags.contains(&"lyrics-long") {
+            let mut lines: Vec<Line> = (0..if flags.contains(&"lyrics-long") {
                 10_000
             } else {
                 36
             })
                 .map(|i| Line {
+                    words: Vec::new(),
                     at_ms: timed.then_some(i as u64 * 10_000),
-                    text: if flags.contains(&"lyrics-rtl") && i % 3 == 0 {
+                    text: if flags.contains(&"lyrics-words-rtl") {
+                        "مرحبا hello עולם, we can take the long way home together".into()
+                    } else if flags.contains(&"lyrics-rtl") && i % 3 == 0 {
                         "مرحبا hello עולם, a line in logical order".into()
                     } else {
                         phrases[i % phrases.len()].into()
                     },
                 })
                 .collect();
+            if flags.contains(&"lyrics-words") {
+                for line in &mut lines {
+                    let mut byte = 0;
+                    line.words = line
+                        .text
+                        .split_inclusive(' ')
+                        .enumerate()
+                        .map(|(i, word)| {
+                            let range = byte..byte + word.len();
+                            byte = range.end;
+                            let start_ms = line.at_ms.unwrap_or(0) + i as u64 * 800;
+                            crate::navidrome::lyrics::Word {
+                                range,
+                                start_ms,
+                                end_ms: Some(start_ms + 800),
+                            }
+                        })
+                        .collect();
+                }
+            }
+            if flags.contains(&"lyrics-end") {
+                lines.truncate(18);
+                self.transport.position = 175.;
+            }
             Loadable::Loaded(Outcome::Found(Lyrics {
                 lines,
                 timed,
@@ -132,13 +201,45 @@ mod tests {
     use super::*;
     use crate::app::navidrome::{Action, tests::with_app};
     #[test]
+    fn opting_out_clears_external_text_and_rejects_pending_provider_replies() {
+        with_app(|app, _| {
+            app.apply(Action::Play(0));
+            app.enable_lyrics(true);
+            assert!(!app.presentation.settings.lrclib_lyrics);
+            app.set_lrclib_lyrics(true);
+            let id = app.lyrics.song.clone().unwrap();
+            let request = app.lyrics.request;
+            app.lyrics_result(
+                app.session,
+                request,
+                &id,
+                Ok((Source::Lrclib, Outcome::Instrumental)),
+            );
+            app.set_lrclib_lyrics(false);
+            assert!(matches!(app.lyrics.data, Loadable::NotLoaded));
+            app.lyrics_result(
+                app.session,
+                request,
+                &id,
+                Ok((Source::Lrclib, Outcome::Instrumental)),
+            );
+            assert!(matches!(app.lyrics.data, Loadable::NotLoaded));
+            assert_eq!(app.lyrics.source, Source::Server);
+        });
+    }
+    #[test]
     fn old_song_account_and_closed_panel_replies_are_ignored_while_seeks_keep_the_document() {
         with_app(|app, _| {
             app.apply(Action::Play(0));
             app.enable_lyrics(true);
             let id = app.lyrics.song.clone().unwrap();
             let request = app.lyrics.request;
-            app.lyrics_result(app.session, request, &id, Ok(Outcome::Missing));
+            app.lyrics_result(
+                app.session,
+                request,
+                &id,
+                Ok((Source::Server, Outcome::Missing)),
+            );
             assert!(matches!(
                 app.lyrics.data,
                 Loadable::Loaded(Outcome::Missing)
@@ -151,19 +252,29 @@ mod tests {
                 Loadable::Loaded(Outcome::Missing)
             ));
             app.apply(Action::Next);
-            app.lyrics_result(app.session, request, &id, Ok(Outcome::Instrumental));
+            app.lyrics_result(
+                app.session,
+                request,
+                &id,
+                Ok((Source::Server, Outcome::Instrumental)),
+            );
             assert!(matches!(app.lyrics.data, Loadable::NotLoaded));
             let id = app.lyrics.song.clone().unwrap();
             let request = app.lyrics.request;
             app.enable_lyrics(false);
-            app.lyrics_result(app.session, request, &id, Ok(Outcome::Instrumental));
+            app.lyrics_result(
+                app.session,
+                request,
+                &id,
+                Ok((Source::Server, Outcome::Instrumental)),
+            );
             assert!(matches!(app.lyrics.data, Loadable::NotLoaded));
             app.apply(Action::SignOut);
             app.lyrics_result(
                 app.session.wrapping_sub(1),
                 request,
                 &id,
-                Ok(Outcome::Instrumental),
+                Ok((Source::Server, Outcome::Instrumental)),
             );
             assert!(app.lyrics.song.is_none());
         });

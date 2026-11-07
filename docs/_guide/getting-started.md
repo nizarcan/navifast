@@ -134,4 +134,11 @@ the current line. Plain lyrics have no seek actions. Invalid timing keeps the wo
 readable and shows a notice. Missing lyrics, instrumental markers and request errors
 have separate states. **Try again** retries a failed lookup.
 
-External lyric providers, scrobbling, transcoding and tray operation are still pending.
+Under **Settings → Lyrics**, optionally enable **Use LRCLIB for missing lyrics**.
+Navidrome is always tried first. The setting explains the artist, title, album and
+duration sent to LRCLIB. A small source credit appears after the final lyric line.
+Disable the provider through the same Settings switch. A mismatched recording is skipped. Plain lyrics stay plain;
+line-timed lyrics highlight the line, and genuine word timestamps highlight only
+the active words, including wrapped and mixed-direction text.
+
+Scrobbling, transcoding and tray operation are still pending.

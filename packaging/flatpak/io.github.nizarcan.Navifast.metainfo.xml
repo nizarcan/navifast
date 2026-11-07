@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.8" date="2026-11-07" type="development">
+      <description><p>Optionally fill missing lyrics from LRCLIB and follow genuine word timestamps.</p></description>
+    </release>
     <release version="0.1.0-rc.7" date="2026-11-07" type="development">
       <description><p>Read server lyrics, follow timed lines and click a verse to seek without losing your pause state.</p></description>
     </release>

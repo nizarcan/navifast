@@ -116,8 +116,11 @@ See [Privacy](/privacy/) for endpoints and storage and
 `src/navidrome/lyrics.rs` discovers the
 [songLyrics extension](https://opensubsonic.netlify.app/docs/extensions/songlyrics/)
 through the client's shared capability cache. Version 1 uses `getLyricsBySongId`;
-a legacy server that rejects capability discovery falls back to `getLyrics`.
-Transport failures remain retryable. There is no direct external-provider lookup.
+version 2 adds `enhanced=true` and validates cue byte ranges against the unchanged
+UTF-8 text. Unusable cues keep the parent line timing. Independent translations
+and pronunciations are not mixed into the main lyric track.
+A legacy server that rejects capability discovery falls back to `getLyrics`.
+Transport failures remain retryable.
 Responses stay scoped to the account, request generation and playing song ID.
 Changing songs clears the previous text immediately. Seeks and pause changes keep
 the current document; opening the panel starts a lookup only when needed.
@@ -129,3 +132,23 @@ preserving logical text order. Empty responses mean missing lyrics; an explicit
 instrumental flag or musical-note-only document has its own state. Documents are
 limited to 10,000 lines and 1 MiB of text. Rune virtualizes the lines and uses a
 binary search of timestamps, updating active-line highlighting from audible position.
+
+The optional [LRCLIB API](https://lrclib.net/docs.txt) runs on the same cancellable
+backend worker after a missing server result, only with explicit Settings opt-in.
+It uses a separate credential-free HTTP client, no redirects, a ten-second timeout,
+sequential requests with at least 500 ms spacing, and a 4 MiB response limit.
+HTTP 429/503 responses honor the documented `Retry-After` seconds with jitter;
+there is no automatic retry. Account changes, song changes, closing the panel and
+opting out cancel pending work. Request generations also reject late responses.
+Artist, title and album must match after case/whitespace normalization; duration
+must differ by no more than two seconds. Qualifiers such as Live and Remastered
+are preserved. Missing identifying metadata or a mismatch produces no match.
+
+LRCLIB's [Lyricsfile 1.0](https://github.com/tranxuanthang/lyricsfile/blob/main/SPECIFICATION.md)
+is parsed with bounded YAML depth, events and scalar bytes, without aliases or
+includes. Unknown versions and undefined nonzero offsets fall back to legacy LRC
+or plain text. Valid word text must reconstruct its line exactly. Invalid word
+ranges/timing retain readable line timing, and no word timestamps are synthesized
+from line duration. Logical text goes to one Rune text element with colored byte
+ranges, preserving wrapping and bidi shaping. The UI repaints when the active line
+or word changes, including while the listener has suspended Follow.
