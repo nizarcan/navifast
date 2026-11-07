@@ -333,7 +333,9 @@ impl State {
             .unwrap_or("")
             .split(',')
             .collect::<Vec<_>>();
-        let filter = if flags.contains(&"quality") {
+        let filter = if flags.contains(&"sync") {
+            "Sync"
+        } else if flags.contains(&"quality") {
             "Streaming quality"
         } else if flags.contains(&"appearance") {
             "Appearance"
@@ -531,6 +533,7 @@ impl State {
                     "The server did not respond. Original playback is still available.".into(),
                 ));
             }
+            state.app.demo_sync(&flags);
             if flags.contains(&"quality-menu") {
                 state.menu = Some("streaming-quality");
             }

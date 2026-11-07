@@ -10,6 +10,7 @@ use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
     Downloads(super::downloads::worker::Command),
+    Sync(super::sync::worker::Command),
     StreamingCapabilities {
         session: u64,
         client: Client,
@@ -193,6 +194,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    Sync {
+        session: u64,
+        revision: u64,
+        update: super::sync::worker::Update,
+    },
     Downloads {
         session: u64,
         revision: u64,
@@ -385,6 +391,12 @@ impl Backend {
                     let _ = download_events.send(Event::Downloads {session, revision, update});
                     download_wake();
                 }));
+                let sync_events = events.clone();
+                let sync_wake = wake.clone();
+                let (sync, sync_task) = super::sync::worker::spawn(Arc::new(move |session, revision, update| {
+                    let _ = sync_events.send(Event::Sync { session, revision, update });
+                    sync_wake();
+                }));
                 let permits = Arc::new(tokio::sync::Semaphore::new(4));
                 let mut tasks = tokio::task::JoinSet::new();
                 let mut scrobbles = tokio::task::JoinSet::new();
@@ -407,6 +419,7 @@ impl Backend {
                             let Some(request) = request else { break; };
                             match request {
                                 Request::Shutdown => break,
+                                Request::Sync(command) => { let _ = sync.send(command); }
                                 Request::Downloads(command) => { let _ = downloads.send(command); }
                                 Request::StreamingPlan { client, id, quality, position, mut reply } => {
                                     let permits = permits.clone();
@@ -422,6 +435,7 @@ impl Backend {
                                     });
                                 }
                                 Request::Cancel => {
+                                    let _ = sync.send(super::sync::worker::Command { session: 0, revision: 0, action: super::sync::worker::Action::Close });
                                     let _ = downloads.send(super::downloads::worker::Command { session: 0, revision: 0, action: super::downloads::worker::Action::Close });
                                     credentials.invalidate(Slot::Navidrome);
                                     scrobbles.abort_all();
@@ -609,6 +623,8 @@ impl Backend {
                     }
                 }
                 tasks.abort_all();
+                drop(sync);
+                let _ = sync_task.await;
                 drop(downloads);
                 let _ = download_task.await;
             });
@@ -962,6 +978,7 @@ async fn execute(
         | Request::CancelBrowse
         | Request::Scrobble { .. }
         | Request::CancelScrobbles
+        | Request::Sync(_)
         | Request::Downloads(_)
         | Request::Shutdown => return None,
     })

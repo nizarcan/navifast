@@ -1,6 +1,6 @@
 //! Selection intent and small completion records are atomic; partial files are never playable.
 use super::*;
-use std::io::{Read, Write};
+use std::io::Read;
 const MAX_MANIFEST: u64 = 16 * 1024 * 1024;
 
 pub(crate) fn account_root(root: &Path, scope: &str) -> Result<PathBuf, String> {
@@ -17,46 +17,7 @@ fn record_path(root: &Path, id: &str) -> PathBuf {
 }
 
 pub(crate) fn write_json(path: &Path, value: &impl Serialize) -> std::io::Result<()> {
-    let temporary = path.with_extension(format!("{:016x}.tmp", rand::random::<u64>()));
-    let file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)?;
-    let result = (|| {
-        let mut writer = std::io::BufWriter::new(file);
-        serde_json::to_writer(
-            LimitedWriter {
-                writer: &mut writer,
-                remaining: MAX_MANIFEST as usize,
-            },
-            value,
-        )?;
-        writer.flush()?;
-        writer.get_ref().sync_all()?;
-        drop(writer);
-        crate::util::replace_file(&temporary, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(temporary);
-    }
-    result
-}
-struct LimitedWriter<'a, W> {
-    writer: &'a mut W,
-    remaining: usize,
-}
-impl<W: Write> Write for LimitedWriter<'_, W> {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        if bytes.len() > self.remaining {
-            return Err(std::io::Error::other("The download list is too large."));
-        }
-        let count = self.writer.write(bytes)?;
-        self.remaining -= count;
-        Ok(count)
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.writer.flush()
-    }
+    crate::util::write_json_atomic(path, value, MAX_MANIFEST as usize)
 }
 pub(crate) fn persist(root: &Path, library: &Library) -> Result<(), String> {
     std::fs::create_dir_all(root)

@@ -251,6 +251,11 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             );
         page = page.child(section(v, &account, vec![account_row]));
     }
+    let sync = v.tr(mark("Sync"));
+    if matches(&[&sync, "sync", "offline", "pending"]) {
+        visible = true;
+        page = page.child(section(v, &sync, super::sync::rows(v)));
+    }
     let playback = v.tr(mark("Playback"));
     let quality = v.tr(mark("Streaming quality"));
     let detail = v.tr(mark(

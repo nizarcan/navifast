@@ -1,6 +1,7 @@
 use super::*;
 use crate::app::navidrome::{Action, tests::with_app};
 use crate::model::Action as UiAction;
+use crate::navidrome::api::Song;
 
 #[cfg(feature = "navidrome-demo")]
 #[test]
@@ -208,4 +209,23 @@ fn signing_out_during_refresh_discards_old_account_reads_writes_and_retries() {
             Some(false)
         );
     });
+}
+
+#[test]
+fn durable_favorite_intent_survives_refresh_until_the_worker_confirms_it() {
+    let mut state = State::default();
+    state.restore(snapshot(false));
+    let item = Item::Song(song());
+    let uri = item.uri();
+    state.hold(item.clone(), true, true);
+    for request in 1..4 {
+        state.request = request;
+        state.received(request, Ok(snapshot(false)));
+        assert_eq!(state.contains(&uri), Some(true));
+        assert!(state.verify_at.is_none(), "the journal owns retries");
+    }
+    state.hold(item, true, false);
+    state.request += 1;
+    state.received(state.request, Ok(snapshot(true)));
+    assert!(state.edits.is_empty());
 }

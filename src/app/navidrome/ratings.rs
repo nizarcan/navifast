@@ -24,6 +24,7 @@ struct Entry {
     desired: Option<u8>,
     flight: Option<Flight>,
     attempts: u8,
+    durable: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -54,6 +55,31 @@ struct Operation {
 }
 
 impl State {
+    pub(super) fn release(&mut self, uri: &str) {
+        self.entries.remove(uri);
+        self.due.remove(uri);
+        self.failures.remove(uri);
+    }
+    pub(super) fn hold(&mut self, kind: Kind, id: String, name: String, value: u8, pending: bool) {
+        let uri = kind.uri(&id);
+        self.entries.insert(
+            uri.clone(),
+            Entry {
+                kind,
+                id,
+                name,
+                confirmed: value,
+                shown: value,
+                desired: pending.then_some(value),
+                flight: None,
+                attempts: 0,
+                durable: pending,
+            },
+        );
+        self.due.remove(&uri);
+        self.failures.remove(&uri);
+    }
+
     pub fn value(&self, uri: &str) -> Option<u8> {
         self.entries.get(uri).map(|e| e.shown)
     }
@@ -190,16 +216,51 @@ impl App {
                     desired: None,
                     flight: None,
                     attempts: 0,
+                    durable: false,
                 },
             );
         }
-        if self.ratings.entries[uri].flight.is_none() {
+        if self.ratings.entries[uri].flight.is_none()
+            && !self.ratings.entries[uri].durable
+            && !self.offline()
+        {
             let op = self.ratings.begin(uri, None);
             self.send_rating(op);
         }
     }
 
     pub(super) fn rating_action(&mut self, action: Action) {
+        if !self.demo && self.client.is_some() {
+            let (uri, value) = match action {
+                Action::Set { uri, value } => (uri, value),
+                Action::Retry(uri) => {
+                    if let Some(entry) = self.ratings.entries.get(&uri) {
+                        self.retry_sync(Some(format!("rating:{:?}:{}", entry.kind, entry.id)));
+                    }
+                    return;
+                }
+            };
+            if value > 5 {
+                return;
+            }
+            if !self.ratings.entries.contains_key(&uri) {
+                self.prepare_rating(&uri);
+            }
+            let Some(e) = self.ratings.entries.get(&uri) else {
+                return;
+            };
+            let (kind, id, name) = (e.kind, e.id.clone(), e.name.clone());
+            if self.enqueue_sync(crate::navidrome::sync::Work::Rating {
+                kind,
+                id: id.clone(),
+                name: name.clone(),
+                value,
+            }) {
+                self.ratings.hold(kind, id, name, value, true);
+            }
+            return;
+        }
+
         let op = match action {
             Action::Set { uri, value } => {
                 if !self.ratings.entries.contains_key(&uri) {

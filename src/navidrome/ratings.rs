@@ -1,7 +1,7 @@
 //! Account ratings use the existing authenticated OpenSubsonic transport.
 use super::api::{Client, RequestError};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Kind {
     Song,
     Album,
@@ -23,25 +23,32 @@ impl Client {
     }
 
     pub async fn rating(&self, kind: Kind, id: &str) -> Result<u8, String> {
+        self.checked_rating(kind, id)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    pub(crate) async fn checked_rating(&self, kind: Kind, id: &str) -> Result<u8, RequestError> {
         let (endpoint, field) = match kind {
             Kind::Song => ("getSong", "song"),
             Kind::Album => ("getAlbum", "album"),
         };
-        let body = self
-            .checked_request(endpoint, &[("id", id.into())])
-            .await
-            .map_err(|e| e.to_string())?;
+        let body = self.checked_request(endpoint, &[("id", id.into())]).await?;
         let item = body
             .get(field)
             .filter(|item| item.get("id").and_then(|id| id.as_str()) == Some(id))
-            .ok_or("The server did not return this item's rating.")?;
+            .ok_or_else(|| {
+                RequestError::Unconfirmed("The server did not return this item's rating.".into())
+            })?;
         match item.get("userRating") {
             None | Some(serde_json::Value::Null) => Ok(0),
             Some(value) => value
                 .as_u64()
                 .filter(|v| *v <= 5)
                 .map(|v| v as u8)
-                .ok_or_else(|| "The server returned an invalid rating.".into()),
+                .ok_or_else(|| {
+                    RequestError::Unconfirmed("The server returned an invalid rating.".into())
+                }),
         }
     }
 }

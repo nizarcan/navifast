@@ -22,6 +22,7 @@ pub mod ratings;
 pub mod scrobble;
 mod session;
 pub mod stats;
+pub mod sync;
 use host::Host;
 mod presentation;
 pub mod search;
@@ -227,6 +228,7 @@ pub struct App {
     pub quality: quality::State,
     pub requested_covers: HashSet<String>,
     pub downloads: downloads::State,
+    pub sync: sync::State,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
     backend: Backend,
@@ -373,6 +375,7 @@ impl App {
             },
             requested_covers: HashSet::new(),
             downloads: Default::default(),
+            sync: Default::default(),
             show_eq: false,
             palette: crate::theme::Palette::dark(),
             backend,
@@ -452,6 +455,7 @@ impl App {
             Action::SignOut => {
                 self.reset_autoplay();
                 self.downloads = Default::default();
+                self.sync = Default::default();
                 self.browse = Default::default();
                 self.stats = Default::default();
                 self.ratings = Default::default();
@@ -733,6 +737,7 @@ impl App {
         self.presentation.navidrome_playlists = Default::default();
         self.presentation.navidrome_favorites = Default::default();
         self.open_downloads();
+        self.open_sync();
     }
 
     fn fetch_albums(&mut self, offset: usize) {
@@ -884,6 +889,7 @@ impl App {
                 | Event::PlaylistDestinations { .. }
                 | Event::PlaylistEdited { .. }) => self.playlists_event(event),
                 event @ Event::Scrobbled { .. } => self.scrobble_event(event),
+                Event::Sync { session, revision, update } => self.sync_update(session, revision, update),
                 event @ (Event::RatingWritten { .. } | Event::RatingRead { .. }) => self.rating_event(event),
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
                     self.favorite_event(event)

@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.27" date="2026-11-08" type="development">
+      <description><p>Keep favorites, ratings and completed listens through offline sessions, with account-scoped sync and safe retry controls.</p></description>
+    </release>
     <release version="0.1.0-rc.26" date="2026-11-07" type="development">
       <description><p>Keep selected songs, albums and playlists available offline, with shared files, progress and retry controls.</p></description>
     </release>

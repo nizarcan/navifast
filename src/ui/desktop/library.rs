@@ -137,6 +137,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if !s.app.ratings.failures.is_empty() {
         center = center.child(ratings::errors(v));
     }
+    if s.app.sync.error.is_some() || !s.app.sync.failures.is_empty() {
+        center = center.child(sync::error(v));
+    }
     if !s.app.scrobbles.failures.is_empty() {
         center = center.child(scrobble::errors(v));
     }

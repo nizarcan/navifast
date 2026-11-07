@@ -83,7 +83,8 @@ returned `coverArt` IDs through the same cache as the Albums page. Each item
 has at most one `star` or `unstar` write in flight, using
 `id` for a song, `albumId` for an album and `artistId` for an artist.
 After a write, a fresh list confirms the change. Reads that still disagree
-are retried with backoff. Signing out discards pending edits and reads.
+are retried with bounded backoff. Signing out cancels requests and clears the
+visible account, while the durable journal retains pending edits for that account.
 
 Search waits for a 300 ms pause in typing or an explicit submission. It sends
 `search3` and `getPlaylists` independently and filters playlist names locally.
@@ -285,15 +286,12 @@ clients. Choosing 1–5 or clearing to 0 calls `setRating`, through the same
 worker, authenticated client and proxy policy as library requests. Favorites
 use their own independent endpoints and state.
 
-Writes serialize per entity and coalesce rapid edits to the latest intention.
-All menus immediately share the chosen value. Readback after a save must agree
-before the optimistic value is released; lagging reads never undo it. A definite
-rejection restores the last confirmed value, reconciles it with the server, and
-names the failed item with Retry. An uncertain save retains the chosen value.
-Automatic verification uses bounded backoff and stops after four reads, leaving
-Retry available. Closing a menu does not cancel a save. Sign-out cancels work
-and clears this account's ratings; late replies cannot affect the next account.
-Pending ratings are currently in memory only, not a durable offline edit queue.
+Writes serialize and coalesce rapid edits to the latest intention. All menus
+immediately share the chosen value. Readback after a save must agree before the
+optimistic value is released; lagging reads never undo it. Rejected changes keep
+the intended value and identify the item in Settings > Sync, with Retry or Dismiss.
+A pending durable edit suppresses ordinary rating-menu refreshes. A later menu
+read can observe edits from another client once local intent has been confirmed.
 
 ## Listening reports
 
@@ -307,21 +305,53 @@ original playback start time in Unix milliseconds, including after seeks.
 
 The output worker uses its existing atomic sample counter. It checks at position
 updates and drains the last count on transitions, without network work in the
-audio callback. At most one play's counters and metadata are retained. The library
-worker serializes report requests and shares its four-request limit. At most 64
-reports wait in memory; a new now-playing announcement replaces unsent older
-announcements. Reports survive browsing, while disabling the preference or signing
-out cancels active and queued requests. Account and preference generations reject
-late audio events and responses. Disabling excludes subsequent samples; enabling
-again cannot count an already submitted occurrence twice.
+audio callback. At most one play's counters and metadata are retained. Now-playing
+requests remain ephemeral, use the shared four-request limit, and replace unsent
+older announcements. Their failures wait for the next genuine start.
+Account and preference generations reject late audio events and responses.
+Disabling excludes subsequent samples; enabling again cannot count an already
+submitted occurrence twice. Navifast contacts only the configured server, which
+may forward reports to services configured on that server.
 
-Up to eight reporting failures remain visible without pausing playback. A definite
-rejection of a completed submission offers Retry with its original timestamp.
-An uncertain result is not automatically retried because the server may already
-have counted it. Now-playing failures wait for the next genuine start. Reports
-and failures are not persisted across exit or disconnection yet; durable replay
-belongs to offline synchronization. Navifast contacts only the configured server,
-which may forward reports to scrobbling services configured on that server.
+## Offline synchronization
+
+Favorites, ratings and qualifying completed listens enter an account-scoped journal
+before their network mutation. The native Settings > Sync panel shows pending
+count, last confirmed sync (UTC), storage errors, and up to eight actionable failures
+at a time. A quiet banner links there when attention is needed. Explicit offline
+mode sends nothing. Reconnect resumes the matching account's journal; signing out
+retains it and signing into another account cannot replay it there.
+
+State lives in `sync/<account hash>.json` beneath the state directory. It contains
+pending values, small item metadata, original listen timestamps, up to 10,000 cached
+favorites and 10,000 recently confirmed ratings. It contains no credentials or
+signed URLs. This is a favorites snapshot, not a general offline catalogue.
+The journal allows 10,000 pending entries and a 16 MiB serialized limit. Writes use
+an exclusive sibling temporary file, flush and sync it, then atomically replace
+the prior file. Disk work runs on the library runtime's blocking pool. A damaged or
+incompatible file is preserved; no new work is sent until storage is writable.
+A failed save keeps in-memory intent and asks the user to keep the app open,
+fix storage and retry. The old durable file remains intact.
+
+One sync job runs at a time, independent of ordinary navigation. Favorite and
+rating keys coalesce by entity; each listening occurrence has a boot nonce and
+occurrence key, so two plays of the same song remain separate. Now-playing notices
+never enter this journal. A sending checkpoint is persisted before the request.
+Desired-state jobs read first, write only if needed, and read back after success
+or an uncertain acknowledgement. Retry begins with another read. A stale result
+cannot retire a newer edit. A deleted item or permanent rejection fails only
+that entry, leaving other work free to proceed.
+
+Definitely unsent connection failures and desired-state verification failures
+back off for 2, 4 and 8 seconds, then wait for Retry or reconnect. A restarted
+sending desired-state edit is safe to reconcile. A sending listen becomes uncertain
+on interruption or an ambiguous response, since OpenSubsonic supplies no scrobble
+idempotency key or occurrence lookup. It is never automatically or manually resent;
+Dismiss removes the local uncertainty record without changing server counts.
+Definite listen rejections can be retried with their original timestamp.
+Turning scrobbling off holds unsent listens; re-enabling resumes them. Canceling an
+in-flight listen conservatively records uncertainty. Storage and server failures
+do not pause playback.
 
 ## Explicit downloads
 

@@ -55,7 +55,10 @@ The current build supports:
   the full grid of favorite songs, albums or artists.
 - Rating songs and albums from **More** or their context menu. Choose 1–5 or
   **Clear rating**; ratings are shared across views and independent of Favorites.
-  Failed saves identify the item and offer **Retry**.
+  Changes made offline are kept on this device and sync after reconnecting.
+  **Sync** in Settings shows pending changes, last sync and item-specific retry
+  or dismissal. Favorites and ratings keep the latest intended value; completed
+  listens retain separate occurrences and their original timestamps.
 - The sidebar's recently played album order survives restarts for the last
   connected server and account.
 - Streaming original audio locally, with pause, resume, seeking, previous,
@@ -65,7 +68,9 @@ The current build supports:
   in Settings is enabled by default. Tracks at least 30 seconds long count after
   50% of their duration has actually played; pauses, buffering and seek jumps
   do not count. Repeat plays count separately. Failed reporting leaves playback
-  running and offers retry only when the server definitely rejected a submission.
+  running. An uncertain submission is kept for review and is never blindly
+  resent, since the server may already have counted it. Disabling scrobbling
+  pauses pending completed listens; now-playing notices are never replayed.
 - A local queue with **Play next** and **Add to queue** for songs and albums.
   Open **Queue** in the player to play, move or remove upcoming occurrences.
   **Clear** removes manual and automatic additions while preserving the current song and collection.

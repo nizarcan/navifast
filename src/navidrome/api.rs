@@ -148,7 +148,7 @@ pub struct Album {
     pub song: Vec<Song>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NamedItem {
     pub id: String,
@@ -209,7 +209,7 @@ impl Playlist {
     }
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Catalogue {
     #[serde(default)]
     pub song: Vec<Song>,
@@ -219,7 +219,7 @@ pub struct Catalogue {
     pub artist: Vec<NamedItem>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FavoriteKind {
     Song,
     Album,
@@ -244,6 +244,8 @@ pub enum RequestError {
     Rejected(String),
     #[error("{0}")]
     Unconfirmed(String),
+    #[error("{0}")]
+    Unsent(String),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -440,14 +442,20 @@ impl Client {
         request: reqwest::RequestBuilder,
     ) -> Result<serde_json::Value, RequestError> {
         if self.offline {
-            return Err(RequestError::Unconfirmed(
+            return Err(RequestError::Unsent(
                 "Working offline. Reconnect to use your server.".into(),
             ));
         }
         let mut response = request
             .send()
             .await
-            .map_err(|error| RequestError::Unconfirmed(network_error(error)))?
+            .map_err(|error| {
+                if error.is_connect() {
+                    RequestError::Unsent(network_error(error))
+                } else {
+                    RequestError::Unconfirmed(network_error(error))
+                }
+            })?
             .error_for_status()
             .map_err(|error| {
                 if error

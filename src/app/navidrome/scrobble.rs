@@ -72,6 +72,7 @@ impl App {
                 self.scrobbles.epoch = self.scrobbles.epoch.wrapping_add(1);
                 self.scrobbles.failures.clear();
                 self.backend.send(Request::CancelScrobbles);
+                self.sync_command(crate::navidrome::sync::worker::Action::Scrobbling(enabled));
                 self.player.send(player::Command::Scrobbling {
                     epoch: self.scrobbles.epoch,
                     enabled,
@@ -108,6 +109,17 @@ impl App {
 
     fn send_scrobble(&mut self, report: Report) {
         self.scrobbles.request = self.scrobbles.request.wrapping_add(1);
+        if !self.demo && self.client.is_some() && report.submission {
+            let key = format!(
+                "{:016x}:{}:{}",
+                self.sync.boot, report.occurrence, report.time
+            );
+            self.enqueue_sync(crate::navidrome::sync::Work::Listen { key, report });
+            return;
+        }
+        if self.offline() {
+            return;
+        }
         if let Some(client) = &self.client {
             self.backend.send(Request::Scrobble {
                 session: self.session,

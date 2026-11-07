@@ -327,3 +327,14 @@ and Reconnect pill. Empty, loading, transfer and storage failures remain distinc
 Put Open downloads offline below the existing sign-in controls. Reuse Palette,
 Inter, spacing, artwork fallbacks, focus behavior and responsive collection sizes;
 there is no fifth navigation destination or new application shell.
+
+## Sync feedback
+
+Keep account sync inside Settings, using the existing 18-pixel section heading,
+outlined panel, 15-pixel pending count and 13-pixel muted details. Show last sync
+in UTC and ordinary Retry, Reconnect and Dismiss buttons. Failure rows wrap at
+narrow widths and list the item name above the explanation. Uncertain listens
+explain why they will not be resent and offer only Dismiss. Render at most eight
+failures at once; resolving them reveals later entries. A compact inline banner
+below the top bar links to this section when attention is needed. Do not add a
+sidebar destination or change the collection layout.

@@ -16,6 +16,7 @@ fn state(kind: Kind) -> (State, String) {
             desired: None,
             flight: None,
             attempts: 0,
+            durable: false,
         },
     );
     (state, uri)
@@ -152,4 +153,19 @@ fn ratings_are_shared_but_independent_of_favorites_other_kinds_and_accounts() {
         });
         assert!(app.ratings.entries.is_empty());
     });
+}
+
+#[test]
+fn durable_rating_holds_invalidate_pre_edit_reads_and_settle_without_flickering() {
+    let (mut state, uri) = state(Kind::Song);
+    let read = token(state.begin(&uri, None));
+    let id = state.entries[&uri].id.clone();
+    state.hold(Kind::Song, id.clone(), "Song".into(), 5, true);
+    state.received(&uri, read, Ok(2));
+    assert_eq!(state.value(&uri), Some(5));
+    assert!(state.entries[&uri].durable);
+    state.hold(Kind::Song, id, "Song".into(), 5, false);
+    state.received(&uri, read, Ok(2));
+    assert_eq!(state.value(&uri), Some(5));
+    assert!(!state.entries[&uri].durable);
 }

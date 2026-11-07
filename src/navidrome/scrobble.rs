@@ -12,7 +12,7 @@ pub struct Context {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Report {
     pub id: String,
     pub title: String,

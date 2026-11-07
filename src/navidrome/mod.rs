@@ -17,6 +17,7 @@ pub mod scrobble;
 pub mod session;
 pub mod stats;
 pub mod stream;
+pub mod sync;
 
 #[cfg(test)]
 pub(crate) mod test_server;

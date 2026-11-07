@@ -5,9 +5,7 @@ use std::time::{Duration, Instant};
 
 use super::{App, encode, presentation::decode};
 use crate::model::Page;
-use crate::navidrome::api::{
-    Album, Catalogue, Collection, FavoriteKind, NamedItem, RequestError, Song,
-};
+use crate::navidrome::api::{Catalogue, Collection, FavoriteKind, NamedItem, RequestError};
 use crate::navidrome::backend::{Event, Request};
 
 impl FavoriteKind {
@@ -21,33 +19,12 @@ impl FavoriteKind {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Item {
-    Song(Song),
-    Album(Album),
-    Artist(NamedItem),
-}
+pub use crate::navidrome::sync::Item;
 
 impl Item {
-    fn key(&self) -> (FavoriteKind, &str) {
-        match self {
-            Self::Song(s) => (FavoriteKind::Song, &s.id),
-            Self::Album(a) => (FavoriteKind::Album, &a.id),
-            Self::Artist(a) => (FavoriteKind::Artist, &a.id),
-        }
-    }
-
-    fn uri(&self) -> String {
+    pub fn uri(&self) -> String {
         let (kind, id) = self.key();
         kind.uri(id)
-    }
-
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Song(s) => &s.title,
-            Self::Album(a) => &a.name,
-            Self::Artist(a) => &a.name,
-        }
     }
 }
 
@@ -83,6 +60,7 @@ struct Edit {
     sending: Option<bool>,
     // Only a read started after completion can retire this edit.
     after_request: u64,
+    durable: bool,
 }
 
 pub struct Failure {
@@ -106,6 +84,44 @@ pub struct State {
 }
 
 impl State {
+    pub(super) fn release(&mut self, uri: &str) {
+        self.edits.remove(uri);
+    }
+    pub(super) fn discard(&mut self, item: &Item, starred: bool) {
+        self.release(&item.uri());
+        self.show(&item.uri(), item, starred);
+    }
+    fn cached(&self) -> Catalogue {
+        let mut list = self.list.clone();
+        for edit in self.edits.values().filter(|e| e.durable) {
+            if let Some(confirmed) = edit.confirmed {
+                list.show(&edit.item, confirmed);
+            }
+        }
+        list
+    }
+    pub(super) fn restore(&mut self, list: Catalogue) {
+        if !self.ready {
+            self.received(self.request, Ok(list));
+        }
+    }
+    pub(super) fn hold(&mut self, item: Item, desired: bool, pending: bool) {
+        self.ready = true;
+        self.set(item.clone(), desired);
+        let edit = self.edits.get_mut(&item.uri()).unwrap();
+        edit.durable = pending;
+        edit.sending = None;
+        if !pending {
+            edit.confirmed = Some(desired);
+        }
+        edit.after_request = self.request;
+        self.verify_at = None;
+        if !pending {
+            self.backoff = 0;
+            self.schedule_verify();
+        }
+    }
+
     pub fn contains(&self, uri: &str) -> Option<bool> {
         self.ready.then(|| self.members.contains(uri))
     }
@@ -142,6 +158,7 @@ impl State {
             desired,
             sending: None,
             after_request: self.request,
+            durable: false,
         });
         edit.desired = desired;
         if edit.sending.is_some() {
@@ -225,7 +242,7 @@ impl State {
         });
         for (uri, edit) in std::mem::take(&mut self.edits) {
             let observed = self.members.contains(&uri);
-            if edit.sending.is_none() && request > edit.after_request {
+            if !edit.durable && edit.sending.is_none() && request > edit.after_request {
                 // A rejected write may concern an item another client already
                 // changed or deleted. The first subsequent read resolves it.
                 if let Some(failure) = self.failures.get(&uri) {
@@ -241,7 +258,11 @@ impl State {
             self.show(&uri, &edit.item, edit.desired);
             self.edits.insert(uri, edit);
         }
-        if self.edits.values().any(|edit| edit.sending.is_none()) {
+        if self
+            .edits
+            .values()
+            .any(|edit| !edit.durable && edit.sending.is_none())
+        {
             self.backoff = self.backoff.saturating_add(1);
             self.schedule_verify();
         }
@@ -365,6 +386,18 @@ impl App {
     }
 
     fn set_favorite(&mut self, item: Item, desired: bool) {
+        if !self.demo && self.client.is_some() {
+            if self.enqueue_sync(crate::navidrome::sync::Work::Favorite {
+                item: Box::new(item.clone()),
+                starred: desired,
+            }) {
+                self.presentation
+                    .navidrome_favorites
+                    .hold(item, desired, true);
+            }
+            return;
+        }
+
         if self
             .presentation
             .navidrome_favorites
@@ -397,7 +430,12 @@ impl App {
 
     pub(super) fn refresh_favorites(&mut self) {
         let state = &mut self.presentation.navidrome_favorites;
-        if state.loading {
+        if state.loading
+            || self
+                .client
+                .as_ref()
+                .is_some_and(crate::navidrome::api::Client::is_offline)
+        {
             return;
         }
         state.verify_at = None;
@@ -433,7 +471,14 @@ impl App {
                 session,
                 request,
                 result,
-            } if session == self.session => state.received(request, result),
+            } if session == self.session => {
+                let save = result.is_ok() && request == state.request;
+                state.received(request, result);
+                if save && !self.demo {
+                    let list = state.cached();
+                    self.sync_command(crate::navidrome::sync::worker::Action::Favorites(list));
+                }
+            }
             Event::FavoriteWritten {
                 session,
                 kind,
