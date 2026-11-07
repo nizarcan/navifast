@@ -9,6 +9,13 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Autoplay {
+        session: u64,
+        request: u64,
+        client: Client,
+        current: String,
+    },
+    CancelAutoplay,
     Stats {
         session: u64,
         request: u64,
@@ -174,6 +181,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    Autoplay {
+        session: u64,
+        request: u64,
+        result: Result<Option<super::api::Song>, String>,
+    },
     Stats {
         session: u64,
         request: u64,
@@ -350,6 +362,7 @@ impl Backend {
                 let mut collections = tokio::task::JoinSet::new();
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
+                let mut autoplay = tokio::task::JoinSet::new();
                 let mut statistics = tokio::task::JoinSet::new();
                 let mut browsing = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
@@ -376,6 +389,7 @@ impl Backend {
                                     playlists.abort_all();
                                     browsing.abort_all();
                                     statistics.abort_all();
+                                    autoplay.abort_all();
                                     queue_reads.abort_all();
                                     queue_handles.clear();
                                 }
@@ -440,6 +454,7 @@ impl Backend {
                                 Request::CancelPlaylistLibrary => playlists.abort_all(),
                                 Request::CancelBrowse => browsing.abort_all(),
                                 Request::CancelStats => statistics.abort_all(),
+                                Request::CancelAutoplay => autoplay.abort_all(),
                                 Request::Forget { session } => {
                                     // Persist revocation off the UI thread before queuing deletion.
                                     // A locked keyring must not restore a signed-out account.
@@ -490,6 +505,7 @@ impl Backend {
                                         Request::PlaylistLibrary { .. } => &mut playlists,
                                         Request::Browse { .. } => &mut browsing,
                                         Request::Stats { .. } => &mut statistics,
+                                        Request::Autoplay { .. } => &mut autoplay,
                                         Request::Collection { .. } | Request::ArtistInfo { .. } | Request::Appearances { .. } => &mut collections,
                                         _ => &mut tasks,
                                     };
@@ -528,6 +544,7 @@ impl Backend {
                         _ = searches.join_next(), if !searches.is_empty() => {}
                         _ = playlists.join_next(), if !playlists.is_empty() => {}
                         _ = browsing.join_next(), if !browsing.is_empty() => {}
+                        _ = autoplay.join_next(), if !autoplay.is_empty() => {}
                         _ = statistics.join_next(), if !statistics.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
@@ -577,6 +594,16 @@ async fn execute(
     provider: &super::lyrics::lrclib::Lookup,
 ) -> Option<Event> {
     Some(match request {
+        Request::Autoplay {
+            session,
+            request,
+            client,
+            current,
+        } => Event::Autoplay {
+            session,
+            request,
+            result: client.autoplay_song(&current).await,
+        },
         Request::Stats {
             session,
             request,
@@ -838,6 +865,7 @@ async fn execute(
         | Request::QueueAlbum { .. }
         | Request::CancelQueueAlbum(_)
         | Request::ClearQueueAlbums
+        | Request::CancelAutoplay
         | Request::CancelStats
         | Request::CancelBrowse
         | Request::Scrobble { .. }
@@ -916,6 +944,75 @@ mod tests {
             .events
             .recv_timeout(std::time::Duration::from_secs(10))
             .unwrap()
+    }
+
+    #[test]
+    fn autoplay_reads_survive_navigation_and_cancellation_releases_the_request() {
+        let fixture = Fixture::new();
+        let (started, starts) = mpsc::channel();
+        let (release, releases) = mpsc::channel();
+        let server = crate::navidrome::test_server::Server::spawn(move |request| {
+            assert!(request.starts_with("GET /rest/getRandomSongs.view?"));
+            started.send(()).unwrap();
+            releases
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap();
+            crate::navidrome::test_server::response("200 OK", "", br#"{"subsonic-response":{"status":"ok","randomSongs":{"song":[{"id":"next","duration":60,"suffix":"flac"}]}}}"#)
+        });
+        let client = Client::new(
+            &server.url,
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        let backend = fixture.backend();
+        let request = |request| {
+            backend.send(Request::Autoplay {
+                session: 1,
+                request,
+                client: client.clone(),
+                current: "playing".into(),
+            })
+        };
+        let started = || {
+            starts
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap()
+        };
+        request(1);
+        started();
+        backend.send(Request::CancelCollection);
+        release.send(()).unwrap();
+        assert!(matches!(
+            receive(&backend),
+            Event::Autoplay {
+                request: 1,
+                result: Ok(Some(_)),
+                ..
+            }
+        ));
+        request(2);
+        started();
+        backend.send(Request::CancelAutoplay);
+        backend.send(Request::Restore { session: 9 });
+        assert!(matches!(
+            receive(&backend),
+            Event::Restored { session: 9, .. }
+        ));
+        release.send(()).unwrap();
+        request(3);
+        started();
+        release.send(()).unwrap();
+        assert!(matches!(
+            receive(&backend),
+            Event::Autoplay {
+                request: 3,
+                result: Ok(Some(_)),
+                ..
+            }
+        ));
+        assert!(backend.events.try_recv().is_err());
     }
 
     #[test]

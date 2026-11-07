@@ -31,6 +31,7 @@ struct SavedEntry {
 enum SavedSource {
     Context(usize),
     Manual(usize),
+    Automatic(usize),
     Album(String),
 }
 
@@ -42,11 +43,16 @@ impl Queue {
             id: e.id,
             source: match &e.source {
                 Source::Context(i) => SavedSource::Context(*i),
-                Source::Manual(song) => {
-                    SavedSource::Manual(*indices.entry(Arc::as_ptr(song)).or_insert_with(|| {
+                Source::Manual(song) | Source::Automatic(song) => {
+                    let index = *indices.entry(Arc::as_ptr(song)).or_insert_with(|| {
                         manual.push(song.id.clone());
                         manual.len() - 1
-                    }))
+                    });
+                    if e.automatic() {
+                        SavedSource::Automatic(index)
+                    } else {
+                        SavedSource::Manual(index)
+                    }
                 }
                 Source::Album { id, .. } => SavedSource::Album(id.clone()),
             },
@@ -96,7 +102,7 @@ impl Snapshot {
                 && e.id <= self.serial
                 && match &e.source {
                     SavedSource::Context(i) => *i < self.context.len(),
-                    SavedSource::Manual(i) => *i < self.manual.len(),
+                    SavedSource::Manual(i) | SavedSource::Automatic(i) => *i < self.manual.len(),
                     SavedSource::Album(id) => id_ok(id),
                 }
         };
@@ -108,14 +114,16 @@ impl Snapshot {
             .chain(&self.history)
             .all(|e| entry_ok(e) && ids.insert(e.id));
         let actual = self.upcoming.len().saturating_sub(self.preview);
-        let mut context_seen = false;
+        let mut section = 0;
         let order_ok = self.upcoming[..actual].iter().all(|e| {
-            if matches!(e.source, SavedSource::Context(_)) {
-                context_seen = true;
-                true
-            } else {
-                !context_seen
-            }
+            let next = match e.source {
+                SavedSource::Manual(_) | SavedSource::Album(_) => 0,
+                SavedSource::Context(_) => 1,
+                SavedSource::Automatic(_) => 2,
+            };
+            let valid = next >= section;
+            section = next;
+            valid
         });
         self.context.len() <= LIMIT
             && self.manual.len() <= LIMIT
@@ -125,6 +133,11 @@ impl Snapshot {
             && self.serial < u64::MAX - LIMIT as u64
             && self.preview <= self.upcoming.len()
             && (self.repeat || self.preview == 0)
+            && (self.preview == 0
+                || !self
+                    .upcoming
+                    .iter()
+                    .any(|e| matches!(e.source, SavedSource::Automatic(_))))
             && (self.context.is_empty() || self.standalone.is_empty())
             && self.context.iter().chain(&self.manual).all(id_ok)
             && self.removed.iter().all(|i| *i < self.context.len())
@@ -165,6 +178,7 @@ impl Snapshot {
                 source: match e.source {
                     SavedSource::Context(i) => Source::Context(*remap.get(&i)?),
                     SavedSource::Manual(i) => Source::Manual(manual.get(i)?.clone()?),
+                    SavedSource::Automatic(i) => Source::Automatic(manual.get(i)?.clone()?),
                     SavedSource::Album(id) => Source::Album {
                         id,
                         name: String::new(),
@@ -215,6 +229,22 @@ impl Snapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn autoplay_origin_and_manual_precedence_survive_a_checkpoint() {
+        let mut q = Queue::default();
+        q.start(songs(&["chosen"]), 0);
+        q.add_automatic(songs(&["random"]).remove(0));
+        q.add(songs(&["manual"]), false);
+        let mut restored = roundtrip(&q);
+        assert_eq!(restored.manual_len(), 1);
+        assert_eq!(restored.automatic_len(), 1);
+        assert!(restored.upcoming.back().unwrap().automatic());
+        restored.advance();
+        assert_eq!(restored.automatic_len(), 1);
+        restored.clear_automatic();
+        assert!(restored.upcoming.is_empty());
+    }
     fn songs(ids: &[&str]) -> Vec<Song> {
         ids.iter()
             .map(|id| Song {

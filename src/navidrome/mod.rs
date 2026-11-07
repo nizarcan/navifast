@@ -2,6 +2,7 @@
 
 pub mod albums;
 pub mod api;
+pub mod autoplay;
 pub mod backend;
 pub mod browse;
 pub mod lyrics;

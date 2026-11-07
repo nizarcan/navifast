@@ -63,7 +63,10 @@ The current build supports:
   running and offers retry only when the server definitely rejected a submission.
 - A local queue with **Play next** and **Add to queue** for songs and albums.
   Open **Queue** in the player to play, move or remove upcoming occurrences.
-  **Clear** removes manual additions while preserving the current song and collection.
+  **Clear** removes manual and automatic additions while preserving the current song and collection.
+- Optional **Autoplay** in Queue continues with random songs from your own library.
+  It is off by default, adds one visible suggestion after the selected queue,
+  and keeps manual additions first. Clear or disable it to cancel a refill.
 - Shuffle keeps one visible order for remaining collection tracks, after manual
   additions. Repeat cycles through Off, All and One without changing playback position.
 - The queue, position, shuffle order and repeat mode survive restart for the same
@@ -80,7 +83,7 @@ The current build supports:
   choice of background. Copy it or save a PNG through the native file chooser.
 - Basic native media controls.
 
-This is an early playback build. Scrobbling, transcoding preferences,
+This is an early playback build. Transcoding preferences,
 and tray behavior are not available in the current Navidrome interface.
 The existing interface keeps its translations; the server sign-in form
 currently uses English.

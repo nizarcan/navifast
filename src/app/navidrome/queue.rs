@@ -52,6 +52,7 @@ impl App {
             }
             Action::Album { id, name, next } => {
                 let token = self.transport.queue.reserve(id.clone(), name, next);
+                self.resume_queue_wait();
                 if let Some(client) = &self.client {
                     self.backend.send(Request::QueueAlbum {
                         session: self.session,
@@ -93,6 +94,15 @@ impl App {
                 }
             }
             Action::Remove(id) => {
+                if self
+                    .transport
+                    .queue
+                    .upcoming()
+                    .iter()
+                    .any(|entry| entry.id == id && entry.automatic())
+                {
+                    self.cancel_autoplay(false);
+                }
                 self.transport.queue.remove(id);
                 self.backend.send(Request::CancelQueueAlbum(id));
                 self.resume_queue_wait();
@@ -102,6 +112,7 @@ impl App {
                 self.resume_queue_wait();
             }
             Action::Clear => {
+                self.cancel_autoplay(true);
                 self.backend.send(Request::ClearQueueAlbums);
                 self.transport.queue.clear_manual();
                 if self.transport.waiting_for_queue {
@@ -120,7 +131,18 @@ impl App {
 
     pub(super) fn advance_queue(&mut self, advance: Advance, paused: bool) {
         match advance {
-            Advance::Ready => self.load(0.0, paused),
+            Advance::Ready => {
+                if self
+                    .transport
+                    .queue
+                    .current()
+                    .is_some_and(|entry| entry.automatic())
+                {
+                    self.playing_album = None;
+                    self.playing_playlist = None;
+                }
+                self.load(0.0, paused);
+            }
             Advance::Pending => {
                 self.pending_play = None;
                 self.transport.waiting_for_queue = true;
@@ -142,9 +164,16 @@ impl App {
     }
 
     fn resume_queue_wait(&mut self) {
-        if self.transport.waiting_for_queue {
+        if self.transport.waiting_for_queue
+            || self.autoplay.waiting && !self.transport.queue.upcoming().is_empty()
+        {
+            self.autoplay.waiting = false;
             let advance = self.transport.queue.advance();
-            self.advance_queue(advance, self.transport.paused);
+            if advance == Advance::Empty && self.wait_for_autoplay(self.transport.paused) {
+                self.transport.waiting_for_queue = false;
+            } else {
+                self.advance_queue(advance, self.transport.paused);
+            }
         }
     }
 
@@ -191,11 +220,12 @@ mod tests {
     }
 
     fn finish(app: &mut App) {
+        let paused = app.transport.paused;
         if app
             .transport
             .event(player::Event::Finished(app.transport.generation))
         {
-            app.finish_track();
+            app.finish_track(paused);
         }
     }
 

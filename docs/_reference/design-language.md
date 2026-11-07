@@ -144,6 +144,12 @@ additions, and Next up for the collection. Upcoming rows are virtualized, with
 42-pixel artwork, a 14-pixel title and secondary artist text. Repeated songs are
 separate selectable occurrences. Pending albums use the same row with a spinner.
 
+Place the optional Autoplay switch below the Queue heading, using the shared
+settings switch, a 13-pixel label and muted 12-pixel explanation. Its loading or
+failure text stays inline. Automatic additions use a final Autoplay section with
+the same queue rows; Clear also cancels a waiting refill. Keep the established
+responsive panel and player unchanged.
+
 The existing Shuffle and Repeat icons keep their positions and hit areas.
 Enabled modes use the accent color and expose their checked state to assistive
 technology. Repeat One adds a small centered 1 inside the existing repeat glyph;

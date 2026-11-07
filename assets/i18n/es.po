@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 19:54+0300\n"
+"POT-Creation-Date: 2026-11-07 21:02+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Spanish\n"
@@ -249,7 +249,7 @@ msgstr "Quitar de la lista"
 
 #: src/ui/desktop/library.rs:325 src/ui/desktop/library.rs:1021
 #: src/ui/desktop/library.rs:1235 src/ui/desktop/library.rs:1604
-#: src/ui/desktop/queue.rs:189 src/ui/desktop/queue.rs:277
+#: src/ui/desktop/queue.rs:272 src/ui/desktop/queue.rs:360
 #: src/ui/desktop/transport.rs:259
 msgid "Play"
 msgstr "Reproducir"
@@ -365,11 +365,11 @@ msgstr "Pausar"
 
 #: src/ui/desktop/library.rs:1293 src/ui/desktop/library.rs:1355
 #: src/ui/desktop/library.rs:1659 src/ui/desktop/library.rs:2091
-#: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:238
+#: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:321
 msgid "More"
 msgstr "Más"
 
-#: src/ui/desktop/library.rs:1369 src/ui/desktop/queue.rs:49
+#: src/ui/desktop/library.rs:1369 src/ui/desktop/queue.rs:104
 msgid "Nothing here yet."
 msgstr "Todavía no hay nada."
 
@@ -512,11 +512,11 @@ msgstr "Tu música, siempre a mano."
 msgid "Your recent listening will appear here as you play."
 msgstr "Tu música reciente aparecerá aquí cuando empieces a escuchar."
 
-#: src/ui/desktop/mod.rs:107 src/ui/desktop/queue.rs:220
+#: src/ui/desktop/mod.rs:107 src/ui/desktop/queue.rs:303
 msgid "Loading…"
 msgstr "Cargando…"
 
-#: src/ui/desktop/mod.rs:188 src/ui/desktop/queue.rs:143
+#: src/ui/desktop/mod.rs:188 src/ui/desktop/queue.rs:227
 msgid "Clear"
 msgstr "Borrar"
 
@@ -583,7 +583,7 @@ msgstr "Actualizar lista"
 msgid "Dismiss"
 msgstr "Descartar"
 
-#: src/ui/desktop/queue.rs:27 src/ui/desktop/queue.rs:96
+#: src/ui/desktop/queue.rs:27 src/ui/desktop/queue.rs:161
 #: src/ui/desktop/transport.rs:369
 msgid "Queue"
 msgstr "Cola"
@@ -592,31 +592,44 @@ msgstr "Cola"
 msgid "Close queue"
 msgstr "Cerrar cola"
 
-#: src/ui/desktop/queue.rs:43
+#: src/ui/desktop/queue.rs:52 src/ui/desktop/queue.rs:66
+#: src/ui/desktop/queue.rs:145 src/ui/desktop/queue.rs:147
+msgid "Autoplay"
+msgstr "Reproducción automática"
+
+#: src/ui/desktop/queue.rs:55
+msgid "Continue with random library songs"
+msgstr "Continuar con canciones aleatorias de tu biblioteca"
+
+#: src/ui/desktop/queue.rs:79
+msgid "Finding a library song…"
+msgstr "Buscando una canción de la biblioteca…"
+
+#: src/ui/desktop/queue.rs:98
 msgid "Now playing"
 msgstr "Sonando ahora"
 
-#: src/ui/desktop/queue.rs:50
+#: src/ui/desktop/queue.rs:105
 msgid "Add songs or albums to the queue."
 msgstr "Añade canciones o álbumes a la cola."
 
-#: src/ui/desktop/queue.rs:84
+#: src/ui/desktop/queue.rs:142
 msgid "Next up"
 msgstr "A continuación"
 
-#: src/ui/desktop/queue.rs:142
+#: src/ui/desktop/queue.rs:217
 msgid "Playing next"
 msgstr "En cola"
 
-#: src/ui/desktop/queue.rs:290
+#: src/ui/desktop/queue.rs:373
 msgid "Move up"
 msgstr "Subir"
 
-#: src/ui/desktop/queue.rs:291
+#: src/ui/desktop/queue.rs:374
 msgid "Move down"
 msgstr "Bajar"
 
-#: src/ui/desktop/queue.rs:306
+#: src/ui/desktop/queue.rs:389
 msgid "Remove from queue"
 msgstr "Quitar de la cola"
 

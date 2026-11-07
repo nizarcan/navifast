@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 19:54+0300\n"
+"POT-Creation-Date: 2026-11-07 21:02+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Simplified Chinese\n"
@@ -234,7 +234,7 @@ msgstr "从播放列表中移除"
 
 #: src/ui/desktop/library.rs:325 src/ui/desktop/library.rs:1021
 #: src/ui/desktop/library.rs:1235 src/ui/desktop/library.rs:1604
-#: src/ui/desktop/queue.rs:189 src/ui/desktop/queue.rs:277
+#: src/ui/desktop/queue.rs:272 src/ui/desktop/queue.rs:360
 #: src/ui/desktop/transport.rs:259
 msgid "Play"
 msgstr "播放"
@@ -350,11 +350,11 @@ msgstr "暂停"
 
 #: src/ui/desktop/library.rs:1293 src/ui/desktop/library.rs:1355
 #: src/ui/desktop/library.rs:1659 src/ui/desktop/library.rs:2091
-#: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:238
+#: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:321
 msgid "More"
 msgstr "更多"
 
-#: src/ui/desktop/library.rs:1369 src/ui/desktop/queue.rs:49
+#: src/ui/desktop/library.rs:1369 src/ui/desktop/queue.rs:104
 msgid "Nothing here yet."
 msgstr "这里还没有内容。"
 
@@ -497,11 +497,11 @@ msgstr "你的音乐，触手可及。"
 msgid "Your recent listening will appear here as you play."
 msgstr "开始播放后，最近听过的音乐会显示在这里。"
 
-#: src/ui/desktop/mod.rs:107 src/ui/desktop/queue.rs:220
+#: src/ui/desktop/mod.rs:107 src/ui/desktop/queue.rs:303
 msgid "Loading…"
 msgstr "加载中…"
 
-#: src/ui/desktop/mod.rs:188 src/ui/desktop/queue.rs:143
+#: src/ui/desktop/mod.rs:188 src/ui/desktop/queue.rs:227
 msgid "Clear"
 msgstr "清除"
 
@@ -566,7 +566,7 @@ msgstr "刷新播放列表"
 msgid "Dismiss"
 msgstr "忽略"
 
-#: src/ui/desktop/queue.rs:27 src/ui/desktop/queue.rs:96
+#: src/ui/desktop/queue.rs:27 src/ui/desktop/queue.rs:161
 #: src/ui/desktop/transport.rs:369
 msgid "Queue"
 msgstr "播放队列"
@@ -575,31 +575,44 @@ msgstr "播放队列"
 msgid "Close queue"
 msgstr "关闭队列"
 
-#: src/ui/desktop/queue.rs:43
+#: src/ui/desktop/queue.rs:52 src/ui/desktop/queue.rs:66
+#: src/ui/desktop/queue.rs:145 src/ui/desktop/queue.rs:147
+msgid "Autoplay"
+msgstr "自动播放"
+
+#: src/ui/desktop/queue.rs:55
+msgid "Continue with random library songs"
+msgstr "继续播放音乐库中的随机歌曲"
+
+#: src/ui/desktop/queue.rs:79
+msgid "Finding a library song…"
+msgstr "正在查找音乐库歌曲…"
+
+#: src/ui/desktop/queue.rs:98
 msgid "Now playing"
 msgstr "正在播放"
 
-#: src/ui/desktop/queue.rs:50
+#: src/ui/desktop/queue.rs:105
 msgid "Add songs or albums to the queue."
 msgstr "将歌曲或专辑添加到队列。"
 
-#: src/ui/desktop/queue.rs:84
+#: src/ui/desktop/queue.rs:142
 msgid "Next up"
 msgstr "后续曲目"
 
-#: src/ui/desktop/queue.rs:142
+#: src/ui/desktop/queue.rs:217
 msgid "Playing next"
 msgstr "接下来播放"
 
-#: src/ui/desktop/queue.rs:290
+#: src/ui/desktop/queue.rs:373
 msgid "Move up"
 msgstr "上移"
 
-#: src/ui/desktop/queue.rs:291
+#: src/ui/desktop/queue.rs:374
 msgid "Move down"
 msgstr "下移"
 
-#: src/ui/desktop/queue.rs:306
+#: src/ui/desktop/queue.rs:389
 msgid "Remove from queue"
 msgstr "从队列移除"
 

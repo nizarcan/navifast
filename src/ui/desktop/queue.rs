@@ -38,6 +38,61 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                     .key("queue-close"),
                 ),
         );
+    body = body.child(
+        row()
+            .w_full()
+            .gap(12.)
+            .items_center()
+            .mt(14.)
+            .child(
+                col()
+                    .grow(1.)
+                    .min_w(0.)
+                    .gap(3.)
+                    .child(label(v.tr(mark("Autoplay")), 13., 600., v.p.text))
+                    .child(
+                        label(
+                            v.tr(mark("Continue with random library songs")),
+                            12.,
+                            400.,
+                            v.p.secondary,
+                        )
+                        .wrap(),
+                    ),
+            )
+            .child(
+                preferences::switch(
+                    v,
+                    &v.tr(mark("Autoplay")),
+                    v.s.app.preferences.autoplay,
+                    |s| {
+                        s.app.set_autoplay(!s.app.preferences.autoplay);
+                    },
+                )
+                .key("autoplay-toggle"),
+            ),
+    );
+    if v.s.app.preferences.autoplay {
+        if v.s.app.autoplay.loading() {
+            let mut status = row().w_full().items_center().gap(8.).mt(8.).child(
+                label(
+                    v.tr(mark("Finding a library song…")),
+                    12.,
+                    400.,
+                    v.p.secondary,
+                )
+                .wrap()
+                .grow(1.)
+                .min_w(0.),
+            );
+            if queue.manual_len() == 0 {
+                status = status.child(clear_button(v, "queue-clear-autoplay"));
+            }
+            body = body.child(status);
+        } else if let Some(error) = &v.s.app.autoplay.error {
+            body = body.child(label(error, 12., 400., v.p.secondary).wrap().mt(8.));
+        }
+    }
     if let Some(current) = queue.current() {
         body = body
             .child(heading(v, mark("Now playing")))
@@ -51,9 +106,11 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
         ));
     }
     let manual = queue.manual_len();
+    let automatic = queue.automatic_len();
     let count = queue.upcoming().len()
         + usize::from(manual > 0)
-        + usize::from(manual < queue.upcoming().len());
+        + usize::from(manual + automatic < queue.upcoming().len())
+        + usize::from(automatic > 0);
     let (p, scale, zoom, width, height) = (v.p, v.scale, v.zoom, v.width, v.height);
     let mut list = col()
         .key("queue-tracks")
@@ -68,6 +125,7 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
         |s: &State, row| match item(s, row) {
             Item::Manual => "queue-manual-heading".into(),
             Item::Context => "queue-context-heading".into(),
+            Item::Automatic => "queue-automatic-heading".into(),
             Item::Track(entry) => format!("queue-{}", entry.id).into(),
         },
         move |s: &State, row| {
@@ -82,6 +140,13 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
             match item(s, row) {
                 Item::Manual => row_clear(&v),
                 Item::Context => heading(&v, mark("Next up")),
+                Item::Automatic => {
+                    if s.app.transport.queue.manual_len() == 0 {
+                        clear_heading(&v, mark("Autoplay"), "queue-clear-automatic")
+                    } else {
+                        heading(&v, mark("Autoplay"))
+                    }
+                }
                 Item::Track(entry) => track(&v, entry, false),
             }
         },
@@ -109,25 +174,35 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
 enum Item<'a> {
     Manual,
     Context,
+    Automatic,
     Track(&'a Entry),
 }
 
 fn item(s: &State, mut row: usize) -> Item<'_> {
     let queue = &s.app.transport.queue;
     let manual = queue.manual_len();
-    if manual > 0 {
+    let automatic = queue.automatic_len();
+    let collection = queue.upcoming().len() - manual - automatic;
+    let mut offset = 0;
+    for (count, heading) in [
+        (manual, Item::Manual),
+        (collection, Item::Context),
+        (automatic, Item::Automatic),
+    ] {
+        if count == 0 {
+            continue;
+        }
         if row == 0 {
-            return Item::Manual;
+            return heading;
         }
         row -= 1;
+        if row < count {
+            return Item::Track(&queue.upcoming()[offset + row]);
+        }
+        row -= count;
+        offset += count;
     }
-    if row < manual {
-        return Item::Track(&queue.upcoming()[row]);
-    }
-    if row == manual {
-        return Item::Context;
-    }
-    Item::Track(&queue.upcoming()[row - 1])
+    unreachable!("virtual row count matches the three queue sections")
 }
 
 fn heading(v: &Paint<'_>, title: &'static str) -> El {
@@ -139,14 +214,22 @@ fn heading(v: &Paint<'_>, title: &'static str) -> El {
 }
 
 fn row_clear(v: &Paint<'_>) -> El {
-    heading(v, mark("Playing next")).child(el().grow(1.)).child(
-        v.button(&v.tr(mark("Clear")), false, |s, tx| {
-            s.dispatch(Action::Queue(QueueAction::Clear), tx)
-        })
-        .key("queue-clear")
-        .h(28.)
-        .px(12.),
-    )
+    clear_heading(v, mark("Playing next"), "queue-clear")
+}
+
+fn clear_heading(v: &Paint<'_>, title: &'static str, key: &'static str) -> El {
+    heading(v, title)
+        .child(el().grow(1.))
+        .child(clear_button(v, key))
+}
+
+fn clear_button(v: &Paint<'_>, key: &'static str) -> El {
+    v.button(&v.tr(mark("Clear")), false, |s, tx| {
+        s.dispatch(Action::Queue(QueueAction::Clear), tx)
+    })
+    .key(key)
+    .h(28.)
+    .px(12.)
 }
 
 fn track(v: &Paint<'_>, entry: &Entry, current: bool) -> El {

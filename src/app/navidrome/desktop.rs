@@ -389,14 +389,17 @@ impl State {
             menu: None,
             lyrics_view: Default::default(),
             lyrics_share: Default::default(),
-            queue_open: launch.demo && flags.iter().any(|flag| flag.starts_with("queue")),
+            queue_open: launch.demo
+                && flags
+                    .iter()
+                    .any(|flag| flag.starts_with("queue") || flag.starts_with("autoplay-")),
             queue_compact: Cell::new(false),
             queue_selected: None,
             queue_menu: None,
             queue_offset: Live::new(0.),
         };
         #[cfg(feature = "navidrome-demo")]
-        if state.queue_open {
+        if state.queue_open && flags.iter().any(|flag| flag.starts_with("queue")) {
             if flags.contains(&"queue-empty") {
                 state.app.transport = super::Transport {
                     paused: true,

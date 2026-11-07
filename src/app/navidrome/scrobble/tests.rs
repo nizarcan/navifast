@@ -85,7 +85,7 @@ fn transport_seeks_preserve_identity_but_repeat_and_play_after_end_renew_it() {
         app.apply(Transport::Pause(false));
         assert_eq!(app.scrobbles.play.unwrap().1, first);
         app.transport.repeat = crate::player::RepeatMode::Track;
-        app.finish_track();
+        app.finish_track(false);
         let second = app.scrobbles.play.unwrap().1;
         assert_ne!(first, second);
         app.transport.position = app.transport.song().unwrap().duration;

@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
+pub mod autoplay;
 pub mod browse;
 pub mod desktop;
 pub mod favorites;
@@ -48,6 +49,7 @@ pub struct Preferences {
     pub search_history: HashMap<String, Vec<String>>,
     pub light: bool,
     pub volume: f32,
+    pub autoplay: bool,
     pub eq_on: bool,
     pub bands: [f32; 10],
     pub preamp: f32,
@@ -63,6 +65,7 @@ impl Default for Preferences {
             search_history: HashMap::new(),
             light: false,
             volume: 0.7,
+            autoplay: false,
             eq_on: false,
             bands: [0.0; 10],
             preamp: 0.0,
@@ -196,6 +199,7 @@ pub struct App {
     pub lyrics: lyrics::State,
     pub browse: browse::State,
     pub stats: stats::State,
+    pub autoplay: autoplay::State,
     pub ratings: ratings::State,
     pub scrobbles: scrobble::State,
     pub requested_covers: HashSet<String>,
@@ -325,6 +329,7 @@ impl App {
             lyrics: Default::default(),
             browse: Default::default(),
             stats: Default::default(),
+            autoplay: Default::default(),
             ratings: Default::default(),
             scrobbles: Default::default(),
             transport: Transport {
@@ -406,6 +411,7 @@ impl App {
                 self.restoring_login = false;
             }
             Action::SignOut => {
+                self.reset_autoplay();
                 self.browse = Default::default();
                 self.stats = Default::default();
                 self.ratings = Default::default();
@@ -496,7 +502,7 @@ impl App {
                 }
             }
             Action::Toggle => {
-                if self.transport.waiting_for_queue {
+                if self.transport.waiting_for_queue || self.autoplay.waiting {
                     self.transport.paused = !self.transport.paused;
                     if self.transport.paused {
                         self.checkpoint_session(true);
@@ -523,7 +529,7 @@ impl App {
                 }
             }
             Action::Pause(paused) => {
-                if self.transport.waiting_for_queue {
+                if self.transport.waiting_for_queue || self.autoplay.waiting {
                     self.transport.paused = paused;
                     if paused {
                         self.checkpoint_session(true);
@@ -572,6 +578,7 @@ impl App {
             }
             Action::Shuffle(shuffle) => self.transport.queue.set_shuffle(shuffle),
             Action::Repeat(repeat) => {
+                self.reset_autoplay();
                 self.transport.repeat = repeat;
                 self.transport
                     .queue
@@ -647,6 +654,7 @@ impl App {
     }
 
     fn set_client(&mut self, client: Client) {
+        self.reset_autoplay();
         self.browse = Default::default();
         self.stats = Default::default();
         self.ratings = Default::default();
@@ -720,12 +728,14 @@ impl App {
             self.presentation.recent_contexts.truncate(100);
             self.mark_dirty();
         }
+        self.reset_autoplay();
         self.transport.collection_rows.clear();
         self.transport.queue.start(songs, index);
         self.load(0.0, false);
     }
 
     fn load(&mut self, position: f64, paused: bool) {
+        self.autoplay.waiting = false;
         if !paused {
             self.remember_home_artists();
         }
@@ -788,6 +798,7 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::Autoplay { session, request, result } => self.autoplay_result(session, request, result),
                 Event::Stats { session, request, result } => self.stats_result(session, request, result),
                 Event::Browse {session, request, query, offset, result} => self.browse_result(session,request,query,offset,result),
                 Event::Lyrics { session, request, song, result } => self.lyrics_result(session, request, &song, result),
@@ -915,6 +926,16 @@ impl App {
                 self.listening_report(context, report);
                 continue;
             }
+            if let player::Event::Finished(generation) = event {
+                if generation == self.transport.generation {
+                    self.dirty_session();
+                    let paused = self.transport.paused;
+                    self.transport.event(player::Event::Finished(generation));
+                    self.finish_track(paused);
+                    changed = true;
+                }
+                continue;
+            }
             let previous = (
                 self.transport.queue.current().map(|entry| entry.id),
                 self.transport.loading,
@@ -930,13 +951,7 @@ impl App {
                 changed = true;
                 self.presentation.toast_error(message.clone());
             }
-            if matches!(&event, player::Event::Finished(generation) if *generation == self.transport.generation)
-            {
-                self.dirty_session();
-            }
-            if self.transport.event(event) {
-                self.finish_track();
-            }
+            self.transport.event(event);
             changed |= previous
                 != (
                     self.transport.queue.current().map(|entry| entry.id),
@@ -956,17 +971,30 @@ impl App {
         self.poll_ratings(host);
         self.poll_playlists(host);
         changed |= self.poll_controls(host);
+        changed |= self.poll_autoplay();
         self.checkpoint_session(false);
         self.sync_media();
         changed
     }
 
-    fn finish_track(&mut self) {
+    fn finish_track(&mut self, paused: bool) {
+        // Completion reports mark transport paused at the end. Retain the user's
+        // intention while a final random-library read is still outstanding.
+        self.transport.paused = paused;
+        self.poll_autoplay();
         if self.transport.repeat == crate::player::RepeatMode::Track {
             self.scrobbles.new_play();
-            self.load(0.0, self.transport.paused);
+            self.load(0.0, paused);
         } else {
-            self.apply(Action::Next);
+            let advance = self.transport.queue.advance();
+            if advance == crate::navidrome::queue::Advance::Empty {
+                if !self.wait_for_autoplay(paused) {
+                    self.transport.paused = true;
+                    self.transport.loading = false;
+                }
+            } else {
+                self.advance_queue(advance, paused);
+            }
         }
     }
 
@@ -1292,6 +1320,7 @@ impl App {
             self.presentation.history = vec![crate::model::Page::Stats];
             self.configure_demo_stats(&flags);
         }
+        self.configure_demo_autoplay(&flags);
         self.populate_demo_lyrics(&flags);
         if page == Some("albums") {
             self.presentation.history = vec![crate::model::Page::Albums];

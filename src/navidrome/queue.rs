@@ -14,6 +14,7 @@ pub type Id = u64;
 pub enum Source {
     Context(usize),
     Manual(Arc<Song>),
+    Automatic(Arc<Song>),
     /// Reserves a whole album's position while its songs load on the worker.
     Album {
         id: String,
@@ -29,7 +30,11 @@ pub struct Entry {
 
 impl Entry {
     pub fn manual(&self) -> bool {
-        !matches!(self.source, Source::Context(_))
+        matches!(self.source, Source::Manual(_) | Source::Album { .. })
+    }
+
+    pub fn automatic(&self) -> bool {
+        matches!(self.source, Source::Automatic(_))
     }
 
     pub fn pending(&self) -> bool {
@@ -84,9 +89,11 @@ impl Queue {
             return;
         }
         let manual = self.manual_len();
+        let automatic = self.automatic_len();
         let boundary = self.upcoming.len() - self.repeat.preview;
         let (current, future) = self.upcoming.make_contiguous().split_at_mut(boundary);
-        for collection in [&mut current[manual..], future] {
+        let end = current.len() - automatic;
+        for collection in [&mut current[manual..end], future] {
             if self.shuffle {
                 collection.shuffle(rng);
             } else {
@@ -116,7 +123,7 @@ impl Queue {
     pub fn song<'a>(&'a self, entry: &'a Entry) -> Option<&'a Song> {
         match &entry.source {
             Source::Context(index) => self.context.get(*index),
-            Source::Manual(song) => Some(song),
+            Source::Manual(song) | Source::Automatic(song) => Some(song),
             Source::Album { .. } => None,
         }
     }
@@ -125,6 +132,30 @@ impl Queue {
         self.upcoming
             .partition_point(Entry::manual)
             .min(self.upcoming.len() - self.repeat.preview)
+    }
+
+    pub fn automatic_len(&self) -> usize {
+        self.upcoming
+            .iter()
+            .rev()
+            .take_while(|e| e.automatic())
+            .count()
+    }
+
+    /// Automatic suggestions stay at the tail, outside the selected collection.
+    pub fn add_automatic(&mut self, song: Song) -> bool {
+        if self.repeat.enabled || self.automatic_len() > 0 {
+            return false;
+        }
+        let entry = self.entry(Source::Automatic(Arc::new(song)));
+        self.upcoming.push_back(entry);
+        true
+    }
+
+    pub fn clear_automatic(&mut self) -> bool {
+        let count = self.automatic_len();
+        self.upcoming.truncate(self.upcoming.len() - count);
+        count > 0
     }
 
     pub fn upcoming(&self) -> &VecDeque<Entry> {
@@ -257,8 +288,13 @@ impl Queue {
             return false;
         };
         if let Some(current) = self.current.replace(previous) {
-            let next = current.manual();
-            self.insert([current], next);
+            if current.automatic() {
+                let at = self.upcoming.len() - self.automatic_len();
+                self.upcoming.insert(at, current);
+            } else {
+                let next = current.manual();
+                self.insert([current], next);
+            }
         }
         true
     }
@@ -301,7 +337,10 @@ impl Queue {
             .filter(|&to| to < self.upcoming.len())?;
         let manual = self.manual_len();
         let preview = self.upcoming.len() - self.repeat.preview;
-        ((at < manual) == (to < manual) && (at < preview) == (to < preview)).then_some((at, to))
+        ((at < manual) == (to < manual)
+            && (at < preview) == (to < preview)
+            && self.upcoming[at].automatic() == self.upcoming[to].automatic())
+        .then_some((at, to))
     }
 
     pub fn can_move(&self, id: Id, delta: isize) -> bool {
@@ -319,6 +358,7 @@ impl Queue {
     }
 
     pub fn clear_manual(&mut self) {
+        self.clear_automatic();
         if self.context.is_empty() {
             self.upcoming.clear();
             self.repeat.preview = 0;
@@ -338,6 +378,48 @@ impl Queue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn autoplay_tail_stays_after_manual_edits_and_outside_shuffle_repeat() {
+        let mut q = Queue::default();
+        q.start(songs(&["chosen"]), 0);
+        assert!(q.add_automatic(songs(&["random"]).remove(0)));
+        assert!(!q.add_automatic(songs(&["extra"]).remove(0)));
+        q.add(songs(&["manual"]), false);
+        assert_eq!(ids(&q), ["manual", "random"]);
+        let automatic = q.upcoming.back().unwrap().id;
+        assert!(!q.can_move(automatic, -1));
+        q.set_shuffle(true);
+        q.set_shuffle(false);
+        assert_eq!(ids(&q), ["manual", "random"]);
+        q.set_repeat_all(true);
+        assert_eq!(ids(&q), ["manual", "chosen"]);
+        assert_eq!(q.automatic_len(), 0);
+        q.set_repeat_all(false);
+        q.clear_manual();
+        q.add_automatic(songs(&["random"]).remove(0));
+        q.start(songs(&["new collection"]), 0);
+        assert!(q.upcoming.is_empty());
+    }
+
+    #[test]
+    fn continuous_autoplay_retains_only_bounded_history_and_previous_order() {
+        let mut q = Queue::default();
+        q.start(songs(&["chosen"]), 0);
+        for _ in 0..1000 {
+            assert!(q.add_automatic(songs(&["same"]).remove(0)));
+            assert_eq!(q.advance(), Advance::Ready);
+        }
+        assert_eq!(q.context.len(), 1);
+        assert_eq!(q.history.len(), 128);
+        let current = q.current().unwrap().id;
+        q.add_automatic(songs(&["next"]).remove(0));
+        q.previous();
+        assert_eq!(q.upcoming[0].id, current);
+        assert_eq!(ids(&q), ["same", "next"]);
+        q.clear_manual();
+        assert!(q.upcoming.is_empty());
+    }
 
     fn songs(ids: &[&str]) -> Vec<Song> {
         ids.iter()

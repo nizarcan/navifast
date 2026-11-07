@@ -31,6 +31,12 @@ It contains no passwords, signed URLs or audio. After that account signs in,
 `getSong` validates saved songs and `getAlbum` resolves pending additions.
 Playback restores paused. Adding an album also reads `getAlbum`; no server play
 queue is read or saved.
+Optional **Autoplay** is off by default. It requests up to 20 random songs from
+your configured server through `getRandomSongs`, choosing at most one suggestion
+when the queue is about to end. It makes no request to an external music service.
+Clear, disabling it, replacing playback or changing accounts cancels the refill.
+The preference is saved in `navidrome.json`; suggested queue entries retain their
+origin in the same local checkpoint described above.
 Opening Lyrics checks `getOpenSubsonicExtensions` once for the authenticated client.
 When `songLyrics` version 1 is supported, `getLyricsBySongId` receives the opaque
 song ID. Version 2 adds `enhanced=true` for word timestamps. Legacy servers use

@@ -28,7 +28,13 @@ impl Queue {
         }
         self.repeat.enabled = enabled;
         if enabled {
+            self.clear_automatic();
             if self.context.is_empty() {
+                if let Some(Entry { source, .. }) = &mut self.current
+                    && let Source::Automatic(song) = source
+                {
+                    *source = Source::Manual(song.clone());
+                }
                 self.repeat.standalone =
                     self.current.iter().chain(&self.upcoming).cloned().collect();
             }
@@ -140,6 +146,7 @@ impl Queue {
                 .standalone
                 .retain(|e| !same(&e.source, &entry.source)),
             Source::Album { .. } => self.repeat.standalone.retain(|e| e.id != entry.id),
+            Source::Automatic(_) => {}
         }
     }
 }

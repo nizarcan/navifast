@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.20" date="2026-11-07" type="development">
+      <description><p>Optionally continue with random library songs after your queue ends.</p></description>
+    </release>
     <release version="0.1.0-rc.19" date="2026-11-07" type="development">
       <description><p>Remove public sharing links at the maintainer’s request.</p></description>
     </release>

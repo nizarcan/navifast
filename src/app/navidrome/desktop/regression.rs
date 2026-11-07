@@ -1238,3 +1238,49 @@ fn scrobbling_switch_cancels_reports_and_failures_do_not_interrupt_playback() {
     rt.frame(0.);
     assert!(rt.state.app.scrobbles.failures.is_empty());
 }
+
+#[test]
+fn autoplay_controls_clear_suggestions_and_cancel_pending_reads_in_both_layouts() {
+    for theme in ["dark", "light"] {
+        for width in [1280., 760.] {
+            let mut rt = runtime("album:alb0", &format!("restored,{theme},autoplay-added"));
+            rt.set_viewport((width, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            assert!(
+                rt.elements()
+                    .iter()
+                    .any(|e| e.key.as_deref() == Some("queue-automatic-heading"))
+            );
+            let current = rt.state.app.transport.queue.current().unwrap().id;
+            assert!(rt.accessibility_action(
+                "queue-clear-automatic",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            rt.frame(0.);
+            assert_eq!(rt.state.app.transport.queue.automatic_len(), 0);
+            assert_eq!(rt.state.app.transport.queue.current().unwrap().id, current);
+            assert!(rt.accessibility_action(
+                "autoplay-toggle",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            rt.frame(0.);
+            assert!(!rt.state.app.preferences.autoplay);
+            let mut rt = runtime("album:alb0", &format!("restored,{theme},autoplay-loading"));
+            rt.set_viewport((width, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            assert!(rt.state.app.autoplay.loading());
+            assert!(rt.accessibility_action(
+                "queue-clear-autoplay",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            rt.frame(0.);
+            assert!(!rt.state.app.autoplay.loading());
+            assert!(rt.state.app.transport.paused);
+        }
+    }
+}

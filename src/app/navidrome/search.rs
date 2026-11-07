@@ -313,6 +313,7 @@ impl App {
         self.browse.playing = None;
         self.playing_album = None;
         self.playing_playlist = None;
+        self.reset_autoplay();
         self.transport.collection_rows.clear();
         if self.transport.queue.start(songs, index) {
             self.load(0.0, false);

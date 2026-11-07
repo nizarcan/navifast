@@ -29,7 +29,7 @@ Moves stay within the manual or collection section, preserving the promise that
 explicit additions come before the remaining collection. Selection follows the
 occurrence ID after a move or album load.
 
-**Clear** removes only upcoming manual additions, including pending albums. It
+**Clear** removes upcoming manual and automatic additions, including pending albums. It
 keeps the current song, its position and the remaining collection. Previous
 restarts the current song after three seconds; otherwise it returns to the prior
 occurrence. Recent playback history retains at most 128 occurrences, then falls
@@ -81,6 +81,31 @@ albums can resolve before the next cycle is prepared.
 
 The existing command and media interfaces report and set the same modes as the
 native controls.
+
+## Autoplay
+
+The Queue switch is off by default and saved in preferences. When enabled with
+Repeat Off, the final occurrence requests one random library song within its last
+15 seconds. A separate **Autoplay** section shows the suggestion after manual
+additions and the collection remainder. Shuffle never changes that section.
+Manual additions always come first, including an album still loading. When
+playback has reached the end and a refill is pending, adding a song starts that
+manual occurrence immediately, preserving the pause intention.
+
+Clear, disabling Autoplay, starting a new collection, enabling Repeat or switching
+accounts cancels the request and discards its suggestion. Removing a suggestion
+also suppresses another refill for that occurrence. No late response can restore
+it. A seek while waiting resumes the selected position; the suggestion stays
+upcoming instead of skipping the resumed song. A waiting read can be cleared
+beside its loading label. Empty or failed reads end playback normally and show
+an inline explanation, with no automatic retry loop. Toggle Autoplay to retry.
+
+One random sample of at most 20 songs prefers a playable candidate different from
+the current song. A one-song library may repeat it. Obvious unsupported formats,
+video and zero-duration entries are skipped; the audio decoder validates the
+actual stream. No offline catalogue is available yet. Automatic occurrences are
+stored with their origin in the local checkpoint, share song data, and use the
+same bounded 128-occurrence history. They never grow the original collection.
 
 ## Listening history
 

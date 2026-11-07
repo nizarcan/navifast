@@ -116,6 +116,15 @@ checkpoint for a later launch. A new playback or queue action cancels restoratio
 The restored player is loaded paused. Position and queue checkpoints are atomically
 written on the backend worker; see [The queue's rules](/reference/queue/).
 
+Optional Autoplay uses the core OpenSubsonic
+[`getRandomSongs`](https://opensubsonic.netlify.app/docs/endpoints/getrandomsongs/)
+endpoint with `size=20`. It makes at most one refill request per final occurrence,
+under the same four-request worker limit, with its own cancellation group. No
+external catalogue is contacted. Navigation keeps the request; Clear, disabling
+Autoplay, replacing playback or changing accounts cancels it. Session and request
+generations reject late results. Empty, invalid or failed samples do not retry.
+See [The queue's rules](/reference/queue/) for priority and playback behavior.
+
 Artist links use the IDs from OpenSubsonic's individual credits or the older
 `artistId` field. The artist page uses album-artist IDs from `getArtist` to separate
 the discography from guest appearances. When the server returns only the
