@@ -133,3 +133,10 @@ A requested adjustment authorizes that scope. Broader changes to navigation,
 spacing, hierarchy or interaction still need the maintainer's approval. When
 there is no clear existing pattern, illustrate alternatives for a decision
 before establishing a new one.
+
+## Restored playback
+
+A restored listening session uses the existing paused player and queue. Preserve
+the saved occurrence, position and visible order. Do not add a separate resume
+screen or start audio automatically. Normal playback actions take precedence over
+a restoration still in flight.

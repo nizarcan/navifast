@@ -9,6 +9,17 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    RestoreSession {
+        session: u64,
+        token: u64,
+        path: std::path::PathBuf,
+        client: Client,
+    },
+    CancelSessionRestore,
+    SaveSession {
+        path: std::path::PathBuf,
+        snapshot: Option<Box<super::session::Session>>,
+    },
     QueueAlbum {
         session: u64,
         token: u64,
@@ -118,6 +129,12 @@ pub enum Request {
 }
 
 pub enum Event {
+    SessionRestored {
+        session: u64,
+        token: u64,
+        result: Result<Option<Box<super::session::Restored>>, String>,
+    },
+    SessionSaveFailed,
     QueueAlbum {
         session: u64,
         token: u64,
@@ -248,6 +265,7 @@ impl Backend {
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
+                let mut restores = tokio::task::JoinSet::new();
                 let mut queue_reads = tokio::task::JoinSet::new();
                 let mut queue_handles: std::collections::HashMap<u64, tokio::task::AbortHandle> = std::collections::HashMap::new();
                 loop {
@@ -258,12 +276,35 @@ impl Backend {
                                 Request::Shutdown => break,
                                 Request::Cancel => {
                                     credentials.invalidate(Slot::Navidrome);
+                                    restores.abort_all();
                                     collections.abort_all();
                                     tasks.abort_all();
                                     searches.abort_all();
                                     playlists.abort_all();
                                     queue_reads.abort_all();
                                     queue_handles.clear();
+                                }
+                                Request::CancelSessionRestore => restores.abort_all(),
+                                Request::RestoreSession { session, token, path, client } => {
+                                    restores.abort_all();
+                                    let events = events.clone();
+                                    let wake = wake.clone();
+                                    let permits = permits.clone();
+                                    restores.spawn(async move {
+                                        let result = super::session::restore(path, client, permits).await.map(|s| s.map(Box::new));
+                                        let _ = events.send(Event::SessionRestored { session, token, result });
+                                        wake();
+                                    });
+                                }
+                                Request::SaveSession { path, snapshot } => {
+                                    let result = tokio::task::spawn_blocking(move || match snapshot {
+                                        Some(snapshot) => snapshot.write(&path),
+                                        None => match std::fs::remove_file(&path) {
+                                            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+                                            _ => Ok(()),
+                                        },
+                                    }).await;
+                                    if !matches!(result, Ok(Ok(()))) { let _ = events.send(Event::SessionSaveFailed); wake(); }
                                 }
                                 Request::ClearQueueAlbums => {
                                     queue_reads.abort_all();
@@ -366,6 +407,7 @@ impl Backend {
                                 && queue_handles.get(&token).is_some_and(|handle| handle.id() == task)
                             { queue_handles.remove(&token); }
                         }
+                        _ = restores.join_next(), if !restores.is_empty() => {}
                         _ = collections.join_next(), if !collections.is_empty() => {}
                         _ = searches.join_next(), if !searches.is_empty() => {}
                         _ = playlists.join_next(), if !playlists.is_empty() => {}
@@ -573,7 +615,10 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
                 result,
             }
         }
-        Request::Save { .. }
+        Request::RestoreSession { .. }
+        | Request::CancelSessionRestore
+        | Request::SaveSession { .. }
+        | Request::Save { .. }
         | Request::Forget { .. }
         | Request::OpenThemesFolder(_)
         | Request::CancelCollection

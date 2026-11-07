@@ -119,5 +119,11 @@ Repeat One. Explicit Next still skips to another available occurrence. Repeat Al
 loops the collection, with manual additions played once. A queue without an album
 or playlist loops its current and upcoming manual songs instead.
 
-Saved queues, lyrics, scrobbling,
-transcoding and tray operation are still pending.
+Your queue and position return after restart once the same account signs in.
+Playback stays paused until you choose to play. Shuffle order, repeat mode and
+separate occurrences of duplicate songs are preserved. Tracks removed from the
+server are skipped; starting new playback takes precedence over restoration.
+Sign-out clears the saved session. Position is checkpointed every ten seconds
+while playing, and on pause and orderly exit.
+
+Lyrics, scrobbling, transcoding and tray operation are still pending.

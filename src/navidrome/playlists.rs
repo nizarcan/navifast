@@ -161,7 +161,8 @@ impl Task {
                     ))
                 }
             }
-            Err(RequestError::Rejected(error)) => {
+            Err(error @ (RequestError::Rejected(_) | RequestError::Missing)) => {
+                let error = error.to_string();
                 self.sent = false;
                 self.expected = None;
                 Err(error)

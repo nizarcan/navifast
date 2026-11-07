@@ -42,7 +42,7 @@ pub struct State {
     pub(super) session: u64,
     pub(super) collection_page: Option<Page>,
     collection_request: u64,
-    play_on_load: Option<Page>,
+    pub(super) play_on_load: Option<Page>,
 }
 
 impl State {
@@ -261,6 +261,7 @@ impl App {
                 }
             }
             Action::PlayPlaylist(id) => {
+                self.edit_session();
                 let page = Page::Playlist(super::encode(&id));
                 self.presentation.navidrome_search.play_on_load = Some(page.clone());
                 self.ui_action(crate::model::Action::Open(page), host);
@@ -306,6 +307,7 @@ impl App {
         songs: Vec<crate::navidrome::api::Song>,
         index: usize,
     ) {
+        self.edit_session();
         self.playing_album = None;
         self.playing_playlist = None;
         self.transport.collection_rows.clear();

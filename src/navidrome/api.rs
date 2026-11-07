@@ -206,6 +206,8 @@ impl FavoriteKind {
 
 #[derive(Debug, thiserror::Error)]
 pub enum RequestError {
+    #[error("This item is no longer available on the server.")]
+    Missing,
     #[error("{0}")]
     Rejected(String),
     #[error("{0}")]
@@ -435,6 +437,22 @@ impl Client {
                 .cloned()
                 .ok_or("The server returned no album.")?,
         )
+    }
+
+    /// Only a protocol-level missing item can remove a saved queue row.
+    pub async fn song(&self, id: &str) -> Result<Option<Song>, String> {
+        match self.checked_request("getSong", &[("id", id.into())]).await {
+            Ok(body) => {
+                let song: Song = serde_json::from_value(body["song"].clone())
+                    .map_err(|_| "The server returned an invalid song.")?;
+                if song.id != id || !song.duration.is_finite() || song.duration < 0.0 {
+                    return Err("The server returned an invalid song.".into());
+                }
+                Ok(Some(song))
+            }
+            Err(RequestError::Missing) => Ok(None),
+            Err(error) => Err(error.to_string()),
+        }
     }
 
     pub async fn favorites(&self) -> Result<Catalogue, String> {
@@ -737,11 +755,13 @@ fn envelope(bytes: &[u8]) -> Result<serde_json::Value, RequestError> {
     })?;
     match body.get("status").and_then(|v| v.as_str()) {
         Some("ok") => Ok(body.clone()),
+        Some("failed") if body.pointer("/error/code").and_then(|v| v.as_u64()) == Some(70) => {
+            Err(RequestError::Missing)
+        }
         Some("failed") => Err(RequestError::Rejected(
             match body.pointer("/error/code").and_then(|v| v.as_u64()) {
                 Some(40..=44) => "Sign-in failed. Check your Navidrome username and password.",
                 Some(50) => "Your account does not have permission for this operation.",
-                Some(70) => "This item is no longer available on the server.",
                 _ => "The server could not complete this request.",
             }
             .into(),

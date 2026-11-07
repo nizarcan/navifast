@@ -11,6 +11,7 @@ pub mod favorites;
 mod host;
 pub mod playlists;
 pub mod queue;
+mod session;
 use host::Host;
 mod presentation;
 pub mod search;
@@ -166,6 +167,7 @@ impl Transport {
 pub struct App {
     pub(crate) presentation: Box<super::App>,
     pending_play: Option<(String, usize)>,
+    listening_session: session::State,
     pub(crate) playing_album: Option<Album>,
     pub(crate) playing_playlist: Option<String>,
     pub login: Login,
@@ -287,6 +289,7 @@ impl App {
         Self {
             presentation,
             pending_play: None,
+            listening_session: Default::default(),
             playing_album: None,
             playing_playlist: None,
             login: Login {
@@ -333,6 +336,19 @@ impl App {
     }
 
     pub fn apply(&mut self, action: Action) {
+        if matches!(
+            &action,
+            Action::Play(_)
+                | Action::Toggle
+                | Action::Pause(_)
+                | Action::Next
+                | Action::Previous
+                | Action::Seek(_)
+                | Action::Shuffle(_)
+                | Action::Repeat(_)
+        ) {
+            self.edit_session();
+        }
         match action {
             Action::EditLogin(mut login) => {
                 if login.server != self.login.server || login.username != self.login.username {
@@ -371,6 +387,7 @@ impl App {
                 self.restoring_login = false;
             }
             Action::SignOut => {
+                self.forget_session();
                 self.session = self.session.wrapping_add(1);
                 self.backend.send(Request::Cancel);
                 if !self.demo {
@@ -457,6 +474,9 @@ impl App {
             Action::Toggle => {
                 if self.transport.waiting_for_queue {
                     self.transport.paused = !self.transport.paused;
+                    if self.transport.paused {
+                        self.checkpoint_session(true);
+                    }
                     return;
                 }
                 if self.transport.error.is_some()
@@ -478,6 +498,9 @@ impl App {
             Action::Pause(paused) => {
                 if self.transport.waiting_for_queue {
                     self.transport.paused = paused;
+                    if paused {
+                        self.checkpoint_session(true);
+                    }
                     return;
                 }
                 if !paused
@@ -492,6 +515,9 @@ impl App {
                 }
                 self.transport.paused = paused;
                 self.player.send(player::Command::Pause(paused));
+                if paused {
+                    self.checkpoint_session(true);
+                }
             }
             Action::Next => {
                 let advance = self.transport.queue.advance();
@@ -593,6 +619,21 @@ impl App {
     }
 
     fn set_client(&mut self, client: Client) {
+        if self
+            .client
+            .as_ref()
+            .is_some_and(|old| old.scope != client.scope)
+        {
+            self.forget_session();
+            self.player.send(player::Command::Stop);
+            self.transport = Transport {
+                paused: true,
+                generation: self.transport.generation.wrapping_add(1),
+                ..Default::default()
+            };
+            self.playing_album = None;
+            self.playing_playlist = None;
+        }
         self.remember_account(client.base_url(), client.username());
         self.presentation.navidrome_search.session = self.session;
         self.login.password.clear();
@@ -633,6 +674,8 @@ impl App {
         if index >= songs.len() {
             return;
         }
+        self.edit_session();
+        self.playing_album = None;
         self.playing_playlist = None;
         if let Some(album) = album {
             let uri = format!("navidrome:album:{}", presentation::encode(&album.id));
@@ -648,6 +691,7 @@ impl App {
     }
 
     fn load(&mut self, position: f64, paused: bool) {
+        self.dirty_session();
         self.pending_play = None;
         let Some(song) = self.transport.prepare(position, paused) else {
             return;
@@ -698,6 +742,8 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::SessionRestored { session, token, result } => self.session_restored(session, token, result),
+                Event::SessionSaveFailed => self.presentation.toast_error("Your listening session could not be saved. Check the state directory permissions."),
                 Event::QueueAlbum {
                     session,
                     token,
@@ -731,6 +777,7 @@ impl App {
                         Ok(client) => {
                             self.set_client(client);
                             self.connected = true;
+                            self.restore_session();
                             self.mark_dirty();
                             self.list_request += 1;
                             self.fetch_albums(0);
@@ -824,6 +871,10 @@ impl App {
                 changed = true;
                 self.presentation.toast_error(message.clone());
             }
+            if matches!(&event, player::Event::Finished(generation) if *generation == self.transport.generation)
+            {
+                self.dirty_session();
+            }
             if self.transport.event(event) {
                 self.finish_track();
             }
@@ -845,6 +896,7 @@ impl App {
         self.poll_favorites(host);
         self.poll_playlists(host);
         changed |= self.poll_controls(host);
+        self.checkpoint_session(false);
         self.sync_media();
         changed
     }
@@ -1057,7 +1109,7 @@ impl App {
         }
         self.playing_album = Some(self.albums[0].clone());
         self.transport.queue.start(self.albums[0].song.clone(), 0);
-        self.transport.prepare(83.0, false);
+        self.transport.prepare(83.0, flags.contains(&"restored"));
         self.transport.loading = false;
         if flags.contains(&"shuffle") {
             self.transport.queue.demo_shuffle();

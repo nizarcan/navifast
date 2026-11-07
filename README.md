@@ -41,6 +41,8 @@ The current build supports:
   **Clear** removes manual additions while preserving the current song and collection.
 - Shuffle keeps one visible order for remaining collection tracks, after manual
   additions. Repeat cycles through Off, All and One without changing playback position.
+- The queue, position, shuffle order and repeat mode survive restart for the same
+  server and account. Restoration stays paused until you choose to play.
 - The existing ten-band equalizer and a spectrum visualizer that follows the
   equalizer even when playback volume is zero.
 - The original sidebar lists and grids, album pages, player bar and settings,
@@ -48,7 +50,7 @@ The current build supports:
   player-bar visualizers.
 - Basic native media controls.
 
-This is an early playback build. Saved queues, lyrics, scrobbling, transcoding preferences,
+This is an early playback build. Lyrics, scrobbling, transcoding preferences,
 and tray behavior are not available in the current Navidrome interface.
 The existing interface keeps its translations; the server sign-in form
 currently uses English.
@@ -102,6 +104,9 @@ login could not be saved. Passwords are never written to the settings files.
 The server URL, username, playback preferences and up to 100 recently played
 album identifiers are saved in `navidrome.json`, along with the ten most recent
 submitted searches for each server and account.
+`navidrome-session.json` in the state directory stores the listening session using
+opaque IDs and a server/account identity hash, without credentials or stream URLs.
+Sign-out deletes it.
 The existing interface and theme preferences use `settings.json`. Both files live under
 Navifast's config directory. Spotify profiles and
 credentials are not imported. The app does not check for updates or contact

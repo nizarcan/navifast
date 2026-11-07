@@ -563,6 +563,7 @@ impl State {
 impl Drop for State {
     fn drop(&mut self) {
         self.save_placement();
+        self.app.checkpoint_session(true);
         self.app.save();
     }
 }
@@ -629,6 +630,9 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     }
     if s.app.dirty.is_some() {
         tx.wake_after(Duration::from_millis(500));
+    }
+    if let Some(delay) = s.app.checkpoint_delay() {
+        tx.wake_after(delay);
     }
     if let Some(delay) = s.window.delay.take() {
         tx.wake_after(delay);

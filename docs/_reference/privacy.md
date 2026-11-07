@@ -17,8 +17,13 @@ Navifast loads artist images through your server's `getCoverArt` endpoint.
 Navifast reads your favorites with `getStarred2` and sends `star` or `unstar`
 with the selected item ID to your server. Favorites and pending changes are
 held in memory for the signed-in session. Ratings are independent.
-The local queue is held in memory and cleared on sign-out. Adding an album
-reads its songs through `getAlbum`; no server play queue is saved.
+The local queue is checkpointed in `navidrome-session.json` in the state directory
+and deleted on sign-out. It contains opaque song/album/playlist IDs, occurrence
+order, playback position, modes and a hash identifying the server and username.
+It contains no passwords, signed URLs or audio. After that account signs in,
+`getSong` validates saved songs and `getAlbum` resolves pending additions.
+Playback restores paused. Adding an album also reads `getAlbum`; no server play
+queue is read or saved.
 It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.
 

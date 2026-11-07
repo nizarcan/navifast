@@ -5,6 +5,7 @@ pub mod backend;
 pub mod player;
 pub mod playlists;
 pub mod queue;
+pub mod session;
 pub mod stream;
 
 #[cfg(test)]

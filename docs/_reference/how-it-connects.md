@@ -58,7 +58,14 @@ Signing out cancels pending work and discards account-specific checkpoints.
 Queue additions are local. A whole album that is not already loaded reserves a
 queue position and reads `getAlbum` on the backend worker. These reads have their
 own cancellation group, independent of navigation. Clear cancels pending album
-reads; sign-out discards the entire queue. No server play queue is written.
+reads; sign-out discards the entire queue and its local checkpoint. No server play
+queue is written. After a successful sign-in, `navidrome-session.json` is read on
+a worker only for the matching server/account identity. Unique saved song IDs are
+validated with `getSong`, using at most four shared request slots. Pending albums
+use `getAlbum`. Missing tracks are omitted, while transport errors preserve the
+checkpoint for a later launch. A new playback or queue action cancels restoration.
+The restored player is loaded paused. Position and queue checkpoints are atomically
+written on the backend worker; see [The queue's rules](/reference/queue/).
 
 Artist links use the IDs from OpenSubsonic's individual credits or the older
 `artistId` field. The artist page uses album-artist IDs from `getArtist` to separate

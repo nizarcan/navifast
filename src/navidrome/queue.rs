@@ -5,6 +5,7 @@ use std::{collections::VecDeque, sync::Arc};
 use super::api::Song;
 use rand::seq::SliceRandom;
 mod repeat;
+pub mod snapshot;
 use repeat::Repeat;
 
 pub type Id = u64;

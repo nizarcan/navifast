@@ -164,6 +164,7 @@ impl App {
                     {
                         self.apply(Action::Play(index));
                     } else {
+                        self.edit_session();
                         self.apply(Action::Open(id.clone()));
                         self.pending_play = Some((id, index));
                     }

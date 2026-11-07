@@ -44,6 +44,7 @@ impl App {
     }
 
     pub(super) fn queue_action(&mut self, action: Action) {
+        self.edit_session();
         match action {
             Action::Songs { songs, next } => {
                 self.transport.queue.add(songs, next);
@@ -165,6 +166,7 @@ impl App {
             Err(error) => (Vec::new(), Some(error)),
         };
         if self.transport.queue.resolve(token, songs) {
+            self.dirty_session();
             if let Some(error) = error {
                 self.presentation.toast_error(error);
             }

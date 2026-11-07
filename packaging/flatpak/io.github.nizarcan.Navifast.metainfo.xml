@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.6" date="2026-11-07" type="development">
+      <description><p>Restore the local queue and playback position after restart, paused until you choose to play.</p></description>
+    </release>
     <release version="0.1.0-rc.5" date="2026-11-07" type="development">
       <description><p>Shuffle remaining collection tracks and repeat a song or collection without losing your place.</p></description>
     </release>

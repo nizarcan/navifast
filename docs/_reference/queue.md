@@ -80,7 +80,34 @@ postpone the standalone loop preview until those additions play, so pending
 albums can resolve before the next cycle is prepared.
 
 The existing command and media interfaces report and set the same modes as the
-native controls. Queue and mode restoration are not yet exposed.
+native controls.
+
+## Restarting
+
+`navidrome-session.json` in the state directory stores the playing occurrence,
+position, ordered upcoming entries, collection order, manual additions, bounded
+history, shuffle order and repeat state. Each manual occurrence keeps its own
+identity even when another occurrence has the same song ID. Pending album
+reservations are resolved during restoration. The snapshot contains opaque IDs
+and a hash of the normalized server URL and username, never stream URLs or secrets.
+
+After successful sign-in, a worker validates each unique song through `getSong`,
+sharing the library's four-request concurrency limit. Only the protocol's missing
+item response removes a song. Other failures keep the checkpoint for another
+launch. Valid entries keep their order; a removed playing song advances to the
+next available occurrence at zero, and a shorter song clamps the saved position.
+Restoration always pauses. New playback or queue edits cancel restoration, and
+session/token checks discard late results. Signing out deletes the saved session;
+a different account never restores it.
+
+Writes use a same-directory temporary file, flush it, then atomically replace the
+checkpoint on the backend worker. Edits are coalesced over 500 ms, position-only
+updates are limited to one every ten seconds, and pause/exit checkpoint immediately.
+Interrupted temporary files are ignored. Invalid, oversized or unsupported-version
+snapshots are ignored without blocking login. Existing preferences and historical
+`session.json` files are unchanged. This is local restoration only; no server play
+queue is read or written.
+
 The queue model and regression tests live in `src/navidrome/queue.rs`; controller
 and transport coverage lives in `src/app/navidrome/queue.rs` and
 `src/app/navidrome.rs`. Rune interaction tests live in

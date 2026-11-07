@@ -671,3 +671,21 @@ fn artist_filters_use_release_tags_and_sleeves_open_without_playing() {
     );
     assert_eq!(rt.state.app.transport.generation, generation);
 }
+
+#[test]
+fn restored_player_uses_the_existing_play_control_and_preserves_position_on_resume() {
+    for theme in ["restored,queue", "restored,queue,light"] {
+        let mut rt = runtime("album:alb0", theme);
+        let occurrence = rt.state.app.transport.queue.current().unwrap().id;
+        assert!(rt.state.app.transport.paused);
+        assert_eq!(rt.state.app.transport.position, 83.0);
+        assert!(rt.accessibility_action("toggle", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(!rt.state.app.transport.paused);
+        assert_eq!(rt.state.app.transport.position, 83.0);
+        assert_eq!(
+            rt.state.app.transport.queue.current().unwrap().id,
+            occurrence
+        );
+    }
+}
