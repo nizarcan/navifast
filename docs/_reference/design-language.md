@@ -160,12 +160,6 @@ technology. Repeat One adds a small centered 1 inside the existing repeat glyph;
 its accessible name distinguishes Off, All and One. Collection Shuffle controls
 share the player control's state and behavior.
 
-The Queue heading also carries the existing Clock icon for **Sleep timer**.
-Accent it when armed and show a muted deadline/count line below the heading.
-Use the shared 470-pixel modal with its standard title, rounded duration buttons,
-34-pixel numeric song-count field, queue-boundary action and Cancel timer/Close
-buttons. Keep validation inline and preserve the player bar and queue layout.
-
 ## Type, color and controls
 
 - Use Inter and its real font weights through Rune's text layout. Keep logical

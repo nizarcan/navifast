@@ -33,4 +33,3 @@ src/ui/desktop/ratings.rs
 src/ui/desktop/scrobble.rs
 src/ui/desktop/stats.rs
 src/ui/desktop/shares.rs
-src/ui/desktop/sleep.rs

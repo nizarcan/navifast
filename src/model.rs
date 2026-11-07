@@ -224,7 +224,6 @@ pub enum Dialog {
     Playlists,
     DeletePlaylist,
     Shares,
-    SleepTimer,
 }
 #[derive(Clone, Debug)]
 pub enum Action {
@@ -260,7 +259,6 @@ pub enum Action {
     Rating(crate::app::navidrome::ratings::Action),
     Scrobble(crate::app::navidrome::scrobble::Action),
     Share(crate::app::navidrome::shares::Action),
-    Sleep(crate::app::navidrome::sleep::Action),
     ShowDialog(Dialog),
     CloseDialog,
     OpenUrl(String),

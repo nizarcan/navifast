@@ -18,7 +18,6 @@ pub mod ratings;
 pub mod scrobble;
 mod session;
 pub mod shares;
-pub mod sleep;
 pub mod stats;
 use host::Host;
 mod presentation;
@@ -199,7 +198,6 @@ pub struct App {
     pub browse: browse::State,
     pub stats: stats::State,
     pub shares: shares::State,
-    pub sleep: sleep::Timer,
     pub ratings: ratings::State,
     pub scrobbles: scrobble::State,
     pub requested_covers: HashSet<String>,
@@ -226,7 +224,7 @@ pub struct App {
 
 impl App {
     pub(crate) fn playback_loading(&self) -> bool {
-        !self.sleep.held && (self.transport.loading || self.pending_play.is_some())
+        self.transport.loading || self.pending_play.is_some()
     }
 
     /// The playing album supplies its sleeve even when a song omits its own art.
@@ -330,7 +328,6 @@ impl App {
             browse: Default::default(),
             stats: Default::default(),
             shares: Default::default(),
-            sleep: Default::default(),
             ratings: Default::default(),
             scrobbles: Default::default(),
             transport: Transport {
@@ -415,7 +412,6 @@ impl App {
                 self.browse = Default::default();
                 self.stats = Default::default();
                 self.shares = Default::default();
-                self.sleep_action(sleep::Action::Cancel);
                 self.ratings = Default::default();
                 self.scrobbles.reset();
                 self.forget_session();
@@ -504,7 +500,6 @@ impl App {
                 }
             }
             Action::Toggle => {
-                self.release_sleep_hold();
                 if self.transport.waiting_for_queue {
                     self.transport.paused = !self.transport.paused;
                     if self.transport.paused {
@@ -532,9 +527,6 @@ impl App {
                 }
             }
             Action::Pause(paused) => {
-                if !paused {
-                    self.release_sleep_hold();
-                }
                 if self.transport.waiting_for_queue {
                     self.transport.paused = paused;
                     if paused {
@@ -559,14 +551,6 @@ impl App {
                 }
             }
             Action::Next => {
-                self.release_sleep_hold();
-                if !self.transport.waiting_for_queue
-                    && self.transport.song().is_some()
-                    && !self.transport.queue.upcoming().is_empty()
-                    && self.sleep_boundary()
-                {
-                    return;
-                }
                 let advance = self.transport.queue.advance();
                 self.advance_queue(advance, self.transport.paused);
             }
@@ -670,7 +654,6 @@ impl App {
         self.browse = Default::default();
         self.stats = Default::default();
         self.shares = Default::default();
-        self.sleep_action(sleep::Action::Cancel);
         self.ratings = Default::default();
         self.scrobbles.reset();
         self.lyrics = Default::default();
@@ -742,14 +725,12 @@ impl App {
             self.presentation.recent_contexts.truncate(100);
             self.mark_dirty();
         }
-        self.release_sleep_hold();
         self.transport.collection_rows.clear();
         self.transport.queue.start(songs, index);
         self.load(0.0, false);
     }
 
     fn load(&mut self, position: f64, paused: bool) {
-        let paused = paused || self.sleep.held;
         if !paused {
             self.remember_home_artists();
         }
@@ -808,7 +789,7 @@ impl App {
     }
 
     fn poll(&mut self, host: &impl Host) -> bool {
-        let mut changed = self.poll_sleep(std::time::SystemTime::now());
+        let mut changed = false;
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
@@ -940,22 +921,6 @@ impl App {
                 self.listening_report(context, report);
                 continue;
             }
-            if let player::Event::SleepExpired { token } = event {
-                if token == self.sleep.token {
-                    self.pause_for_sleep();
-                    changed = true;
-                }
-                continue;
-            }
-            if let player::Event::Finished(generation) = event {
-                if generation == self.transport.generation {
-                    self.dirty_session();
-                    self.transport.event(player::Event::Finished(generation));
-                    self.finish_track();
-                    changed = true;
-                }
-                continue;
-            }
             let previous = (
                 self.transport.queue.current().map(|entry| entry.id),
                 self.transport.loading,
@@ -971,7 +936,13 @@ impl App {
                 changed = true;
                 self.presentation.toast_error(message.clone());
             }
-            self.transport.event(event);
+            if matches!(&event, player::Event::Finished(generation) if *generation == self.transport.generation)
+            {
+                self.dirty_session();
+            }
+            if self.transport.event(event) {
+                self.finish_track();
+            }
             changed |= previous
                 != (
                     self.transport.queue.current().map(|entry| entry.id),
@@ -997,16 +968,11 @@ impl App {
     }
 
     fn finish_track(&mut self) {
-        let queue_timer = self.sleep.mode == Some(sleep::Mode::Queue);
-        if self.sleep_boundary() {
-            return;
-        }
-        if self.transport.repeat == crate::player::RepeatMode::Track && !queue_timer {
+        if self.transport.repeat == crate::player::RepeatMode::Track {
             self.scrobbles.new_play();
             self.load(0.0, self.transport.paused);
         } else {
-            let advance = self.transport.queue.advance();
-            self.advance_queue(advance, self.transport.paused);
+            self.apply(Action::Next);
         }
     }
 
@@ -1333,7 +1299,6 @@ impl App {
             self.configure_demo_stats(&flags);
         }
         self.configure_demo_shares(&flags);
-        self.configure_demo_sleep(&flags);
         self.populate_demo_lyrics(&flags);
         if page == Some("albums") {
             self.presentation.history = vec![crate::model::Page::Albums];

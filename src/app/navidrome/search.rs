@@ -315,7 +315,6 @@ impl App {
         self.playing_playlist = None;
         self.transport.collection_rows.clear();
         if self.transport.queue.start(songs, index) {
-            self.release_sleep_hold();
             self.load(0.0, false);
         }
     }

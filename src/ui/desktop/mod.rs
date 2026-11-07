@@ -25,7 +25,6 @@ mod queue;
 mod ratings;
 mod scrobble;
 mod shares;
-mod sleep;
 pub(crate) mod spectrum;
 mod stats;
 mod transport;

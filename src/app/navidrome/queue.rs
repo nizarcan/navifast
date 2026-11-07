@@ -70,7 +70,6 @@ impl App {
                 }
             }
             Action::Play(id) => {
-                self.release_sleep_hold();
                 if let Some(at) = self
                     .transport
                     .queue
@@ -144,14 +143,6 @@ impl App {
 
     fn resume_queue_wait(&mut self) {
         if self.transport.waiting_for_queue {
-            if self.sleep.mode == Some(super::sleep::Mode::Queue)
-                && self.transport.queue.at_cycle_end()
-            {
-                self.transport.waiting_for_queue = false;
-                self.transport.loading = false;
-                self.pause_for_sleep();
-                return;
-            }
             let advance = self.transport.queue.advance();
             self.advance_queue(advance, self.transport.paused);
         }

@@ -127,11 +127,6 @@ impl Queue {
             .min(self.upcoming.len() - self.repeat.preview)
     }
 
-    /// Future repeat previews do not extend a sleep timer's current queue pass.
-    pub fn at_cycle_end(&self) -> bool {
-        self.upcoming.len() == self.repeat.preview
-    }
-
     pub fn upcoming(&self) -> &VecDeque<Entry> {
         &self.upcoming
     }

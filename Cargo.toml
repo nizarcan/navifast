@@ -1,7 +1,7 @@
 [package]
 name = "navifast"
 default-run = "navifast"
-version = "0.1.0-rc.17"
+version = "0.1.0-rc.18"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -49,9 +49,8 @@ keyring-core = "1"
 # system's preferred languages. No libintl or runtime catalog parsing.
 tr = { version = "0.1.11", default-features = false }
 sys-locale = "0.3"
-# Reuse the logger's clock for UTC stats and local sleep deadlines. Unix uses the
-# system zoneinfo; Windows needs Jiff's compact bundled timezone database.
-jiff = { version = "0.2", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform"] }
+# Reuse the logger's existing clock dependency for UTC listening-summary timestamps.
+jiff = { version = "0.2", default-features = false, features = ["std"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 # Rune already uses resvg. Render the app mark with its established alpha rounding.
 resvg = { version = "0.45.1", default-features = false }
