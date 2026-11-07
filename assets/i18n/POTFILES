@@ -8,6 +8,7 @@ src/ui/collection.rs
 src/ui/desktop/artist.rs
 src/ui/desktop/backdrop.rs
 src/ui/desktop/library.rs
+src/ui/desktop/home.rs
 src/ui/desktop/mod.rs
 src/ui/desktop/playlists.rs
 src/ui/desktop/queue.rs

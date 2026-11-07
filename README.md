@@ -10,6 +10,10 @@ Original copyrights and the MIT license are retained.
 The current build supports:
 
 - Signing in to a Navidrome server, including servers hosted under a URL path.
+- Opening on **Home**, with quick access to recently played albums and playlists,
+  the shared playlist artwork grid, and recently played artists. **More** expands
+  a section without leaving Home. First visits offer albums from your library;
+  reopening still restores playback paused.
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
@@ -109,6 +113,9 @@ login could not be saved. Passwords are never written to the settings files.
 The server URL, username, playback preferences and up to 100 recently played
 album identifiers are saved in `navidrome.json`, along with the ten most recent
 submitted searches for each server and account.
+Home also keeps bounded local metadata for the last 24 collections and 24 artists
+in that file. This history belongs to the saved server/account, contains no audio
+or image files, and changes accounts with your login.
 `navidrome-session.json` in the state directory stores the listening session using
 opaque IDs and a server/account identity hash, without credentials or stream URLs.
 Sign-out deletes it.

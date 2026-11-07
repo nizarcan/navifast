@@ -275,6 +275,7 @@ impl App {
                     self.play_search_songs(songs.clone(), index);
                     if let Page::Playlist(id) = self.presentation.page() {
                         self.playing_playlist = Some(id.clone());
+                        self.remember_home_playlist();
                     }
                 }
             }
@@ -299,6 +300,7 @@ impl App {
             let songs = songs.clone();
             self.play_search_songs(songs, 0);
             self.playing_playlist = Some(id);
+            self.remember_home_playlist();
         }
     }
 

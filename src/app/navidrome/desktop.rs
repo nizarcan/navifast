@@ -95,6 +95,9 @@ pub(crate) struct State {
     pub(crate) library_filter: TextEdit,
     pub(crate) playlist_name: TextEdit,
     pub(crate) library_search: bool,
+    pub(crate) home_expanded: [bool; 2],
+    #[cfg(feature = "navidrome-demo")]
+    demo_home_scroll: bool,
     pub(crate) images: rune::ImageCache,
     pub(crate) icons: RefCell<HashMap<(crate::theme::Icon, crate::color::Srgba, u32), rune::Image>>,
     pub(crate) logos: RefCell<HashMap<u32, rune::Pixels>>,
@@ -272,6 +275,9 @@ impl State {
             library_filter: TextEdit::new(""),
             playlist_name: TextEdit::new(""),
             library_search: false,
+            home_expanded: [launch.demo && flags.contains(&"home-expanded"); 2],
+            #[cfg(feature = "navidrome-demo")]
+            demo_home_scroll: launch.demo && flags.contains(&"home-artists"),
             app,
             window,
             placement: None,
@@ -411,6 +417,7 @@ impl State {
                 .unzip();
             self.app.play_search_songs(songs, index);
             self.app.playing_playlist = Some(id);
+            self.app.remember_home_playlist();
             self.app.transport.collection_rows = keys;
             return;
         }
@@ -479,6 +486,7 @@ impl State {
             self.library_filter.clear();
             self.playlist_name.clear();
             self.library_search = false;
+            self.home_expanded = [false; 2];
             self.password.clear();
             self.query.clear();
         }
@@ -588,6 +596,12 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     s.autoscroll.poll(tx);
     let restoring = s.app.restoring_login;
     let mut changed = s.app.poll(&s.window);
+    #[cfg(feature = "navidrome-demo")]
+    if s.demo_home_scroll && _time >= 0.1 {
+        s.demo_home_scroll = false;
+        tx.scroll_to_bottom_instant("page");
+        changed = true;
+    }
     if changed {
         s.sync_tracks();
         if !s.page_loading()

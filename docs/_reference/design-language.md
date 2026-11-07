@@ -42,6 +42,29 @@ collection from the top. Differences in metadata or available actions do not
 justify a separate card design. Compact destination lists remain appropriate
 inside search results and selection dialogs, not on the playlist browser.
 
+## Home
+
+Home uses **Quick return**, option A approved for NAV-33. It is the startup page;
+Albums keeps its own sidebar destination. Preserve the existing sidebar, top bar,
+player and paused session restoration.
+
+Use a 28-pixel bold welcome heading with a 14-pixel secondary subtitle. Show up
+to six recently played collections as 72-pixel compact tiles, in three columns
+when content is at least 720 pixels wide and two otherwise. Use the existing
+surface/hover colors, 6-pixel corners, artwork and truncated collection labels.
+Clicking a tile opens its album or playlist; it does not start playback.
+
+Below the shortcuts, use 20-pixel section headings for **Your playlists** and
+**Recently played artists**. Playlists reuse the exact album/playlist card grid
+described above. Artists use the existing 148-pixel circular portrait treatment.
+Show one row initially; **More** and **Less** expand or collapse the section in
+place. Virtualize the entire Home list, including expanded sections.
+
+A first visit shows a brief welcome and **From your library** album cards instead
+of invented listening history. Loading and failed refreshes keep their own inline
+feedback, with usable cached cards retained. The recent list is local to the
+current server/account, never a claim about listening in other clients.
+
 ## Playable collection pages
 
 Albums and playlists use the same header, action row and track table. Differences

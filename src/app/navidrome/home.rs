@@ -1,0 +1,349 @@
+//! Small, account-scoped metadata snapshots for the local Home history.
+use super::App;
+use crate::model::{Loadable, Page};
+use crate::navidrome::api::{Album, ArtistCredits, Collection};
+use serde::{Deserialize, Serialize};
+
+const LIMIT: usize = 24;
+const FIELD_LIMIT: usize = 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Kind {
+    Album,
+    Playlist,
+    Artist,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Entry {
+    pub kind: Kind,
+    pub id: String,
+    pub name: String,
+    pub by: String,
+    pub cover: Option<String>,
+}
+
+impl Entry {
+    pub fn page(&self) -> Page {
+        let id = super::encode(&self.id);
+        match self.kind {
+            Kind::Album => Page::Album(id),
+            Kind::Playlist => Page::Playlist(id),
+            Kind::Artist => Page::Artist(id),
+        }
+    }
+
+    fn valid(&self) -> bool {
+        !self.id.is_empty()
+            && !self.name.trim().is_empty()
+            && [&self.id, &self.name, &self.by]
+                .into_iter()
+                .chain(self.cover.as_ref())
+                .all(|text| text.len() <= FIELD_LIMIT)
+    }
+
+    fn new(kind: Kind, id: &str, name: &str, by: &str, cover: Option<&str>) -> Option<Self> {
+        if id.is_empty()
+            || name.trim().is_empty()
+            || [id, name, by]
+                .into_iter()
+                .chain(cover)
+                .any(|s| s.len() > FIELD_LIMIT)
+        {
+            return None;
+        }
+        Some(Self {
+            kind,
+            id: id.into(),
+            name: name.into(),
+            by: by.into(),
+            cover: cover.map(str::to_owned),
+        })
+    }
+
+    fn album(album: &Album) -> Option<Self> {
+        Self::new(
+            Kind::Album,
+            &album.id,
+            &album.name,
+            &album.artist,
+            album.cover_art.as_deref(),
+        )
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct History {
+    pub collections: Vec<Entry>,
+    pub artists: Vec<Entry>,
+}
+
+impl History {
+    pub fn sanitize(&mut self) {
+        for (entries, artists) in [(&mut self.collections, false), (&mut self.artists, true)] {
+            let mut seen = std::collections::HashSet::new();
+            entries.retain(|entry| {
+                seen.len() < LIMIT
+                    && entry.valid()
+                    && (entry.kind == Kind::Artist) == artists
+                    && seen.insert((entry.kind as u8, entry.id.clone()))
+            });
+            entries.truncate(LIMIT);
+            entries.shrink_to_fit();
+        }
+    }
+
+    fn push(&mut self, entry: Entry) -> bool {
+        if !entry.valid() {
+            return false;
+        }
+        let entries = if entry.kind == Kind::Artist {
+            &mut self.artists
+        } else {
+            &mut self.collections
+        };
+        if entries.first() == Some(&entry) {
+            return false;
+        }
+        entries.retain(|old| old.kind != entry.kind || old.id != entry.id);
+        entries.insert(0, entry);
+        entries.truncate(LIMIT);
+        true
+    }
+}
+
+impl App {
+    pub(super) fn remember_home_album(&mut self, album: &Album) {
+        if let Some(entry) = Entry::album(album)
+            && self.preferences.home_history.push(entry)
+        {
+            self.mark_dirty();
+        }
+    }
+
+    /// Use already loaded metadata to migrate older album-only history. No extra requests.
+    pub(super) fn migrate_home_history(&mut self) {
+        if !self.preferences.home_history.collections.is_empty() {
+            return;
+        }
+        let entries: Vec<_> = self
+            .presentation
+            .recent_contexts
+            .iter()
+            .filter_map(|uri| {
+                let id = super::decode(uri.strip_prefix("navidrome:album:")?)?;
+                self.albums
+                    .iter()
+                    .find(|album| album.id == id)
+                    .and_then(Entry::album)
+            })
+            .take(LIMIT)
+            .collect();
+        if !entries.is_empty() {
+            self.preferences.home_history.collections = entries;
+            self.preferences.home_history.sanitize();
+            self.mark_dirty();
+        }
+    }
+
+    pub(super) fn remember_home_playlist(&mut self) {
+        let (
+            Some(id),
+            Loadable::Loaded(Collection::Playlist {
+                name, cover_art, ..
+            }),
+        ) = (
+            self.playing_playlist.as_deref().and_then(super::decode),
+            &self.presentation.navidrome_search.collection,
+        )
+        else {
+            return;
+        };
+        if let Some(entry) = Entry::new(Kind::Playlist, &id, name, "", cover_art.as_deref())
+            && self.preferences.home_history.push(entry)
+        {
+            self.mark_dirty();
+        }
+    }
+
+    /// Called once on preparing a song, never by the frame or position timer.
+    pub(super) fn remember_home_artists(&mut self) {
+        let Some(song) = self.transport.song() else {
+            return;
+        };
+        let (name, credits) = if song.credits.has_ids() {
+            (&song.artist, &song.credits)
+        } else if let Some(album) = self
+            .playing_album
+            .as_ref()
+            .filter(|_| self.transport.queue.context_index().is_some())
+        {
+            (&album.artist, &album.credits)
+        } else {
+            return;
+        };
+        let entries = artist_entries(name, credits);
+        if self.preferences.home_history.artists.starts_with(&entries) {
+            return;
+        }
+        let mut changed = false;
+        for entry in entries.into_iter().rev() {
+            changed |= self.preferences.home_history.push(entry);
+        }
+        if changed {
+            self.mark_dirty();
+        }
+    }
+}
+
+fn artist_entries(name: &str, credits: &ArtistCredits) -> Vec<Entry> {
+    let mut entries: Vec<_> = credits
+        .artists
+        .iter()
+        .filter_map(|artist| {
+            Entry::new(
+                Kind::Artist,
+                artist.id.as_deref()?,
+                &artist.name,
+                "",
+                artist.cover_art.as_deref(),
+            )
+        })
+        .take(LIMIT)
+        .collect();
+    if entries.is_empty()
+        && let Some(id) = &credits.artist_id
+    {
+        entries.extend(Entry::new(Kind::Artist, id, name, "", None));
+    }
+    entries
+}
+
+#[cfg(feature = "navidrome-demo")]
+impl App {
+    pub(super) fn populate_demo_home(&mut self, flags: &[&str]) {
+        self.presentation.history = vec![Page::Home];
+        self.populate_demo_playlists(&[]);
+        let mut history = History::default();
+        if !flags.contains(&"first-visit")
+            && !flags.contains(&"empty")
+            && !flags.contains(&"loading")
+        {
+            for album in self.albums.iter().take(4).rev() {
+                if let Some(entry) = Entry::album(album) {
+                    history.push(entry);
+                }
+                history.push(Entry {
+                    kind: Kind::Artist,
+                    id: format!("artist-{}", album.id),
+                    name: album.artist.clone(),
+                    by: String::new(),
+                    cover: album.cover_art.clone(),
+                });
+            }
+            for item in self
+                .presentation
+                .navidrome_playlists
+                .list
+                .get()
+                .into_iter()
+                .flatten()
+                .take(2)
+            {
+                history.push(Entry {
+                    kind: Kind::Playlist,
+                    id: item.id.clone(),
+                    name: item.name.clone(),
+                    by: String::new(),
+                    cover: item.cover_art.clone(),
+                });
+            }
+        }
+        self.preferences.home_history = history;
+        if flags.contains(&"empty") || flags.contains(&"loading") {
+            self.populate_demo_playlists(flags);
+        } else if flags.contains(&"error") {
+            self.presentation.navidrome_playlists.error =
+                Some("The server did not respond in time.".into());
+        }
+        if flags.contains(&"no-art") {
+            for entry in self
+                .preferences
+                .home_history
+                .collections
+                .iter_mut()
+                .chain(&mut self.preferences.home_history.artists)
+            {
+                entry.cover = None;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::navidrome::tests::with_app;
+    use crate::navidrome::api::ArtistCredit;
+
+    #[test]
+    fn history_is_bounded_deduplicated_and_kind_specific() {
+        let mut history = History::default();
+        for id in 0..100 {
+            history.push(Entry {
+                kind: Kind::Album,
+                id: id.to_string(),
+                name: format!("Album {id}"),
+                by: String::new(),
+                cover: None,
+            });
+        }
+        assert_eq!(history.collections.len(), LIMIT);
+        let entry = history.collections[4].clone();
+        assert!(history.push(entry.clone()));
+        assert!(!history.push(entry.clone()));
+        assert_eq!(history.collections[0], entry);
+        assert!(history.push(Entry {
+            kind: Kind::Playlist,
+            ..entry.clone()
+        }));
+        assert!(!history.push(Entry {
+            name: "x".repeat(FIELD_LIMIT + 1),
+            ..entry
+        }));
+        assert_eq!(history.collections[1].kind, Kind::Album);
+        let mut restored: History =
+            serde_json::from_str(&serde_json::to_string(&history).unwrap()).unwrap();
+        restored.artists = restored.collections.clone();
+        restored.sanitize();
+        assert!(restored.artists.is_empty());
+        assert_eq!(restored.collections, history.collections);
+    }
+
+    #[test]
+    fn playback_records_real_credits_and_account_changes_clear_history() {
+        with_app(|app, _| {
+            let album = app.album.as_mut().unwrap();
+            album.song[0].credits.artists = vec![ArtistCredit {
+                id: Some("artist:/ع".into()),
+                name: "فنان".into(),
+                cover_art: Some("portrait".into()),
+            }];
+            app.apply(super::super::Action::Play(0));
+            assert_eq!(
+                app.preferences.home_history.collections[0].name,
+                "Original album"
+            );
+            let artist = &app.preferences.home_history.artists[0];
+            assert_eq!(
+                artist.page(),
+                Page::Artist(super::super::encode("artist:/ع"))
+            );
+            assert_eq!(artist.cover.as_deref(), Some("portrait"));
+            app.remember_account("https://another.example", "listener");
+            assert!(app.preferences.home_history.collections.is_empty());
+            assert!(app.preferences.home_history.artists.is_empty());
+        });
+    }
+}

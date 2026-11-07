@@ -24,6 +24,114 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn home_navigation_keeps_restored_playback_and_opens_recent_collections() {
+    for theme in ["restored", "restored,light"] {
+        let mut rt = runtime("home", theme);
+        let current = rt.state.app.transport.queue.current().unwrap().id;
+        let position = rt.state.app.transport.position;
+        let recent = rt
+            .elements()
+            .into_iter()
+            .find(|e| {
+                e.key
+                    .as_deref()
+                    .is_some_and(|k| k.starts_with("home-recent-"))
+            })
+            .unwrap()
+            .key
+            .unwrap();
+        assert!(rt.accessibility_action(&recent, rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(matches!(
+            rt.state.app.presentation.page(),
+            Page::Playlist(_)
+        ));
+        click_label(&mut rt, "Home", 0);
+        assert_eq!(rt.state.app.presentation.page(), &Page::Home);
+        assert!(rt.state.app.transport.paused);
+        assert_eq!(rt.state.app.transport.position, position);
+        assert_eq!(rt.state.app.transport.queue.current().unwrap().id, current);
+        click_label(&mut rt, "Albums", 0);
+        assert_eq!(rt.state.app.presentation.page(), &Page::Albums);
+    }
+}
+
+#[test]
+fn home_expands_a_large_playlist_library_with_bounded_mounted_rows() {
+    let mut rt = runtime("home", "restored");
+    rt.update(|s, _| {
+        s.app.presentation.navidrome_playlists.list = Loadable::Loaded(
+            (0..10_000)
+                .map(|i| crate::navidrome::api::NamedItem {
+                    id: format!("large-{i}"),
+                    name: format!("Playlist {i}"),
+                    cover_art: None,
+                })
+                .collect(),
+        );
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.accessibility_action("home-expand-0", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.state.home_expanded[0]);
+    let mounted = rt
+        .elements()
+        .iter()
+        .filter(|e| {
+            e.key
+                .as_deref()
+                .is_some_and(|k| k.starts_with("playlist-large-"))
+        })
+        .count();
+    assert!(mounted > 0 && mounted < 60, "mounted {mounted} cards");
+    rt.update(|_, tx| tx.scroll_to_y("page", 1_000_000.));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(
+        rt.elements()
+            .iter()
+            .any(|e| e.key.as_deref() == Some("playlist-large-9999"))
+    );
+}
+
+#[test]
+fn home_refresh_failure_retains_cards_and_retry_recovers() {
+    let mut rt = runtime("home", "error,restored");
+    assert!(
+        rt.state
+            .app
+            .presentation
+            .navidrome_playlists
+            .list
+            .get()
+            .is_some()
+    );
+    assert!(
+        rt.elements()
+            .iter()
+            .any(|e| e.key.as_deref() == Some("playlist-list0"))
+    );
+    assert!(rt.accessibility_action(
+        "home-refresh-playlists",
+        rune::accesskit::Action::Click,
+        None
+    ));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(
+        rt.state
+            .app
+            .presentation
+            .navidrome_playlists
+            .error
+            .is_none()
+    );
+    assert!(rt.state.app.transport.paused);
+}
+
+#[test]
 fn collection_shuffle_and_repeat_controls_keep_the_playing_context_and_position() {
     use crate::player::RepeatMode;
     for theme in ["", "light"] {

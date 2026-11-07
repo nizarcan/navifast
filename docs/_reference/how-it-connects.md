@@ -40,6 +40,12 @@ request. Opening a playlist loads its ordered songs with `getPlaylist`.
 The Playlists page requests the full accessible list using `getPlaylists`,
 independently of search. Refresh keeps existing rows available if it fails.
 Leaving the page cancels its pending list request and ignores late results.
+Home shares this playlist list and its cancellation group. Moving directly between
+Home and Playlists retains the current request; leaving both cancels it. Startup
+loads Home after authentication. Its recent collections and artist metadata live
+in bounded, account-scoped preferences and reuse playback metadata without extra
+lookup requests. Old album-only history is filled from already loaded albums.
+Home uses virtual rows, including expanded playlist and artist sections.
 Playlist edits use `createPlaylist`, `updatePlaylist`, and `deletePlaylist` on
 workers. The destination list respects the server's `readonly` flag, falling
 back to ownership when the flag is absent. Each write checks fresh metadata.

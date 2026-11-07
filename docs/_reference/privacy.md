@@ -70,6 +70,12 @@ The recent album order stays on this computer in `navidrome.json`, survives
 restarts and is cleared when a different server or account signs in successfully.
 The same file keeps the ten most recent submitted search terms separately for
 each server and username. You can remove individual terms from the search page.
+Home keeps metadata for at most 24 recently played collections and 24 artists in
+the same account-scoped file: opaque IDs, names, secondary labels and cover IDs.
+Each field is limited to 1 KiB. No audio, artwork bytes or authenticated URLs are
+saved with this history. Playback updates it locally; no listening report is sent.
+Opening Home reads playlists with the existing `getPlaylists` request and loads
+visible artwork through the same bounded cache as Albums.
 
 Sign-out disables automatic sign-in, deletes the saved login, stops playback
 and clears the active account, library and artwork from memory. A non-secret

@@ -433,7 +433,7 @@ impl App {
     }
 
     pub(super) fn playlists_event(&mut self, event: Event) {
-        let browsing = self.presentation.page() == &Page::Playlists;
+        let browsing = matches!(self.presentation.page(), Page::Home | Page::Playlists);
         let state = &mut self.presentation.navidrome_playlists;
         match event {
             Event::PlaylistLibrary {
@@ -507,6 +507,10 @@ impl App {
                         j.rollback = None;
                     }
                     Ok(Outcome::Deleted(id)) => {
+                        self.preferences.home_history.collections.retain(|entry| {
+                            entry.kind != super::home::Kind::Playlist || entry.id != id
+                        });
+                        self.dirty.get_or_insert_with(Instant::now);
                         state.overlays.insert(id.clone(), None);
                         if let Some(destinations) = state.destinations.get_mut() {
                             destinations.retain(|p| p.id != id);
@@ -965,6 +969,11 @@ mod tests {
                 }]),
             };
             app.playlists_event(event(first, "Current"));
+            app.ui_action(UiAction::Open(Page::Home), host);
+            assert_eq!(
+                app.presentation.navidrome_playlists.request, first,
+                "Home shares the same active library request"
+            );
             app.ui_action(UiAction::Reload(Page::Playlists), host);
             let second = app.presentation.navidrome_playlists.request;
             app.playlists_event(event(first, "Stale"));

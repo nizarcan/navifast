@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod desktop;
 pub mod favorites;
+pub mod home;
 mod host;
 pub mod lyrics;
 pub mod playlists;
@@ -38,6 +39,7 @@ pub struct Preferences {
     pub username: String,
     /// Album URIs, newest first, belonging to the server and account above.
     pub recent_contexts: Vec<String>,
+    pub home_history: home::History,
     /// Submitted terms by the client's server and username scope.
     pub search_history: HashMap<String, Vec<String>>,
     pub light: bool,
@@ -53,6 +55,7 @@ impl Default for Preferences {
             server: String::new(),
             username: String::new(),
             recent_contexts: Vec::new(),
+            home_history: Default::default(),
             search_history: HashMap::new(),
             light: false,
             volume: 0.7,
@@ -233,6 +236,7 @@ impl App {
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
         preferences.volume = preferences.volume.clamp(0.0, 1.0);
+        preferences.home_history.sanitize();
         let mut settings = crate::settings::Settings::load(&dirs.settings_file());
         if !dirs.settings_file().exists() {
             settings.volume = (preferences.volume * f32::from(u16::MAX)).round() as u16;
@@ -251,7 +255,7 @@ impl App {
         preferences.preamp = settings.eq_preamp_db;
         let mut presentation = Box::new(super::App::new(dirs.clone(), settings));
         presentation.recent_contexts = preferences.recent_contexts.clone();
-        presentation.history = vec![crate::model::Page::Albums];
+        presentation.history = vec![crate::model::Page::Home];
         presentation.history_index = 0;
         if !demo {
             presentation.enable_desktop_themes();
@@ -409,7 +413,7 @@ impl App {
                 self.presentation.navidrome_search = Default::default();
                 self.presentation.navidrome_playlists = Default::default();
                 self.presentation.navidrome_favorites = Default::default();
-                self.presentation.history = vec![crate::model::Page::Albums];
+                self.presentation.history = vec![crate::model::Page::Home];
                 self.presentation.history_index = 0;
                 self.pending_play = None;
                 self.albums.clear();
@@ -617,6 +621,7 @@ impl App {
         if self.preferences.server != server || self.preferences.username != username {
             self.preferences.recent_contexts.clear();
             self.presentation.recent_contexts.clear();
+            self.preferences.home_history = Default::default();
         }
         self.preferences.server = server.into();
         self.preferences.username = username.into();
@@ -683,6 +688,7 @@ impl App {
         self.playing_album = None;
         self.playing_playlist = None;
         if let Some(album) = album {
+            self.remember_home_album(&album);
             let uri = format!("navidrome:album:{}", presentation::encode(&album.id));
             self.playing_album = Some(album);
             self.presentation.recent_contexts.retain(|old| old != &uri);
@@ -696,6 +702,9 @@ impl App {
     }
 
     fn load(&mut self, position: f64, paused: bool) {
+        if !paused {
+            self.remember_home_artists();
+        }
         self.sync_lyrics();
         self.dirty_session();
         self.pending_play = None;
@@ -789,6 +798,9 @@ impl App {
                             self.list_request += 1;
                             self.fetch_albums(0);
                             self.refresh_favorites();
+                            if self.presentation.page() == &crate::model::Page::Home {
+                                self.fetch_playlists();
+                            }
                         }
                         Err(error) => self.error = Some(error),
                     }
@@ -808,6 +820,7 @@ impl App {
                             } else if offset == self.albums.len() {
                                 self.albums.extend(albums);
                             }
+                            self.migrate_home_history();
                         }
                         Err(error) => self.error = Some(error),
                     }
@@ -1226,8 +1239,15 @@ impl App {
             self.playlist_action(playlists::Action::ConfirmDelete);
         }
         self.populate_demo_lyrics(&flags);
-        if self.restoring_login {
+        if page == Some("albums") {
             self.presentation.history = vec![crate::model::Page::Albums];
+        } else if page == Some("home")
+            || page.is_none() && self.presentation.page() == &crate::model::Page::Home
+        {
+            self.populate_demo_home(&flags);
+        }
+        if self.restoring_login {
+            self.presentation.history = vec![crate::model::Page::Home];
             self.presentation.history_index = 0;
             self.albums.clear();
             self.album = None;
@@ -1370,6 +1390,7 @@ mod tests {
         let play = |app: &mut App, id: &str| {
             app.album = Some(Album {
                 id: id.into(),
+                name: id.into(),
                 song: vec![Song {
                     id: format!("{id}/song"),
                     duration: 60.0,
@@ -1409,6 +1430,10 @@ mod tests {
         let mut restored = App::with_host(dirs.clone(), None, true, Arc::new(|| {}));
         restored.remember_account("https://music.example.com/", "listener");
         assert_eq!(restored.presentation.recent_contexts, expected);
+        assert_eq!(
+            restored.preferences.home_history.collections[0].id,
+            "library:/🌍/first"
+        );
         play(&mut restored, "second");
         restored.demo = false;
         restored.save();
@@ -1424,6 +1449,7 @@ mod tests {
         restored.remember_account("https://music.example.com/", "another-listener");
         assert!(restored.presentation.recent_contexts.is_empty());
         assert!(restored.preferences.recent_contexts.is_empty());
+        assert!(restored.preferences.home_history.collections.is_empty());
         play(&mut restored, "second");
         restored.remember_account("https://other.example.com/", "another-listener");
         assert!(restored.presentation.recent_contexts.is_empty());

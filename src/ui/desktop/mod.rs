@@ -13,6 +13,7 @@ use rune::{Cx, El, Tx};
 
 pub(crate) mod artist;
 mod backdrop;
+mod home;
 mod library;
 mod lyrics;
 pub(crate) mod lyrics_card;

@@ -60,6 +60,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     }
     let page = s.app.presentation.page();
     let content = match page {
+        Page::Home => home::page(v),
         Page::Album(_) | Page::Playlist(_) => songs(v),
         Page::Playlists => playlists(v),
         Page::Search => search(v),
@@ -430,7 +431,7 @@ fn topbar(v: &Paint<'_>) -> El {
             )
             .child(
                 v.icon_button(&v.tr(mark("Home")), Icon::House, 18., |s, tx| {
-                    s.dispatch(Action::Open(Page::Albums), tx)
+                    s.dispatch(Action::Open(Page::Home), tx)
                 }),
             );
     }
@@ -616,7 +617,8 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
         .px(12.)
         .pt(12. + v.s.titlebar_inset());
     for (name, icon, page) in [
-        (mark("Albums"), Icon::House, Page::Albums),
+        (mark("Home"), Icon::House, Page::Home),
+        (mark("Albums"), Icon::Disc, Page::Albums),
         (mark("Favorites"), Icon::Star, Page::LikedSongs),
         (mark("Playlists"), Icon::ListMusic, Page::Playlists),
     ] {
@@ -969,7 +971,7 @@ fn card_play_action(v: &Paint<'_>, key: String, action: Action) -> El {
         .group_opacity(0., 1.)
         .on_press_tx(move |s: &mut State, tx| s.dispatch(action.clone(), tx))
 }
-fn collection_card(
+pub(super) fn collection_card(
     v: &Paint<'_>,
     key: String,
     name: &str,
@@ -991,14 +993,23 @@ fn collection_card(
         .hover_group()
         .child(
             el().size(148., 148.)
-                .child(v.cover(cover, CoverSize::Sleeve, 148., 6.))
+                .child(v.cover(
+                    cover,
+                    CoverSize::Sleeve,
+                    148.,
+                    if matches!(page, Page::Artist(_)) {
+                        74.
+                    } else {
+                        6.
+                    },
+                ))
                 .child(play),
         )
         .child(label(name, 14., 600., v.p.text).mt(8.).truncate())
         .child(byline)
         .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx))
 }
-fn album_card(v: &Paint<'_>, a: &Album) -> El {
+pub(super) fn album_card(v: &Paint<'_>, a: &Album) -> El {
     let tile = collection_card(
         v,
         format!("album-{}", a.id),
@@ -1011,7 +1022,7 @@ fn album_card(v: &Paint<'_>, a: &Album) -> El {
     .label(format!("{}, {}", a.name, a.artist));
     favorite_context(tile, FavoriteKind::Album, &a.id)
 }
-fn playlist_card(v: &Paint<'_>, p: &crate::navidrome::api::NamedItem) -> El {
+pub(super) fn playlist_card(v: &Paint<'_>, p: &crate::navidrome::api::NamedItem) -> El {
     collection_card(
         v,
         format!("playlist-{}", p.id),
@@ -1699,7 +1710,7 @@ pub(super) fn track_key(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool 
     tx.scroll_into_view(s.table.key(next));
     true
 }
-fn retry(v: &Paint<'_>, error: &str, action: Action) -> El {
+pub(super) fn retry(v: &Paint<'_>, error: &str, action: Action) -> El {
     let name = v.tr(mark("Retry"));
     row()
         .w_full()

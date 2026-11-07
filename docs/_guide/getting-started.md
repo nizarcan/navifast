@@ -20,6 +20,14 @@ cannot be completed. Unlock the store if Navifast reports that it cannot remembe
 the login. A temporary server or network failure keeps the saved login, so you
 can press **Connect** to retry.
 
+Navifast opens on **Home**. Recently played album and playlist tiles open their
+collection without starting audio. Playlist cards use the same layout as Albums;
+their play overlay starts the playlist. **More** expands a section, and **Less**
+collapses it. Recently played artists use server-provided artist IDs. This is
+local history from this computer, not listening history from other clients.
+On a first visit, Home offers albums and playlists from your library. Failed
+playlist refreshes retain usable cards and offer **Retry**.
+
 Use **Albums** or the sidebar library list, open an album, then **Play** or
 double-click a song. The sidebar retains its list/grid switch, filtering,
 sorting and local pins. Its **Recently played** order remembers the last 100

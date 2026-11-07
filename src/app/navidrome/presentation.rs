@@ -68,7 +68,7 @@ impl App {
     }
     pub(super) fn ui_action(&mut self, action: UiAction, host: &impl Host) {
         let was_favorites = self.presentation.page().is_favorites();
-        let was_playlists = self.presentation.page() == &Page::Playlists;
+        let was_playlists = matches!(self.presentation.page(), Page::Home | Page::Playlists);
         match action {
             UiAction::Queue(action) if self.connected => self.queue_action(action),
             UiAction::EditPlaylists(action) if self.connected => self.playlist_action(action),
@@ -119,8 +119,12 @@ impl App {
                 }
                 self.presentation.open(Page::Album(id));
             }
-            UiAction::Open(Page::Albums | Page::Home) => {
-                self.presentation.open(Page::Albums);
+            UiAction::Open(page @ (Page::Albums | Page::Home)) => {
+                self.presentation.open(page);
+            }
+            UiAction::Reload(Page::Home) => {
+                self.fetch_playlists();
+                self.apply(Action::Browse(self.newest));
             }
             UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
             UiAction::Back | UiAction::Forward => {
@@ -276,8 +280,14 @@ impl App {
         if !was_favorites && self.presentation.page().is_favorites() {
             self.refresh_favorites();
         }
-        let is_playlists = self.presentation.page() == &Page::Playlists;
-        if !was_playlists && is_playlists {
+        let is_playlists = matches!(self.presentation.page(), Page::Home | Page::Playlists);
+        if is_playlists
+            && (!was_playlists
+                || matches!(
+                    self.presentation.navidrome_playlists.list,
+                    crate::model::Loadable::NotLoaded
+                ))
+        {
             self.fetch_playlists();
         } else if was_playlists && !is_playlists {
             self.cancel_playlists();
@@ -335,6 +345,8 @@ mod tests {
                         br#"{"subsonic-response":{"status":"ok"}}"#.as_slice()
                     } else if request.starts_with("GET /rest/getStarred2.view?") {
                         br#"{"subsonic-response":{"status":"ok","starred2":{}}}"#.as_slice()
+                    } else if request.starts_with("GET /rest/getPlaylists.view?") {
+                        br#"{"subsonic-response":{"status":"ok","playlists":{}}}"#.as_slice()
                     } else {
                         assert!(request.starts_with("GET /rest/getAlbumList2.view?"));
                         br#"{"subsonic-response":{"status":"ok","albumList2":{"album":[]}}}"#
@@ -352,7 +364,7 @@ mod tests {
                 for phase in ["lookup", "ping"] {
                     assert!(app.restoring_login);
                     assert!(!app.connected);
-                    assert_eq!(app.presentation.page(), &Page::Albums);
+                    assert_eq!(app.presentation.page(), &Page::Home);
                     if phase == "lookup" {
                         app.restore_login(
                             app.session,
