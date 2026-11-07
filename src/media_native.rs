@@ -408,8 +408,8 @@ impl MediaService {
     }
 
     /// Makes a saved track the macOS Now Playing owner before its metadata
-    /// has made a network round trip. The same service stays alive through
-    /// normal, Winamp, tray-only, and MilkDrop-only window states.
+    /// has made a network round trip. The service stays alive when the native
+    /// window is hidden.
     pub fn claim_resume(&mut self, track_uri: &str, position_ms: u32) {
         self.with_bridge(|bridge| {
             if bridge.claimed {
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn art_arriving_is_a_change_worth_sending() {
         let bare = crate::media::MediaTrack {
-            uri: "spotify:track:1".to_owned(),
+            uri: "navidrome:track:1".to_owned(),
             art_url: Some("https://i.scdn.co/image/abc".to_owned()),
             ..Default::default()
         };
@@ -506,7 +506,7 @@ mod tests {
     fn a_remembered_paused_track_claims_the_media_keys_once() {
         let mut state = MediaState {
             track: Some(crate::media::MediaTrack {
-                uri: "spotify:track:remembered".into(),
+                uri: "navidrome:track:remembered".into(),
                 ..Default::default()
             }),
             playback: Playback::Paused,

@@ -1,6 +1,6 @@
 //! Sample rate conversion for an output that will not take 44.1 kHz.
 //!
-//! Spotify audio is stereo 44.1 kHz, but many shared Windows devices run at
+//! Decoded PCM is stereo 44.1 kHz, while many shared output devices run at
 //! 48 kHz. rodio resets its resampler at each chunk boundary, which can cause
 //! crackle. This converter preserves state across chunks.
 //!

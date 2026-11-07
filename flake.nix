@@ -46,10 +46,6 @@
               (rust-bin.fromRustupToolchainFile ./rust-toolchain.toml)
               rust-analyzer
               pkg-config
-              # libprojectM (MilkDrop) is built from source by CMake, and its
-              # bindings by bindgen, which needs libclang.
-              cmake
-              rustPlatform.bindgenHook
             ]
             ++ lib.optionals stdenv.hostPlatform.isDarwin [
               apple-sdk
@@ -123,24 +119,12 @@
                 pname = "navifast";
                 version = (pkgs.lib.importTOML ./Cargo.toml).package.version;
                 src = self;
-                hash = "sha256-GFerTRbmZenuh/fh92VjuqCvP2UaUuUHnwams7YjWr8=";
+                hash = "sha256-XbiJ7PH1Zc8dc3ltDGBDYqlpmRjxdwEZSsr+WQDY10U=";
               };
-              # projectm-sys only searches lib, while CMake may otherwise install to lib64.
-              postPatch = ''
-                substituteInPlace "$cargoDepsCopy"/source-git-*/projectm-sys-*/build.rs \
-                  --replace-fail \
-                  '.define("BUILD_SHARED_LIBS", build_shared_libs)' \
-                  '.define("CMAKE_INSTALL_LIBDIR", "lib").define("BUILD_SHARED_LIBS", build_shared_libs)'
-              '';
-
               nativeBuildInputs =
                 with pkgs;
                 [
                   pkg-config
-                  # libprojectM (MilkDrop) is built from source by CMake, and
-                  # its bindings by bindgen, which needs libclang.
-                  cmake
-                  rustPlatform.bindgenHook
                 ]
                 ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ makeWrapper ]
                 ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
@@ -157,8 +141,6 @@
                     libxkbcommon
                     alsa-lib
                     libpulseaudio
-                    # libprojectM links OpenGL directly and its GL loader needs
-                    # X11 headers while it is built.
                     libGL
                     libx11
                   ]
@@ -166,9 +148,7 @@
                 ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ pkgs.apple-sdk ];
 
               # Nix's Rust check hook deliberately points SSL_CERT_FILE at a
-              # missing path. The librespot proxy regression test constructs a
-              # TLS connector before asserting its CONNECT request, so give the
-              # test an explicit, sandboxed trust store.
+              # missing path. Give request regressions an explicit trust store.
               preCheck = ''
                 export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
               '';

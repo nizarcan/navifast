@@ -2,6 +2,8 @@
 mod artwork;
 pub(crate) mod autoscroll;
 mod placement;
+#[cfg(all(test, feature = "navidrome-demo"))]
+mod regression;
 mod tracks;
 use super::{App, Host, presentation};
 use crate::ui::desktop as views;
@@ -27,7 +29,6 @@ pub struct Launch {
     pub dirs: crate::paths::AppDirs,
     pub receipt: Option<crate::updates::Receipt>,
     pub update_error: Option<String>,
-    pub link: Option<String>,
     pub demo: bool,
     pub size: Option<[f32; 2]>,
     pub page: Option<String>,
@@ -63,44 +64,10 @@ impl Host for Window {
         self.handle.quit()
     }
     fn local_action(&self, app: &mut App, action: Action) {
-        let p = &mut app.presentation;
         match action {
-            Action::Back if p.can_go_back() => p.history_index -= 1,
-            Action::Forward if p.can_go_forward() => p.history_index += 1,
-            Action::Open(Page::Search) | Action::FocusSearch => p.open(Page::Search),
-            Action::SetTheme(theme) => {
-                p.settings.theme = theme;
-                p.settings.custom_theme = None;
-                p.settings.custom_theme_cache = None;
-            }
-            Action::SetCustomTheme(name) => {
-                if let Some(theme) = p.custom_themes.find(&name) {
-                    p.settings.custom_theme_cache = Some(theme.clone());
-                    p.settings.custom_theme = Some(name);
-                }
-            }
-            Action::SetLanguage(language) => {
-                p.settings.language = language;
-                p.locale = language.resolve();
-            }
-            Action::ToggleSidebar => p.settings.sidebar_visible = !p.settings.sidebar_visible,
-            Action::SetLibraryGrid(grid) => p.settings.sidebar_grid = grid,
-            Action::CyclePlayerBarVis => {
-                p.settings.player_bar_vis = p.settings.player_bar_vis.next()
-            }
-            Action::ReloadThemes => {
-                let wake = self.wake.clone();
-                p.custom_themes.start(
-                    app.dirs.config.join("themes"),
-                    p.settings.custom_theme.clone(),
-                    wake,
-                );
-            }
-            Action::ShowDialog(dialog) => p.dialog = Some(dialog),
-            Action::CloseDialog => p.dialog = None,
             Action::Quit | Action::CloseWindow => self.close_window(),
             Action::ShowWindow => self.show_window(),
-            _ => {}
+            action => app.presentation.apply_local(action, self.wake.clone()),
         }
     }
 }
@@ -126,7 +93,7 @@ pub(crate) struct State {
     pub(crate) library_filter: TextEdit,
     pub(crate) library_search: bool,
     pub(crate) images: rune::ImageCache,
-    pub(crate) icons: RefCell<HashMap<(crate::theme::Icon, egui::Color32, u32), rune::Image>>,
+    pub(crate) icons: RefCell<HashMap<(crate::theme::Icon, crate::color::Srgba, u32), rune::Image>>,
     pub(crate) logos: RefCell<HashMap<u32, rune::Pixels>>,
     pub(crate) table: tracks::Tracks,
     pub(crate) autoscroll: autoscroll::Autoscroll,
@@ -173,13 +140,7 @@ impl State {
             covers: RefCell::default(),
             wake: wake.clone(),
         };
-        let mut app = App::with_host(
-            launch.dirs,
-            instance,
-            launch.demo,
-            &Default::default(),
-            wake.clone(),
-        );
+        let mut app = App::with_host(launch.dirs, instance, launch.demo, wake.clone());
         #[cfg(feature = "navidrome-demo")]
         if launch.demo {
             app.populate_demo_model(launch.page.as_deref(), launch.flags.as_deref(), &window);
@@ -291,7 +252,6 @@ impl State {
         } else {
             self.app.presentation.table_sorts.remove(&page);
         }
-        self.app.presentation.note_session_change();
         self.sync_tracks();
     }
     pub(crate) fn play_album_row(&mut self, index: usize) {
@@ -393,7 +353,7 @@ impl State {
         })
     }
 
-    pub(crate) fn cover_tint(&self, uri: &str, palette: Palette) -> Option<egui::Color32> {
+    pub(crate) fn cover_tint(&self, uri: &str, palette: Palette) -> Option<crate::color::Srgba> {
         self.window
             .covers
             .borrow()
@@ -401,7 +361,7 @@ impl State {
             .map(|rgb| palette.tint_from_art(rgb))
             .or_else(|| self.app.presentation.accents.get(uri).copied())
     }
-    pub(crate) fn playing_tint(&self, palette: Palette) -> Option<egui::Color32> {
+    pub(crate) fn playing_tint(&self, palette: Palette) -> Option<crate::color::Srgba> {
         if !self.app.presentation.settings.accent_from_art {
             return None;
         }
@@ -564,7 +524,8 @@ pub fn run(mut launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> 
     }
     let placement = (!launch.demo)
         .then(|| {
-            eframe::storage_dir("navifast")
+            directories::ProjectDirs::from("", "", "navifast")
+                .map(|dirs| dirs.data_dir().to_path_buf())
                 .and_then(|dir| placement::Placement::load(dir.join("app.ron")))
         })
         .flatten();
@@ -642,10 +603,8 @@ pub fn run(mut launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> 
     let instance = if launch.demo {
         None
     } else {
-        match crate::single_instance::acquire_with_wake(
-            std::sync::Arc::new(move || notify.wake()),
-            launch.link.as_deref(),
-        ) {
+        match crate::single_instance::acquire_with_wake(std::sync::Arc::new(move || notify.wake()))
+        {
             crate::single_instance::Outcome::Only(guard) => Some(guard),
             crate::single_instance::Outcome::Surfaced => return Ok(()),
         }
@@ -666,7 +625,7 @@ mod tests {
     use super::*;
     use rune::{Env, Key, KeyEvent, Mods, Runtime};
 
-    fn runtime(page: &str, flags: &str) -> Runtime<State> {
+    pub(super) fn runtime(page: &str, flags: &str) -> Runtime<State> {
         let root =
             std::env::temp_dir().join(format!("navifast-rune-{:016x}", rand::random::<u64>()));
         let launch = Launch {
@@ -677,7 +636,6 @@ mod tests {
                 state: root.join("state"),
                 cache: root.join("cache"),
             },
-            link: None,
             demo: true,
             size: Some([1280., 800.]),
             page: Some(page.into()),

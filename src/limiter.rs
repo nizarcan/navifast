@@ -14,7 +14,7 @@
 
 /// Limiting threshold, below full scale to allow for inter-sample peaks.
 ///
-/// With [`KNEE_DB`], unity gain begins at -2 dBFS. This matches librespot's
+/// With [`KNEE_DB`], unity gain begins at -2 dBFS. This preserves the established
 /// normalisation threshold, so flat normalized audio passes unchanged. Keep
 /// both values aligned when changing either one.
 const THRESHOLD_DB: f64 = -1.0;

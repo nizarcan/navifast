@@ -17,30 +17,16 @@ pub(super) trait Host {
     fn close_window(&self);
 }
 
-impl Host for egui::Context {
-    fn repaint_after(&self, delay: Duration) {
-        self.request_repaint_after(delay);
-    }
-
-    fn insert_cover(&self, app: &App, key: String, cover: Cover) {
-        app.artwork.insert(self, key, cover);
-        self.request_repaint();
-    }
-
+#[cfg(test)]
+pub(super) struct TestHost;
+#[cfg(test)]
+impl Host for TestHost {
+    fn repaint_after(&self, _: Duration) {}
+    fn insert_cover(&self, _: &App, _: String, _: Cover) {}
     fn local_action(&self, app: &mut App, action: Action) {
-        let traversing = matches!(action, Action::Back | Action::Forward);
-        app.presentation.apply(action, self);
-        if traversing {
-            crate::ui::restore_navidrome_scroll(self, app.presentation.page());
-        }
+        app.presentation
+            .apply_local(action, std::sync::Arc::new(|| {}));
     }
-
-    fn show_window(&self) {
-        self.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
-        self.send_viewport_cmd(egui::ViewportCommand::Focus);
-    }
-
-    fn close_window(&self) {
-        self.send_viewport_cmd(egui::ViewportCommand::Close);
-    }
+    fn show_window(&self) {}
+    fn close_window(&self) {}
 }

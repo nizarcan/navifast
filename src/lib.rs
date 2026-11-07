@@ -1,36 +1,17 @@
 //! Navifast's internals, exposed so diagnostics and tests can reach them.
 
-pub mod api;
 pub mod app;
-#[cfg(target_os = "linux")]
-pub mod appearance;
-pub mod auth;
 pub mod autoscroll;
-pub mod backend;
-pub mod bidi;
+pub mod color;
 pub mod credentials;
-#[cfg(any(test, feature = "navidrome-demo"))]
+#[cfg(feature = "navidrome-demo")]
 pub mod demo;
-#[cfg(any(test, feature = "demo"))]
-pub mod emoji;
 pub mod eq;
-pub mod history;
 pub mod http;
 pub mod i18n;
 pub mod images;
-pub mod liked;
 pub mod limiter;
-pub mod link;
 pub mod logging;
-pub mod lyrics;
-#[cfg(target_os = "macos")]
-pub mod mac_fonts;
-#[cfg(target_os = "macos")]
-pub mod mac_links;
-#[cfg(target_os = "macos")]
-pub mod mac_menu;
-#[cfg(target_os = "macos")]
-pub mod mac_touchbar_crash_guard;
 pub mod media;
 #[cfg(target_os = "linux")]
 #[path = "mpris.rs"]
@@ -38,26 +19,17 @@ pub mod media_controls;
 #[cfg(not(target_os = "linux"))]
 #[path = "media_native.rs"]
 pub mod media_controls;
-pub mod milkdrop;
 pub mod model;
 pub mod navidrome;
 pub mod opener;
 pub mod paths;
 pub mod player;
-pub mod playlist_cover;
 pub mod resample;
-pub mod session_reads;
 pub mod settings;
 pub mod single_instance;
-pub mod sink;
-pub mod skin;
-pub mod system_fonts;
 pub mod theme;
-pub mod thumbbar;
 pub mod ui;
 pub mod updates;
 pub mod util;
 pub mod vis;
-pub mod winamp;
 pub mod window;
-pub mod zeroconf;

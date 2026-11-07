@@ -7,8 +7,8 @@
 #[cfg(target_os = "linux")]
 mod omarchy;
 
+use crate::color::Srgba;
 use crate::i18n::Locale;
-use egui::{Color32, CornerRadius, Response, Sense, Stroke, Vec2};
 use std::borrow::Cow;
 
 mod custom;
@@ -18,71 +18,71 @@ pub use custom::{Catalog, CustomTheme, display_name, read_cached_theme};
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Palette {
     pub dark: bool,
-    pub window: Color32,
-    pub panel: Color32,
-    pub surface: Color32,
-    pub surface_hover: Color32,
-    pub surface_active: Color32,
-    pub outline: Color32,
-    pub text: Color32,
-    pub secondary: Color32,
-    pub dim: Color32,
-    pub accent: Color32,
-    pub accent_hover: Color32,
-    pub on_accent: Color32,
-    pub danger: Color32,
-    pub warning: Color32,
-    pub overlay: Color32,
-    pub shadow: Color32,
+    pub window: Srgba,
+    pub panel: Srgba,
+    pub surface: Srgba,
+    pub surface_hover: Srgba,
+    pub surface_active: Srgba,
+    pub outline: Srgba,
+    pub text: Srgba,
+    pub secondary: Srgba,
+    pub dim: Srgba,
+    pub accent: Srgba,
+    pub accent_hover: Srgba,
+    pub on_accent: Srgba,
+    pub danger: Srgba,
+    pub warning: Srgba,
+    pub overlay: Srgba,
+    pub shadow: Srgba,
 }
 
 impl Palette {
     pub fn dark() -> Self {
         Self {
             dark: true,
-            window: Color32::from_rgb(0x0f, 0x11, 0x14),
-            panel: Color32::from_rgb(0x15, 0x18, 0x1c),
-            surface: Color32::from_rgb(0x1d, 0x21, 0x27),
-            surface_hover: Color32::from_rgb(0x26, 0x2b, 0x33),
-            surface_active: Color32::from_rgb(0x2f, 0x35, 0x3f),
-            outline: Color32::from_rgb(0x2a, 0x30, 0x38),
-            text: Color32::from_rgb(0xf2, 0xf4, 0xf6),
-            secondary: Color32::from_rgb(0xa9, 0xb1, 0xbc),
-            dim: Color32::from_rgb(0x6e, 0x77, 0x84),
-            accent: Color32::from_rgb(0x1e, 0xd7, 0x60),
-            accent_hover: Color32::from_rgb(0x3c, 0xe8, 0x7a),
-            on_accent: Color32::from_rgb(0x0a, 0x14, 0x0e),
-            danger: Color32::from_rgb(0xf5, 0x71, 0x7f),
-            warning: Color32::from_rgb(0xf2, 0xb8, 0x5c),
-            overlay: Color32::from_rgb(0x22, 0x27, 0x2e),
-            shadow: Color32::from_black_alpha(140),
+            window: Srgba::from_rgb(0x0f, 0x11, 0x14),
+            panel: Srgba::from_rgb(0x15, 0x18, 0x1c),
+            surface: Srgba::from_rgb(0x1d, 0x21, 0x27),
+            surface_hover: Srgba::from_rgb(0x26, 0x2b, 0x33),
+            surface_active: Srgba::from_rgb(0x2f, 0x35, 0x3f),
+            outline: Srgba::from_rgb(0x2a, 0x30, 0x38),
+            text: Srgba::from_rgb(0xf2, 0xf4, 0xf6),
+            secondary: Srgba::from_rgb(0xa9, 0xb1, 0xbc),
+            dim: Srgba::from_rgb(0x6e, 0x77, 0x84),
+            accent: Srgba::from_rgb(0x1e, 0xd7, 0x60),
+            accent_hover: Srgba::from_rgb(0x3c, 0xe8, 0x7a),
+            on_accent: Srgba::from_rgb(0x0a, 0x14, 0x0e),
+            danger: Srgba::from_rgb(0xf5, 0x71, 0x7f),
+            warning: Srgba::from_rgb(0xf2, 0xb8, 0x5c),
+            overlay: Srgba::from_rgb(0x22, 0x27, 0x2e),
+            shadow: Srgba::from_black_alpha(140),
         }
     }
 
     pub fn light() -> Self {
         Self {
             dark: false,
-            window: Color32::from_rgb(0xf8, 0xf9, 0xfb),
-            panel: Color32::from_rgb(0xff, 0xff, 0xff),
-            surface: Color32::from_rgb(0xee, 0xf0, 0xf3),
-            surface_hover: Color32::from_rgb(0xe3, 0xe6, 0xeb),
-            surface_active: Color32::from_rgb(0xd7, 0xdb, 0xe1),
-            outline: Color32::from_rgb(0xdd, 0xe1, 0xe6),
-            text: Color32::from_rgb(0x14, 0x17, 0x1a),
-            secondary: Color32::from_rgb(0x53, 0x5b, 0x66),
-            dim: Color32::from_rgb(0x8b, 0x93, 0x9e),
-            accent: Color32::from_rgb(0x15, 0xa6, 0x4a),
-            accent_hover: Color32::from_rgb(0x12, 0x8f, 0x40),
-            on_accent: Color32::WHITE,
-            danger: Color32::from_rgb(0xd6, 0x3b, 0x4c),
-            warning: Color32::from_rgb(0xb8, 0x7a, 0x14),
-            overlay: Color32::from_rgb(0xff, 0xff, 0xff),
-            shadow: Color32::from_black_alpha(50),
+            window: Srgba::from_rgb(0xf8, 0xf9, 0xfb),
+            panel: Srgba::from_rgb(0xff, 0xff, 0xff),
+            surface: Srgba::from_rgb(0xee, 0xf0, 0xf3),
+            surface_hover: Srgba::from_rgb(0xe3, 0xe6, 0xeb),
+            surface_active: Srgba::from_rgb(0xd7, 0xdb, 0xe1),
+            outline: Srgba::from_rgb(0xdd, 0xe1, 0xe6),
+            text: Srgba::from_rgb(0x14, 0x17, 0x1a),
+            secondary: Srgba::from_rgb(0x53, 0x5b, 0x66),
+            dim: Srgba::from_rgb(0x8b, 0x93, 0x9e),
+            accent: Srgba::from_rgb(0x15, 0xa6, 0x4a),
+            accent_hover: Srgba::from_rgb(0x12, 0x8f, 0x40),
+            on_accent: Srgba::WHITE,
+            danger: Srgba::from_rgb(0xd6, 0x3b, 0x4c),
+            warning: Srgba::from_rgb(0xb8, 0x7a, 0x14),
+            overlay: Srgba::from_rgb(0xff, 0xff, 0xff),
+            shadow: Srgba::from_black_alpha(50),
         }
     }
 
     /// A colour derived from album art, softened so it can sit behind text.
-    pub fn tint_from_art(&self, rgb: [u8; 3]) -> Color32 {
+    pub fn tint_from_art(&self, rgb: [u8; 3]) -> Srgba {
         let [r, g, b] = rgb.map(|c| c as f32 / 255.0);
         let max = r.max(g).max(b);
         let min = r.min(g).min(b);
@@ -98,7 +98,7 @@ impl Palette {
                 (b * scale).min(1.0),
             )
         };
-        Color32::from_rgb((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8)
+        Srgba::from_rgb((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8)
     }
 }
 
@@ -147,195 +147,7 @@ pub const TOP_BAR_HEIGHT: f32 = 56.0;
 /// macOS hides the titlebar and draws the window content all the way to the
 /// top edge, so whatever sits at the top of the window has to leave room for
 /// the traffic lights. Zero everywhere else, and in fullscreen, where the
-/// buttons are gone.
-pub fn titlebar_inset(ctx: &egui::Context) -> f32 {
-    if cfg!(target_os = "macos") && !ctx.input(|input| input.viewport().fullscreen.unwrap_or(false))
-    {
-        28.0
-    } else {
-        0.0
-    }
-}
-
 pub const INTER: &[u8] = include_bytes!("../assets/fonts/InterVariable.ttf");
-
-const INTER_MEDIUM: &str = "inter-medium";
-const INTER_SEMIBOLD: &str = "inter-semibold";
-const INTER_BOLD: &str = "inter-bold";
-
-pub fn regular(size: f32) -> egui::FontId {
-    egui::FontId::new(size, egui::FontFamily::Proportional)
-}
-
-pub fn medium(size: f32) -> egui::FontId {
-    egui::FontId::new(size, egui::FontFamily::Name(INTER_MEDIUM.into()))
-}
-
-pub fn semibold(size: f32) -> egui::FontId {
-    egui::FontId::new(size, egui::FontFamily::Name(INTER_SEMIBOLD.into()))
-}
-
-pub fn bold(size: f32) -> egui::FontId {
-    egui::FontId::new(size, egui::FontFamily::Name(INTER_BOLD.into()))
-}
-
-/// How the desktop renders text, read once per process.
-///
-/// Tests use the platform's default instead of asking the desktop, so they
-/// neither wait on D-Bus nor depend on the machine's settings.
-#[cfg(any(test, feature = "demo"))]
-pub fn text_rendering() -> fastframe_text::TextRendering {
-    static RENDERING: std::sync::OnceLock<fastframe_text::TextRendering> =
-        std::sync::OnceLock::new();
-    *RENDERING.get_or_init(|| {
-        if cfg!(test) {
-            fastframe_text::TextRendering::platform_default()
-        } else {
-            fastframe_text::detect()
-        }
-    })
-}
-
-/// Install fonts, icons, and the base style once.
-pub fn install(ctx: &egui::Context) {
-    #[cfg(any(test, feature = "demo"))]
-    install_fonts(ctx);
-    egui_extras::install_image_loaders(ctx);
-    // Colour emoji over every text egui draws (see `crate::emoji`).
-    #[cfg(any(test, feature = "demo"))]
-    ctx.add_plugin(fastframe_emoji::EmojiPlugin::default());
-}
-
-/// Applies the palette to egui's own widgets so dialogs, menus, and text
-/// fields agree with the custom views.
-pub fn apply(ctx: &egui::Context, palette: &Palette) {
-    let mut style = (*ctx.global_style()).clone();
-    apply_to_style(&mut style, palette);
-    ctx.set_global_style(style);
-}
-
-/// Applies a palette to this view and children without changing global style.
-pub fn apply_local(ui: &mut egui::Ui, palette: &Palette) {
-    apply_to_style(ui.style_mut(), palette);
-}
-
-fn apply_to_style(style: &mut egui::Style, palette: &Palette) {
-    let visuals = &mut style.visuals;
-    *visuals = if palette.dark {
-        egui::Visuals::dark()
-    } else {
-        egui::Visuals::light()
-    };
-    visuals.dark_mode = palette.dark;
-    // Glyph coverage, hinting and sub-pixel positions as the desktop draws
-    // them: linear coverage in both themes on Linux, where egui's dark curve
-    // (2c - c²) made text heavier than GTK's.
-    #[cfg(any(test, feature = "demo"))]
-    text_rendering().apply_to_visuals(visuals);
-    visuals.panel_fill = palette.panel;
-    visuals.window_fill = palette.overlay;
-    visuals.extreme_bg_color = palette.surface;
-    visuals.faint_bg_color = palette.surface;
-    visuals.code_bg_color = palette.surface;
-    visuals.override_text_color = Some(palette.text);
-    visuals.weak_text_color = Some(palette.secondary);
-    visuals.hyperlink_color = palette.text;
-    visuals.selection.bg_fill = palette.accent.gamma_multiply(0.35);
-    visuals.selection.stroke = Stroke::new(1.0, palette.accent);
-    visuals.window_stroke = Stroke::new(1.0, palette.outline);
-    visuals.window_corner_radius = CornerRadius::same(RADIUS + 2);
-    visuals.menu_corner_radius = CornerRadius::same(RADIUS);
-    visuals.window_shadow = egui::epaint::Shadow {
-        offset: [0, 6],
-        blur: 24,
-        spread: 0,
-        color: palette.shadow,
-    };
-    visuals.popup_shadow = egui::epaint::Shadow {
-        offset: [0, 4],
-        blur: 16,
-        spread: 0,
-        color: palette.shadow,
-    };
-    let corner = CornerRadius::same(RADIUS_SMALL + 2);
-    for widget in [
-        &mut visuals.widgets.inactive,
-        &mut visuals.widgets.hovered,
-        &mut visuals.widgets.active,
-        &mut visuals.widgets.open,
-    ] {
-        widget.corner_radius = corner;
-        widget.bg_stroke = Stroke::NONE;
-        widget.fg_stroke = Stroke::new(1.0, palette.text);
-        widget.expansion = 0.0;
-    }
-    visuals.widgets.noninteractive.corner_radius = corner;
-    visuals.widgets.noninteractive.bg_fill = palette.panel;
-    visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, palette.outline);
-    visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, palette.text);
-    visuals.widgets.inactive.bg_fill = palette.surface;
-    visuals.widgets.inactive.weak_bg_fill = palette.surface;
-    visuals.widgets.hovered.bg_fill = palette.surface_hover;
-    visuals.widgets.hovered.weak_bg_fill = palette.surface_hover;
-    visuals.widgets.active.bg_fill = palette.surface_active;
-    visuals.widgets.active.weak_bg_fill = palette.surface_active;
-    visuals.widgets.open.bg_fill = palette.surface_hover;
-    visuals.widgets.open.weak_bg_fill = palette.surface_hover;
-    visuals.text_cursor.stroke = Stroke::new(2.0, palette.accent);
-    visuals.striped = false;
-    visuals.slider_trailing_fill = true;
-    visuals.handle_shape = egui::style::HandleShape::Circle;
-
-    use egui::FontFamily::{Monospace, Proportional};
-    use egui::{FontId, TextStyle};
-    style.text_styles = [
-        (TextStyle::Small, FontId::new(11.5, Proportional)),
-        (TextStyle::Body, FontId::new(14.0, Proportional)),
-        (TextStyle::Button, FontId::new(14.0, Proportional)),
-        (TextStyle::Heading, FontId::new(22.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(13.0, Monospace)),
-    ]
-    .into();
-    style.spacing.item_spacing = Vec2::new(8.0, 6.0);
-    style.spacing.button_padding = Vec2::new(12.0, 6.0);
-    style.spacing.interact_size = Vec2::new(40.0, 28.0);
-    style.spacing.menu_margin = egui::Margin::same(6);
-    style.spacing.window_margin = egui::Margin::same(16);
-    style.spacing.scroll = egui::style::ScrollStyle {
-        bar_width: 8.0,
-        floating_width: 6.0,
-        floating_allocated_width: 0.0,
-        handle_min_length: 28.0,
-        bar_inner_margin: 3.0,
-        bar_outer_margin: 2.0,
-        dormant_background_opacity: 0.0,
-        dormant_handle_opacity: 0.0,
-        active_background_opacity: 0.0,
-        active_handle_opacity: 0.55,
-        interact_handle_opacity: 0.85,
-        foreground_color: true,
-        ..egui::style::ScrollStyle::floating()
-    };
-    style.interaction.selectable_labels = false;
-    style.interaction.tooltip_delay = 0.4;
-    style.animation_time = 0.12;
-    style.url_in_tooltip = false;
-}
-
-/// Inter at its four weights with the monochrome emoji face right behind it
-/// (so every emoji wears the same style, ahead of egui's own pair), then the
-/// installed faces for the scripts Inter lacks, drawn the way the desktop
-/// renders text.
-#[cfg(any(test, feature = "demo"))]
-fn install_fonts(ctx: &egui::Context) {
-    let emoji = egui::FontData::from_static(include_bytes!("../assets/fonts/NotoEmoji.ttf"));
-    let mut fonts = fastframe_fonts::FontSetup::default()
-        .companion("noto_emoji", std::sync::Arc::new(emoji))
-        .definitions();
-    text_rendering().apply_to(&mut fonts);
-    ctx.set_fonts(fonts);
-}
-
 macro_rules! icons {
     ($($name:ident => $file:literal),+ $(,)?) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -349,22 +161,13 @@ macro_rules! icons {
             pub const fn uri(self) -> &'static str {
                 match self { $(Self::$name => concat!("bytes://navifast-icon-", $file, ".svg")),+ }
             }
-            pub fn image(self, tint: Color32, size: f32) -> egui::Image<'static> {
-                egui::Image::from_bytes(self.uri(), self.bytes()).tint(tint).fit_to_exact_size(Vec2::splat(size))
-            }
+
         }
     };
 }
 
 icons! {
-    ArrowLeft => "arrow-left",
-    ArrowRight => "arrow-right",
     AudioLines => "audio-lines",
-    BadgeCheck => "badge-check",
-    Bookmark => "bookmark",
-    BookmarkFilled => "bookmark-filled",
-    Car => "car",
-    Cast => "cast",
     Check => "check",
     ChevronDown => "chevron-down",
     ChevronLeft => "chevron-left",
@@ -372,762 +175,54 @@ icons! {
     ChevronUp => "chevron-up",
     CircleAlert => "circle-alert",
     CircleCheck => "circle-check",
-    CirclePlay => "circle-play",
-    CirclePlus => "circle-plus",
-    CircleX => "circle-x",
     Clock => "clock",
-    Compass => "compass",
-    Copy => "copy",
     Disc => "disc-3",
     Ellipsis => "ellipsis",
-    Expand => "expand",
-    ExternalLink => "external-link",
-    Gamepad => "gamepad-2",
-    Globe => "globe",
-    GripVertical => "grip-vertical",
-    Headphones => "headphones",
     Star => "star",
     StarFilled => "star-filled",
-    Heart => "heart",
-    HeartFilled => "heart-filled",
     House => "house",
     Info => "info",
-    Laptop => "laptop",
     Library => "library",
     LayoutGrid => "layout-grid",
-    LayoutList => "layout-list",
-    ListEnd => "list-end",
     ListMusic => "list-music",
-    ListPlus => "list-plus",
     ListVideo => "list-video",
-    Loader => "loader-circle",
-    Lock => "lock",
     LogOut => "log-out",
     Mic => "mic",
     Minus => "minus",
-    Monitor => "monitor",
-    Moon => "moon",
     Music => "music",
-    Pause => "pause",
     PauseFilled => "pause-filled",
     PanelLeft => "panel-left",
-    Pin => "pin",
-    PinOff => "pin-off",
-    Pencil => "pencil",
     Play => "play",
     PlayFilled => "play-filled",
     Plus => "plus",
-    Radio => "radio",
     Refresh => "refresh-cw",
     Repeat => "repeat",
-    Repeat1 => "repeat-1",
     Search => "search",
     Settings => "settings",
-    Shrink => "shrink",
     Shuffle => "shuffle",
-    SkipBack => "skip-back",
     SkipBackFilled => "skip-back-filled",
-    SkipForward => "skip-forward",
     SkipForwardFilled => "skip-forward-filled",
-    Smartphone => "smartphone",
-    Sparkles => "sparkles",
     Speaker => "speaker",
-    Square => "square",
-    SquarePen => "square-pen",
-    Sun => "sun",
-    Tablet => "tablet",
-    Trash => "trash-2",
-    TrendingUp => "trending-up",
-    Tv => "tv",
     User => "user",
-    Users => "users",
     Volume => "volume",
     Volume1 => "volume-1",
     Volume2 => "volume-2",
     VolumeX => "volume-x",
-    Watch => "watch",
     X => "x",
-    Zap => "zap",
 }
 
-/// A static icon.
-pub fn icon(ui: &mut egui::Ui, icon: Icon, size: f32, color: Color32) -> Response {
-    ui.add(icon.image(color, size))
-}
-
-/// Paints an icon centred in `rect` without allocating space.
-pub fn paint_icon(ui: &egui::Ui, icon: Icon, rect: egui::Rect, size: f32, color: Color32) {
-    let icon_rect = egui::Rect::from_center_size(
-        rect.center() + play_glyph_offset(icon, size),
-        Vec2::splat(size),
-    );
-    icon.image(color, size).paint_at(ui, icon_rect);
-}
-
-/// Make keyboard focus visible without changing the control's layout.
-pub fn focus_ring(ui: &egui::Ui, response: &Response) {
-    if response.has_focus() {
-        ui.painter().rect_stroke(
-            response.rect.expand(2.0),
-            4.0,
-            ui.visuals().selection.stroke,
-            egui::StrokeKind::Outside,
-        );
-    }
-    if response.gained_focus() {
-        response.scroll_to_me(None);
-    }
-}
-
-/// A frameless icon control whose colour lifts on hover.
-pub fn icon_button(
-    ui: &mut egui::Ui,
-    icon: Icon,
-    size: f32,
-    color: Color32,
-    hover: Color32,
-    tooltip: &str,
-) -> Response {
-    let edge = size + 12.0;
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(edge), Sense::click());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tooltip)
-    });
-    if ui.is_rect_visible(rect) {
-        let tint = if response.hovered() || response.has_focus() {
-            hover
-        } else {
-            color
-        };
-        let scale = if response.is_pointer_button_down_on() {
-            0.92
-        } else {
-            1.0
-        };
-        paint_icon(ui, icon, rect, size * scale, tint);
-    }
-    focus_ring(ui, &response);
-    if tooltip.is_empty() {
-        response
-    } else {
-        response.on_hover_text(tooltip)
-    }
-}
-
-/// Horizontal offset that optically centers play triangles.
-///
-/// Lucide includes a 1/24-width shift; a measured 3% shift centers the icon at
-/// Navifast's sizes. Use this everywhere instead of per-call adjustments.
-pub fn play_glyph_offset(icon: Icon, icon_size: f32) -> Vec2 {
+pub fn play_glyph_offset(icon: Icon, icon_size: f32) -> [f32; 2] {
     if matches!(icon, Icon::PlayFilled | Icon::Play) {
-        Vec2::new(icon_size * (0.03 - 1.0 / 24.0), 0.0)
+        [icon_size * (0.03 - 1.0 / 24.0), 0.0]
     } else {
-        Vec2::ZERO
+        [0., 0.]
     }
 }
-
-/// The app's mark, the same vinyl record as the app icon, rasterised once per size by
-/// `util::app_icon_rgba` and drawn wherever the app shows its logo.
-pub fn logo(ui: &egui::Ui, center: egui::Pos2, diameter: f32) {
-    let ppp = ui.ctx().pixels_per_point();
-    // Keep room around the mark so its edge never touches the layout bounds.
-    let pixels = (diameter * ppp).round() as usize + 4;
-    let id = egui::Id::new(("navifast-logo", pixels));
-    let texture = ui
-        .ctx()
-        .data(|data| data.get_temp::<egui::TextureHandle>(id))
-        .unwrap_or_else(|| {
-            let image = egui::ColorImage::from_rgba_unmultiplied(
-                [pixels, pixels],
-                &crate::util::app_icon_rgba(pixels),
-            );
-            let texture =
-                ui.ctx()
-                    .load_texture("navifast-logo", image, egui::TextureOptions::LINEAR);
-            ui.ctx()
-                .data_mut(|data| data.insert_temp(id, texture.clone()));
-            texture
-        });
-    let side = pixels as f32 / ppp;
-    let rect = egui::Rect::from_center_size(center, Vec2::splat(side));
-    ui.painter().image(
-        texture.id(),
-        rect,
-        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-        Color32::WHITE,
-    );
-}
-
-pub fn circle_button(
-    ui: &mut egui::Ui,
-    icon: Icon,
-    diameter: f32,
-    fill: Color32,
-    fill_hover: Color32,
-    icon_color: Color32,
-    tooltip: &str,
-) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(diameter), Sense::click());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), tooltip)
-    });
-    if ui.is_rect_visible(rect) {
-        let hovered = response.hovered();
-        let grow = if hovered { 1.05 } else { 1.0 };
-        let radius = diameter / 2.0 * grow;
-        let fill = if hovered { fill_hover } else { fill };
-        ui.painter().circle_filled(rect.center(), radius, fill);
-        let icon_size = diameter * 0.46;
-        let offset = play_glyph_offset(icon, icon_size);
-        let icon_rect =
-            egui::Rect::from_center_size(rect.center() + offset, Vec2::splat(icon_size));
-        icon.image(icon_color, icon_size).paint_at(ui, icon_rect);
-    }
-    focus_ring(ui, &response);
-    if tooltip.is_empty() {
-        response
-    } else {
-        response.on_hover_text(tooltip)
-    }
-}
-
-/// A disc the size of a [`circle_button`] whose icon is replaced by a
-/// spinner: the pressed play button itself shows that Spotify is reacting.
-pub fn circle_spinner(
-    ui: &mut egui::Ui,
-    diameter: f32,
-    fill: Color32,
-    spin: Color32,
-    tooltip: &str,
-) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(diameter), Sense::hover());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(
-            egui::WidgetType::ProgressIndicator,
-            ui.is_enabled(),
-            tooltip,
-        )
-    });
-    if ui.is_rect_visible(rect) {
-        ui.painter()
-            .circle_filled(rect.center(), diameter / 2.0, fill);
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(
-            egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
-        ));
-        spinner(&mut child, diameter * 0.55, spin);
-    }
-    if tooltip.is_empty() {
-        response
-    } else {
-        response.on_hover_text(tooltip)
-    }
-}
-
-/// A pill-shaped text button: filled for the primary action, outlined otherwise.
-pub fn pill_button(ui: &mut egui::Ui, palette: &Palette, label: &str, primary: bool) -> Response {
-    let font = semibold(13.0);
-    let color = if primary {
-        palette.on_accent
-    } else {
-        palette.text
-    };
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font, color);
-    let padding = Vec2::new(18.0, 8.0);
-    let size = galley.size() + padding * 2.0;
-    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
-    });
-    if ui.is_rect_visible(rect) {
-        let hovered = response.hovered();
-        let radius = rect.height() / 2.0;
-        if primary {
-            let fill = if hovered {
-                palette.accent_hover
-            } else {
-                palette.accent
-            };
-            ui.painter().rect_filled(rect, radius, fill);
-        } else {
-            let stroke_color = if hovered { palette.text } else { palette.dim };
-            ui.painter().rect_stroke(
-                rect,
-                radius,
-                Stroke::new(1.0, stroke_color),
-                egui::StrokeKind::Inside,
-            );
-        }
-        let pos = rect.center() - galley.size() / 2.0;
-        ui.painter().galley(pos, galley, color);
-    }
-    focus_ring(ui, &response);
-    response
-}
-
-/// A muted button with an icon and label, for row and header actions.
-pub fn soft_button(
-    ui: &mut egui::Ui,
-    palette: &Palette,
-    icon: Option<Icon>,
-    label: &str,
-    active: bool,
-) -> Response {
-    soft_button_inner(ui, palette, icon, label, active, false).0
-}
-
-/// A [`soft_button`] whose icon turns into a cross on hover, allowing the
-/// entry to be dismissed. The returned flag reports clicks on that cross.
-pub fn soft_button_dismiss(
-    ui: &mut egui::Ui,
-    palette: &Palette,
-    icon: Icon,
-    label: &str,
-) -> (Response, bool) {
-    soft_button_inner(ui, palette, Some(icon), label, false, true)
-}
-
-/// The width `soft_button` gives a button without an icon, for laying out
-/// a row of them before drawing it.
-pub fn soft_button_width(ui: &egui::Ui, label: &str) -> f32 {
-    let galley = crate::bidi::layout_line(ui.painter(), label, medium(13.0), Color32::WHITE);
-    galley.size().x + 24.0
-}
-
-fn soft_button_inner(
-    ui: &mut egui::Ui,
-    palette: &Palette,
-    icon: Option<Icon>,
-    label: &str,
-    active: bool,
-    dismissible: bool,
-) -> (Response, bool) {
-    let font = medium(13.0);
-    let color = if active { palette.window } else { palette.text };
-    let galley = crate::bidi::layout_line(ui.painter(), label, font, color);
-    let icon_size = 15.0;
-    let icon_width = if icon.is_some() { icon_size + 6.0 } else { 0.0 };
-    let padding = Vec2::new(12.0, 7.0);
-    let size = Vec2::new(galley.size().x + icon_width, galley.size().y) + padding * 2.0;
-    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-    response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), label)
-    });
-    let icon_rect = egui::Rect::from_center_size(
-        egui::pos2(rect.left() + padding.x + icon_size / 2.0, rect.center().y),
-        Vec2::splat(icon_size),
-    );
-    // Claimed after the button, so the cross sits on top and keeps its own click.
-    let dismiss = (dismissible && icon.is_some()).then(|| {
-        let dismiss = ui.interact(
-            icon_rect.expand(3.0),
-            response.id.with("dismiss"),
-            Sense::click(),
-        );
-        dismiss.widget_info(|| {
-            egui::WidgetInfo::labeled(
-                egui::WidgetType::Button,
-                ui.is_enabled(),
-                format!("Remove {label}"),
-            )
-        });
-        dismiss
-    });
-    let dismissed = dismiss.as_ref().is_some_and(Response::clicked);
-    let over_dismiss = dismiss
-        .as_ref()
-        .is_some_and(|dismiss| dismiss.hovered() || dismiss.has_focus());
-    if ui.is_rect_visible(rect) {
-        let hovered = response.hovered() || over_dismiss;
-        let fill = if active {
-            palette.text
-        } else if hovered {
-            palette.surface_hover
-        } else {
-            palette.surface
-        };
-        ui.painter().rect_filled(rect, rect.height() / 2.0, fill);
-        let mut x = rect.left() + padding.x;
-        if let Some(icon) = icon {
-            let icon = if dismiss.is_some() && hovered {
-                Icon::X
-            } else {
-                icon
-            };
-            icon.image(color, icon_size).paint_at(ui, icon_rect);
-            x += icon_width;
-        }
-        let pos = egui::pos2(x, rect.center().y - galley.size().y / 2.0);
-        ui.painter().galley(pos, galley, color);
-    }
-    focus_ring(ui, &response);
-    if let Some(dismiss) = dismiss {
-        focus_ring(ui, &dismiss);
-    }
-    (response, dismissed)
-}
-
 pub(crate) const SPINNER_TURNS_PER_SECOND: f64 = 1.2;
-
-/// The loading arc relative to its centre, shared by both desktop renderers.
 pub(crate) fn spinner_points(size: f32, start: f64) -> [[f32; 2]; 20] {
     let radius = size / 2.0 - 2.0;
     std::array::from_fn(|i| {
         let (sin, cos) = (start + 250_f64.to_radians() * i as f64 / 19.).sin_cos();
         [radius * cos as f32, radius * sin as f32]
     })
-}
-
-/// An animated busy indicator paced independently of the graphics driver.
-pub fn spinner(ui: &mut egui::Ui, size: f32, color: Color32) -> Response {
-    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
-    if ui.is_rect_visible(rect) {
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_millis(33));
-        let start = ui.input(|input| input.time) * std::f64::consts::TAU * SPINNER_TURNS_PER_SECOND;
-        let points = spinner_points(size, start)
-            .into_iter()
-            .map(|[x, y]| rect.center() + egui::vec2(x, y))
-            .collect();
-        ui.painter()
-            .add(egui::Shape::line(points, Stroke::new(2.0, color)));
-    }
-    response
-}
-
-/// Truncated single-line text in a given font and colour.
-pub fn text(
-    ui: &mut egui::Ui,
-    text: impl Into<String>,
-    font: egui::FontId,
-    color: Color32,
-) -> Response {
-    let text = text.into();
-    if crate::bidi::is_rtl(&text) {
-        // Laid out here so a cut lands at the reading end, on the left.
-        let galley = crate::bidi::layout(
-            ui.painter(),
-            &text,
-            font,
-            color,
-            ui.available_width(),
-            1,
-            Some(crate::bidi::ELLIPSIS),
-        );
-        return ui.add(egui::Label::new(galley).selectable(false));
-    }
-    ui.add(
-        egui::Label::new(egui::RichText::new(text).font(font).color(color))
-            .truncate()
-            .selectable(false),
-    )
-}
-
-/// Single-line text that acts like a link: underlines on hover, clickable.
-pub fn link(
-    ui: &mut egui::Ui,
-    text: impl Into<String>,
-    font: egui::FontId,
-    color: Color32,
-) -> Response {
-    let text = text.into();
-    let response = if crate::bidi::is_rtl(&text) {
-        let galley = crate::bidi::layout(
-            ui.painter(),
-            &text,
-            font,
-            color,
-            ui.available_width(),
-            1,
-            Some(crate::bidi::ELLIPSIS),
-        );
-        ui.add(
-            egui::Label::new(galley)
-                .selectable(false)
-                .sense(Sense::click()),
-        )
-    } else {
-        ui.add(
-            egui::Label::new(egui::RichText::new(text.clone()).font(font).color(color))
-                .truncate()
-                .selectable(false)
-                .sense(Sense::click()),
-        )
-    };
-    response
-        .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Link, ui.is_enabled(), &text));
-    focus_ring(ui, &response);
-    if response.hovered() {
-        let rect = response.rect;
-        ui.painter()
-            .hline(rect.x_range(), rect.bottom() - 1.0, Stroke::new(1.0, color));
-    }
-    response.on_hover_cursor(egui::CursorIcon::PointingHand)
-}
-
-pub fn section_title(ui: &mut egui::Ui, palette: &Palette, label: &str) -> Response {
-    text(ui, label, bold(17.0), palette.text)
-}
-
-pub fn subtle(ui: &mut egui::Ui, palette: &Palette, label: &str) -> Response {
-    text(ui, label, regular(13.0), palette.secondary)
-}
-
-#[cfg(test)]
-impl fastframe_theme::Palette for Palette {
-    fn base(base: fastframe_theme::Base) -> Self {
-        match base {
-            fastframe_theme::Base::Dark => Self::dark(),
-            fastframe_theme::Base::Light => Self::light(),
-        }
-    }
-
-    fn set(&mut self, name: &str, color: Color32) -> bool {
-        match name {
-            "window" => self.window = color,
-            "panel" => self.panel = color,
-            "surface" => self.surface = color,
-            "surface_hover" => self.surface_hover = color,
-            "surface_active" => self.surface_active = color,
-            "outline" => self.outline = color,
-            "text" => self.text = color,
-            "secondary" => self.secondary = color,
-            "dim" => self.dim = color,
-            "accent" => self.accent = color,
-            "accent_hover" => self.accent_hover = color,
-            "on_accent" => self.on_accent = color,
-            "danger" => self.danger = color,
-            "warning" => self.warning = color,
-            "overlay" => self.overlay = color,
-            "shadow" => self.shadow = color,
-            _ => return false,
-        }
-        true
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn rune_uses_the_exact_reference_font() {
-        assert_eq!(INTER, fastframe_fonts::INTER);
-    }
-
-    use super::*;
-
-    /// The logo drawn in the app is the app icon's own picture, not a
-    /// disc in the theme's accent colour: it uploads the icon's pixels.
-    #[test]
-    fn the_logo_in_the_app_is_the_app_icon() {
-        // #given the logo drawn 40 points wide at twice the pixel density
-        let ctx = egui::Context::default();
-        ctx.set_pixels_per_point(2.0);
-        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-            logo(ui, egui::pos2(40.0, 40.0), 40.0);
-        });
-
-        // #then the frame uploads the icon rasterised at that size
-        let uploaded = output
-            .textures_delta
-            .set
-            .values()
-            .flat_map(|deltas| deltas.iter())
-            .find_map(|delta| match &delta.image {
-                egui::ImageData::Color(image) if image.size == [84, 84] => Some(image.clone()),
-                _ => None,
-            })
-            .expect("the logo's texture");
-        let icon = crate::util::app_icon_rgba(84);
-        for (x, y) in [(42, 10), (47, 42), (42, 4)] {
-            let expected = &icon[(y * 84 + x) * 4..(y * 84 + x) * 4 + 4];
-            let got = uploaded.pixels[y * 84 + x].to_srgba_unmultiplied();
-            assert_eq!(&got[..], expected, "pixel {x},{y}");
-        }
-        output.textures_delta.clear();
-    }
-
-    /// Palette files name the sixteen colours every app shares, and only
-    /// those: a typo is an invalid file, not an ignored colour.
-    #[test]
-    fn palette_files_set_every_base_colour() {
-        for name in fastframe_theme::BASE_COLORS {
-            let json = serde_json::json!({"colors":{(*name):"#010203"}}).to_string();
-            assert_ne!(
-                custom::parse_palette(&json).unwrap(),
-                Palette::dark(),
-                "{name}"
-            );
-        }
-        assert!(custom::parse_palette(r##"{"colors":{"typo":"#123456"}}"##).is_err());
-        let light =
-            custom::parse_palette(r##"{"base":"light","colors":{"accent":"#8c3fa5"}}"##).unwrap();
-        assert!(!light.dark);
-        assert_eq!(light.accent, Color32::from_rgb(140, 63, 165));
-        assert_eq!(light.window, Palette::light().window);
-    }
-
-    /// Compared line by line: a Windows checkout may turn the files' line
-    /// endings into CRLF, which no Linux package ships.
-    #[test]
-    fn the_shipped_omarchy_files_are_the_shared_ones() {
-        let lines = |text: &str| text.replace("\r\n", "\n");
-        assert_eq!(
-            lines(include_str!("../contrib/omarchy/navifast-theme")),
-            lines(&fastframe_theme::omarchy::hook_script("navifast"))
-        );
-        assert_eq!(
-            lines(include_str!("../contrib/omarchy/navifast.json.tpl")),
-            lines(fastframe_theme::omarchy::BASE_TEMPLATE)
-        );
-    }
-
-    #[test]
-    fn an_updater_trial_of_the_legacy_profile_leaves_the_desktop_alone() {
-        assert!(!desktop_themes_allowed(
-            &crate::paths::AppDirs::legacy().config.join("themes")
-        ));
-        assert!(desktop_themes_allowed(
-            &crate::paths::AppDirs::discover().config.join("themes")
-        ));
-    }
-
-    #[test]
-    fn every_catalog_problem_has_a_sentence() {
-        let catalog = Catalog::default();
-        assert_eq!(catalog_detail(&catalog, Locale::English, None), "");
-        assert!(
-            catalog_detail(&catalog, Locale::English, Some("gone.json")).contains("last usable")
-        );
-    }
-
-    /// A palette replaces egui's visuals, which must not take back the
-    /// desktop's text rendering: on Linux, linear coverage in both themes.
-    #[test]
-    fn palettes_keep_the_desktops_text_rendering() {
-        for palette in [Palette::dark(), Palette::light()] {
-            let ctx = egui::Context::default();
-            apply(&ctx, &palette);
-            let options = ctx.global_style().visuals.text_options;
-            assert_eq!(
-                options.color_transfer_function,
-                text_rendering().color_transfer_function(palette.dark),
-                "dark: {}",
-                palette.dark
-            );
-            if cfg!(target_os = "linux") {
-                assert_eq!(
-                    options.color_transfer_function,
-                    egui::epaint::FontColorTransferFunction::Off
-                );
-            }
-            assert!(options.subpixel_binning);
-        }
-    }
-
-    /// Native desktop apps keep the arrow over buttons and switch to the
-    /// hand only over links (#508).
-    #[test]
-    fn only_links_show_the_hand_cursor() {
-        let ctx = egui::Context::default();
-        install(&ctx);
-        let palette = Palette::dark();
-        let draw = |ctx: &egui::Context, pointer: Option<egui::Pos2>| {
-            let mut rects = (egui::Rect::NOTHING, egui::Rect::NOTHING);
-            let input = egui::RawInput {
-                screen_rect: Some(egui::Rect::from_min_size(
-                    egui::Pos2::ZERO,
-                    egui::vec2(400.0, 200.0),
-                )),
-                events: pointer
-                    .map(|at| vec![egui::Event::PointerMoved(at)])
-                    .unwrap_or_default(),
-                ..Default::default()
-            };
-            let mut output = ctx.run_ui(input, |ui| {
-                rects.0 = pill_button(ui, &palette, "Play", true).rect;
-                rects.1 = link(ui, "Bonobo", regular(14.0), palette.text).rect;
-            });
-            output.textures_delta.clear();
-            (rects, output.platform_output.cursor_icon)
-        };
-        draw(&ctx, None);
-        let ((button, link_rect), _) = draw(&ctx, None);
-        let (_, over_button) = draw(&ctx, Some(button.center()));
-        assert_eq!(over_button, egui::CursorIcon::Default);
-        let (_, over_link) = draw(&ctx, Some(link_rect.center()));
-        assert_eq!(over_link, egui::CursorIcon::PointingHand);
-    }
-
-    #[test]
-    fn a_local_palette_keeps_navifasts_widget_style_local() {
-        let ctx = egui::Context::default();
-        apply(&ctx, &Palette::light());
-        let dark = Palette::dark();
-        let mut output = ctx.run_ui(Default::default(), |ui| {
-            apply_local(ui, &dark);
-            let style = ui.style();
-            assert!(style.visuals.dark_mode);
-            assert_eq!(
-                style.visuals.widgets.inactive.corner_radius,
-                CornerRadius::same(RADIUS_SMALL + 2)
-            );
-            assert_eq!(
-                style.visuals.selection.stroke,
-                Stroke::new(1.0, dark.accent)
-            );
-            assert_eq!(style.spacing.button_padding, Vec2::new(12.0, 6.0));
-        });
-        output.textures_delta.clear();
-        assert!(!ctx.global_style().visuals.dark_mode);
-    }
-
-    #[test]
-    fn fonts_install_and_layout_emojis() {
-        let ctx = egui::Context::default();
-        install(&ctx);
-        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-            let galley = ui.painter().layout_no_wrap(
-                "Rosewood 🔥 Otomo 🎵 ❤️ 🚀".to_string(),
-                regular(14.0),
-                Color32::WHITE,
-            );
-            assert!(galley.rows[0].glyphs.len() >= 5);
-        });
-        output.textures_delta.clear();
-    }
-
-    /// The monochrome emoji face comes right after Inter at every weight
-    /// and in the monospace family, ahead of egui's own emoji pair.
-    #[test]
-    fn the_emoji_face_follows_inter_everywhere() {
-        let ctx = egui::Context::default();
-        install(&ctx);
-        ctx.run_ui(egui::RawInput::default(), |_| {})
-            .textures_delta
-            .clear();
-        let fonts = ctx.fonts(|fonts| fonts.definitions().clone());
-        for weight in fastframe_fonts::Weight::ALL {
-            let family = &fonts.families[&weight.family()];
-            assert_eq!(family[..2], [weight.name(), "noto_emoji"], "{weight:?}");
-        }
-        assert_eq!(
-            fonts.families[&egui::FontFamily::Monospace][1],
-            "noto_emoji"
-        );
-    }
-
-    #[test]
-    fn fonts_install_and_layout_mixed_cjk() {
-        let ctx = egui::Context::default();
-        install(&ctx);
-        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-            let galley = ui.painter().layout_no_wrap(
-                "Track 87: 恋におちて -Fall in love- (Live)".to_string(),
-                regular(14.0),
-                Color32::WHITE,
-            );
-            assert!(!galley.rows.is_empty());
-            assert!(galley.rows[0].glyphs.len() >= 10);
-        });
-        output.textures_delta.clear();
-    }
 }

@@ -1,9 +1,9 @@
 # Contributing to Navifast
 
 Navifast uses Rune for its native Navidrome desktop. Implement desktop views
-in `src/ui/desktop/` and use the existing egui interface as the visual
-reference. Fastframe belongs to the optional `demo` feature and reference tests.
-The default build and `navidrome-demo` preview must exclude it. Reuse the
+in `src/ui/desktop/`. Preserve the current Rune appearance during internal
+refactors. The default build and `navidrome-demo` preview exclude egui,
+Fastframe and Spotify dependencies. Reuse the
 player and DSP, access Navidrome through OpenSubsonic, and keep network and
 decoding work off the UI thread. Do not add a browser
 engine, telemetry or a hosted backend.
@@ -140,11 +140,7 @@ RUSTDOCFLAGS='-D warnings' cargo doc --locked --all-features --no-deps
 Linux needs the development packages listed in the README; `nix develop`
 provides the complete development environment. The command compatibility test
 also needs `dbus-run-session`, to use a private bus instead of the desktop's.
-MilkDrop builds libprojectM
-from source, so every platform also needs CMake, a C++ compiler, and
-libclang (on Windows, vcpkg with `glew:x64-windows-static` installed and
-`VCPKG_INSTALLATION_ROOT` pointing at it); `--no-default-features` leaves
-MilkDrop out and needs none of that. CI repeats the test suite on Linux,
+CI repeats the test suite on Linux,
 macOS, and Windows. Passing CI is required, but does not replace review
 for correctness, product fit, maintainability, or security.
 
@@ -154,7 +150,7 @@ desktop keyring unlocked, run
 It uses temporary dummy grants and deletes them afterward. CI runs this check
 on macOS and Windows; Linux requires an available Secret Service provider.
 The ordinary test suite uses an isolated fake store and never reads a real
-Spotify grant. Demo mode also skips credential restoration.
+user credential. Demo mode also skips credential restoration.
 
 Flatpak state-persistence changes also need
 `packaging/flatpak/test-state.sh`. It requires Flatpak, Ruby, and an installed

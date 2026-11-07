@@ -10,7 +10,7 @@ The default launch runs Rune through `src/app/navidrome/desktop.rs`. Views in
 `src/ui/desktop/` render the server sign-in form, library and player. Their
 actions go to the controller in `src/app/navidrome.rs`; the presentation
 adapter reuses the existing models and preferences.
-The inherited Spotify backend stays offline and does not restore credentials.
+No Spotify service backend is included.
 Artwork uses opaque, session-scoped image-loader keys rather than authenticated
 URLs, with bounded CPU/GPU caching. Full decoded covers have a 32 MiB memory
 budget. A separate 64 MiB cache retains downloaded bytes and small previews, so
@@ -80,7 +80,3 @@ waiting for the HTTP request's deadline.
 
 See [Privacy](/privacy/) for endpoints and storage and
 [Getting started](/getting-started/) for user-facing limitations.
-
-## Inherited Spotify architecture
-
-The optional egui comparison retains its [original architecture reference](/legacy/spotify-architecture/). It is separate from the active Navidrome path above.

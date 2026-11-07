@@ -1,4 +1,5 @@
 use super::*;
+use crate::i18n::mark;
 use crate::{
     model::Dialog,
     settings::{LanguageChoice, PlayerBarVis},
@@ -88,7 +89,10 @@ pub(super) fn choice_menu(v: &Paint<'_>, key: &'static str) -> El {
     let p = &v.s.app.presentation;
     let options = if key == "themes" {
         let mut opts = vec![
-            (v.tr("Follow system"), Action::SetTheme(ThemeChoice::System)),
+            (
+                v.tr(mark("Follow system")),
+                Action::SetTheme(ThemeChoice::System),
+            ),
             (v.tr("Light"), Action::SetTheme(ThemeChoice::Light)),
             (v.tr("Dark"), Action::SetTheme(ThemeChoice::Dark)),
         ];
@@ -157,7 +161,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
     let filter = v
         .search_field(
             "filter",
-            &v.tr("Search settings"),
+            &v.tr(mark("Search settings")),
             &v.s.filter,
             editor,
             |s, _| {
@@ -171,11 +175,11 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         .w_full()
         .max_w(802.)
         .gap(14.)
-        .child(label(v.tr("Settings"), 28., 700., v.p.text))
+        .child(label(v.tr(mark("Settings")), 28., 700., v.p.text))
         .child(filter);
     let mut visible = false;
-    let account = v.tr("Account");
-    let signout = v.tr("Sign out");
+    let account = v.tr(mark("Account"));
+    let signout = v.tr(mark("Sign out"));
     if matches(&[&account, &signout, &a.preferences.username, "Navidrome"]) {
         visible = true;
         let name = &a.preferences.username;
@@ -198,7 +202,8 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
                     .child(label(name, 16., 600., v.p.text))
                     .child(label("Navidrome", 13., 400., v.p.secondary))
                     .child(label(
-                        v.tr("Connected as {username}").replace("{username}", name),
+                        v.tr(mark("Connected as {username}"))
+                            .replace("{username}", name),
                         12.,
                         400.,
                         v.p.dim,
@@ -210,24 +215,26 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             );
         page = page.child(section(v, &account, vec![account_row]));
     }
-    let appearance = v.tr("Appearance");
+    let appearance = v.tr(mark("Appearance"));
     let mut rows = vec![];
     let detail =
         crate::theme::catalog_detail(&p.custom_themes, p.locale, settings.custom_theme.as_deref());
     let description = if !detail.is_empty() {
         detail.into_owned()
     } else if p.custom_themes.follows_omarchy() {
-        v.tr("Follow system uses your Omarchy colours.")
+        v.tr(mark("Follow system uses your Omarchy colours."))
     } else {
-        v.tr("Follow system uses your desktop's light or dark appearance.")
+        v.tr(mark(
+            "Follow system uses your desktop's light or dark appearance.",
+        ))
     };
-    let theme = v.tr("Theme");
+    let theme = v.tr(mark("Theme"));
     if matches(&[
         &appearance,
         &theme,
         &description,
-        &v.tr("Open themes folder"),
-        &v.tr("How to make a theme"),
+        &v.tr(mark("Open themes folder")),
+        &v.tr(mark("How to make a theme")),
     ]) {
         let current = settings
             .custom_theme
@@ -237,7 +244,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
                 v.tr(match settings.theme {
                     ThemeChoice::Light => "Light",
                     ThemeChoice::Dark => "Dark",
-                    ThemeChoice::System => "Follow system",
+                    ThemeChoice::System => mark("Follow system"),
                 })
             });
         let picker = col()
@@ -249,15 +256,15 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
                     .flex_wrap()
                     .gap(6.)
                     .child(
-                        v.button(&v.tr("Open themes folder"), false, |s, tx| {
+                        v.button(&v.tr(mark("Open themes folder")), false, |s, tx| {
                             s.dispatch(Action::OpenThemesFolder, tx)
                         })
                         .px(9.),
                     )
                     .child(
-                        v.button(&v.tr("How to make a theme"), false, |s, tx| {
+                        v.button(&v.tr(mark("How to make a theme")), false, |s, tx| {
                             s.dispatch(
-                                Action::OpenUrl(crate::ui::settings::THEMES_GUIDE_URL.into()),
+                                Action::OpenUrl("https://nizarcan.github.io/navifast/settings-and-files/#custom-themes".into()),
                                 tx,
                             )
                         })
@@ -266,9 +273,10 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             );
         rows.push(setting(v, &theme, &description, picker, 340.));
     }
-    let lang = v.tr("Language");
-    let description =
-        v.tr("System follows your computer's language. Untranslated text stays in English.");
+    let lang = v.tr(mark("Language"));
+    let description = v.tr(mark(
+        "System follows your computer's language. Untranslated text stays in English.",
+    ));
     if matches(&[&appearance, &lang, &description]) {
         let system = crate::i18n::pgettext(p.locale, "language", "System");
         let current = match settings.language {
@@ -299,19 +307,21 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         })
     };
     rows.extend(toggle(
-        "Colour from album art",
-        "Use the current cover's colour on pages and the player bar.",
+        mark("Colour from album art"),
+        mark("Use the current cover's colour on pages and the player bar."),
         settings.accent_from_art,
         |s| &mut s.accent_from_art,
     ));
-    let name = v.tr("Player bar visualizer");
-    let desc = v.tr("Show the song moving behind the player bar's controls while it plays here.");
+    let name = v.tr(mark("Player bar visualizer"));
+    let desc = v.tr(mark(
+        "Show the song moving behind the player bar's controls while it plays here.",
+    ));
     if matches(&[&appearance, &name, &desc]) {
         let choices = row().flex_wrap().gap(6.).children(
             [
-                ("Off", PlayerBarVis::Off),
-                ("Spectrum", PlayerBarVis::Spectrum),
-                ("Waveform", PlayerBarVis::Waveform),
+                (mark("Off"), PlayerBarVis::Off),
+                (mark("Spectrum"), PlayerBarVis::Spectrum),
+                (mark("Waveform"), PlayerBarVis::Waveform),
             ]
             .into_iter()
             .map(|(key, mode)| {
@@ -324,21 +334,21 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         rows.push(setting(v, &name, &desc, choices, 250.));
     }
     rows.extend(toggle(
-        "Compact library sidebar",
-        "Show names without covers in the sidebar.",
+        mark("Compact library sidebar"),
+        mark("Show names without covers in the sidebar."),
         settings.sidebar_compact,
         |s| &mut s.sidebar_compact,
     ));
     rows.extend(toggle(
-        "Compact track list",
-        "Show each track on one line without a cover.",
+        mark("Compact track list"),
+        mark("Show each track on one line without a cover."),
         settings.tracklist_compact,
         |s| &mut s.tracklist_compact,
     ));
-    let name = v.tr("Interface zoom");
+    let name = v.tr(mark("Interface zoom"));
     let desc = v.tr(crate::ui::keys::platform_shortcut(
-        "Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets.",
-        "Cmd+Plus and Cmd+Minus work anywhere; Cmd+0 resets.",
+        mark("Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets."),
+        mark("Cmd+Plus and Cmd+Minus work anywhere; Cmd+0 resets."),
     ));
     if matches(&[&appearance, &name, &desc]) {
         let controls = row()
@@ -355,15 +365,15 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         rows.push(setting(v, &name, &desc, controls, 138.));
     }
     #[cfg(target_os="linux")]
-    rows.extend(toggle("Middle-click autoscroll","Middle-click a list, then move the pointer to scroll it. Off by default, because a middle click usually pastes on Linux.",settings.middle_click_autoscroll,|s|&mut s.middle_click_autoscroll));
+    rows.extend(toggle(mark("Middle-click autoscroll"),mark("Middle-click a list, then move the pointer to scroll it. Off by default, because a middle click usually pastes on Linux."),settings.middle_click_autoscroll,|s|&mut s.middle_click_autoscroll));
     if !rows.is_empty() {
         visible = true;
         page = page.child(section(v, &appearance, rows));
     }
-    let equalizer = v.tr("Equalizer");
-    let desc = v.tr(
+    let equalizer = v.tr(mark("Equalizer"));
+    let desc = v.tr(mark(
         "A ten-band equalizer for playback on this computer. It does not affect other devices.",
-    );
+    ));
     let mut eq = vec![];
     if matches(&[&equalizer, &desc]) {
         eq.push(setting(
@@ -378,9 +388,9 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
     }
     if matches(&[
         &equalizer,
-        &v.tr("Presets"),
-        &v.tr("Preamp"),
-        &v.tr("Bands"),
+        &v.tr(mark("Presets")),
+        &v.tr(mark("Preamp")),
+        &v.tr(mark("Bands")),
         "dB",
     ]) || crate::eq::PRESETS.iter().any(|p| matches(&[p.name]))
     {
@@ -411,7 +421,7 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             let label = if i == 0 {
                 crate::i18n::pgettext(p.locale, "equalizer", "Pre").into_owned()
             } else {
-                crate::ui::settings::hertz(crate::eq::BANDS[i - 1])
+                hertz(crate::eq::BANDS[i - 1])
             };
             bands = bands.child(eq_slider(v, i, &label, db));
         }
@@ -421,9 +431,9 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         visible = true;
         page = page.child(section(v, &equalizer, eq));
     }
-    let about = v.tr("About");
-    let keys = v.tr("Keyboard shortcuts");
-    let source = v.tr("Source code");
+    let about = v.tr(mark("About"));
+    let keys = v.tr(mark("Keyboard shortcuts"));
+    let source = v.tr(mark("Source code"));
     let version = concat!("Navifast ", env!("CARGO_PKG_VERSION"));
     let built = "Built with Rust and Rune. Playback from your Navidrome library.";
     if matches(&[&about, &keys, &source, version, built]) {
@@ -452,13 +462,14 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
     if !visible {
         page = page
             .child(label(
-                v.tr("No settings for “{query}”").replace("{query}", &q),
+                v.tr(mark("No settings for “{query}”"))
+                    .replace("{query}", &q),
                 18.,
                 600.,
                 v.p.text,
             ))
             .child(label(
-                v.tr("Try fewer words, or check the spelling."),
+                v.tr(mark("Try fewer words, or check the spelling.")),
                 14.,
                 400.,
                 v.p.secondary,
@@ -611,7 +622,7 @@ pub(super) fn shortcuts(v: &Paint<'_>) -> El {
         })
         .child(row().gap(24.).child(keys).child(descriptions));
     let done = v
-        .button(&v.tr("Done"), true, |s, tx| {
+        .button(&v.tr(mark("Done")), true, |s, tx| {
             s.dispatch(Action::CloseDialog, tx)
         })
         .px(18.);
@@ -624,8 +635,8 @@ pub(super) fn shortcuts(v: &Paint<'_>) -> El {
         .shadow(10., 40., color(v.p.shadow))
         .modal(true, |s: &mut State| s.app.presentation.dialog = None)
         .role("dialog")
-        .label(v.tr("Keyboard shortcuts"))
-        .child(label(v.tr("Keyboard shortcuts"), 20., 700., v.p.text).mb(18.))
+        .label(v.tr(mark("Keyboard shortcuts")))
+        .child(label(v.tr(mark("Keyboard shortcuts")), 20., 700., v.p.text).mb(18.))
         .child(list)
         .child(row().w_full().justify_end().mt(22.).child(done));
     col()
@@ -633,10 +644,18 @@ pub(super) fn shortcuts(v: &Paint<'_>) -> El {
         .w_full()
         .h_full()
         .center()
-        .fill(color(Color32::from_black_alpha(if v.p.dark {
+        .fill(color(Srgba::from_black_alpha(if v.p.dark {
             150
         } else {
             80
         })))
         .child(d)
+}
+
+fn hertz(hz: f32) -> String {
+    if hz >= 1000.0 {
+        format!("{}K", (hz / 1000.0).round() as u32)
+    } else {
+        format!("{}", hz.round() as u32)
+    }
 }

@@ -10,7 +10,7 @@ fi
 translation_template=$(mktemp)
 trap 'rm -f "$translation_template"' EXIT
 xgettext --language=Rust --from-code=UTF-8 \
-    --keyword= --keyword=gettext:2 --keyword=ngettext:2,3 --keyword=pgettext:2c,3 \
+    --keyword= --keyword=gettext:2 --keyword=ngettext:2,3 --keyword=pgettext:2c,3 --keyword=mark:1 \
     --add-comments=Translators: \
     --flag=ngettext:2:rust-format --flag=ngettext:3:rust-format \
     --package-name=Navifast --copyright-holder='Navifast contributors' \
@@ -26,6 +26,7 @@ else
         # No fuzzy guesses: catalogues may be partial, and an untranslated
         # message must stay empty so it shows the English source.
         msgmerge --update --backup=none --no-fuzzy-matching "$catalog" assets/i18n/navifast.pot
+        msgattrib --no-obsolete --output-file="$catalog" "$catalog"
     done
 fi
 for catalog in assets/i18n/*.po; do

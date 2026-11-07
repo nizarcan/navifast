@@ -1,8 +1,8 @@
 //! Local palette files and their asynchronous catalog.
 
 use super::Palette;
+use crate::color::Srgba;
 use crate::i18n::{Locale, gettext};
-use egui::Color32;
 use std::borrow::Cow;
 use std::{
     io::Read,
@@ -117,9 +117,9 @@ pub(super) fn parse_palette(text: &str) -> Result<Palette, String> {
         }
         let color = u32::from_str_radix(hex, 16).map_err(|error| error.to_string())?;
         let color = if hex.len() == 6 {
-            Color32::from_rgb((color >> 16) as u8, (color >> 8) as u8, color as u8)
+            Srgba::from_rgb((color >> 16) as u8, (color >> 8) as u8, color as u8)
         } else {
-            Color32::from_rgba_unmultiplied(
+            Srgba::from_rgba_unmultiplied(
                 (color >> 24) as u8,
                 (color >> 16) as u8,
                 (color >> 8) as u8,
@@ -508,21 +508,27 @@ impl Catalog {
 mod custom_theme_tests {
     #[test]
     fn palette_files_match_the_previous_reader() {
+        use crate::{color::Srgba, theme::Palette};
+        let mut custom = Palette::dark();
+        custom.accent = Srgba::from_rgb(0x12, 0xab, 0xcd);
+        custom.overlay = Srgba::from_rgba_unmultiplied(1, 0x23, 0x45, 0x67);
+        for (text, expected) in [
+            ("{}", Palette::dark()),
+            (r#"{"base":"light"}"#, Palette::light()),
+            (
+                r##"{"colors":{"accent":"#12abcd","overlay":"#01234567"}}"##,
+                custom,
+            ),
+        ] {
+            assert_eq!(super::parse_palette(text).unwrap(), expected);
+        }
         for text in [
-            "{}",
-            r#"{"base":"light"}"#,
-            r##"{"colors":{"accent":"#12abcd","overlay":"#01234567"}}"##,
             r##"{"colors":{"accent":"123456"}}"##,
             r##"{"colors":{"typo":"#123456"}}"##,
             r#"{"base":"Light"}"#,
             r#"{"unknown":true}"#,
         ] {
-            let before: Result<super::Palette, _> = fastframe_theme::parse_palette(text);
-            let after = super::parse_palette(text);
-            assert_eq!(before.is_ok(), after.is_ok(), "{text}");
-            if let (Ok(before), Ok(after)) = (before, after) {
-                assert_eq!(before, after);
-            }
+            assert!(super::parse_palette(text).is_err(), "{text}");
         }
     }
 
@@ -614,8 +620,8 @@ mod custom_theme_tests {
                 .unwrap();
         assert_eq!(palette.window, Palette::light().window);
         assert!(!palette.dark);
-        assert_eq!(palette.text, Color32::from_rgb(235, 219, 178));
-        assert_eq!(palette.shadow, Color32::from_black_alpha(128));
+        assert_eq!(palette.text, Srgba::from_rgb(235, 219, 178));
+        assert_eq!(palette.shadow, Srgba::from_black_alpha(128));
         assert_eq!(parse_palette("{}").unwrap(), Palette::dark());
     }
 

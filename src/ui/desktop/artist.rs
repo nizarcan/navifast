@@ -1,4 +1,5 @@
 use super::*;
+use crate::i18n::mark;
 use crate::model::Loadable;
 use crate::navidrome::api::{Album, FavoriteKind};
 use crate::ui::navidrome_artist::{
@@ -37,7 +38,11 @@ fn shelf(
     if count > cols {
         head = head.child(
             v.button(
-                &v.tr(if expanded { "Show less" } else { "See more" }),
+                &v.tr(if expanded {
+                    mark("Show less")
+                } else {
+                    mark("See more")
+                }),
                 false,
                 move |s, _| {
                     let open = field(s.artist_options());
@@ -57,7 +62,7 @@ fn status<T>(v: &Paint<'_>, data: &Loadable<T>, empty: &'static str) -> El {
             .gap(8.)
             .items_center()
             .child(label(error, 14., 400., v.p.secondary).wrap())
-            .child(v.button(&v.tr("Retry"), false, |s, tx| {
+            .child(v.button(&v.tr(mark("Retry")), false, |s, tx| {
                 s.dispatch(Action::Reload(s.app.presentation.page().clone()), tx)
             })),
         _ => label(v.tr(empty), 14., 400., v.p.secondary),
@@ -74,9 +79,9 @@ fn tile(v: &Paint<'_>, album: &Album, side: f32, appearance: bool) -> El {
     }
     if !appearance && let Some(kind) = album.release_types.first() {
         meta.push(match kind.to_lowercase().as_str() {
-            "album" => v.tr("Album"),
-            "single" => v.tr("Single"),
-            "ep" => v.tr("EP"),
+            "album" => v.tr(mark("Album")),
+            "single" => v.tr(mark("Single")),
+            "ep" => v.tr(mark("EP")),
             _ => kind.to_owned(),
         });
     }
@@ -103,12 +108,12 @@ fn tile(v: &Paint<'_>, album: &Album, side: f32, appearance: bool) -> El {
 /// artist tint changes its pixels. The photograph remains a separate cached image.
 #[derive(Default)]
 pub(crate) struct PortraitFade {
-    colors: Option<(Color32, Color32)>,
+    colors: Option<(Srgba, Srgba)>,
     pixels: rune::Pixels,
 }
 
 impl PortraitFade {
-    fn texture(&mut self, top: Color32, bottom: Color32) -> &rune::Pixels {
+    fn texture(&mut self, top: Srgba, bottom: Srgba) -> &rune::Pixels {
         if self.colors != Some((top, bottom)) {
             let (width, height) = (256, 64);
             let mut rgba = Vec::with_capacity(width * height * 4);
@@ -126,7 +131,7 @@ impl PortraitFade {
     }
 }
 
-fn portrait_shade(top: Color32, bottom: Color32, u: f32, v: f32) -> Color32 {
+fn portrait_shade(top: Srgba, bottom: Srgba, u: f32, v: f32) -> Srgba {
     let band = PORTRAIT_STOPS.partition_point(|&(x, _)| x < u).clamp(1, 3);
     let (left, a) = PORTRAIT_STOPS[band - 1];
     let (right, b) = PORTRAIT_STOPS[band];
@@ -151,20 +156,20 @@ fn portrait_shade(top: Color32, bottom: Color32, u: f32, v: f32) -> Color32 {
     };
     let lower_left = bottom.gamma_multiply_u8(a);
     let [r, g, b, a] = std::array::from_fn(|i| {
-        (f32::from(corner[i]) * weight
-            + f32::from(other[i]) * across
-            + f32::from(lower_left[i]) * down)
+        (f32::from(corner.to_array()[i]) * weight
+            + f32::from(other.to_array()[i]) * across
+            + f32::from(lower_left.to_array()[i]) * down)
             .round() as u8
     });
-    Color32::from_rgba_premultiplied(r, g, b, a)
+    Srgba::from_rgba_premultiplied(r, g, b, a)
 }
 
-fn record(v: &Paint<'_>, albums: &[Album], radius: f32, plum: Color32, ink: Color32) -> El {
+fn record(v: &Paint<'_>, albums: &[Album], radius: f32, plum: Srgba, ink: Srgba) -> El {
     let mut record = el()
         .size(radius * 2., radius * 2.)
         .center()
         .radius(radius)
-        .fill(color(Color32::from_rgb(40, 34, 58)));
+        .fill(color(Srgba::from_rgb(40, 34, 58)));
     for i in 0..30 {
         let r = radius * (0.38 + i as f32 * 0.021);
         record = record.child(
@@ -219,9 +224,9 @@ fn hero(
         .as_ref()
         .filter(|_| p.settings.accent_from_art)
         .and_then(|uri| v.s.cover_tint(uri, v.p))
-        .unwrap_or(Color32::from_rgb(111, 81, 128));
-    let ink = crate::ui::blend(Color32::from_rgb(12, 13, 28), tint, 0.16);
-    let plum = crate::ui::blend(Color32::from_rgb(35, 26, 39), tint, 0.56);
+        .unwrap_or(Srgba::from_rgb(111, 81, 128));
+    let ink = crate::ui::blend(Srgba::from_rgb(12, 13, 28), tint, 0.16);
+    let plum = crate::ui::blend(Srgba::from_rgb(35, 26, 39), tint, 0.56);
     let mut hero = el()
         .w_full()
         .h(height)
@@ -258,7 +263,7 @@ fn hero(
         release_summary(v.s.app.presentation.locale, albums),
         14.,
         500.,
-        Color32::from_gray(235),
+        Srgba::from_gray(235),
     ));
     if let Page::Artist(id) = v.s.app.presentation.page()
         && let Some(id) = navidrome::decode(id)
@@ -270,7 +275,7 @@ fn hero(
             .absolute(gutter, (height - title_height - 73.).max(8.))
             .w(text_width)
             .gap(2.)
-            .child(label(v.tr("Artist"), 14., 600., Color32::from_gray(236)).h(17.))
+            .child(label(v.tr(mark("Artist")), 14., 600., Srgba::from_gray(236)).h(17.))
             .child(
                 text(name.to_owned())
                     .font(title_style)
@@ -304,7 +309,7 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
         .collect();
     let mut body = col().w_full().px(gutter).pt(20.).gap(8.).child(shelf(
         v,
-        "Discography",
+        mark("Discography"),
         releases.len(),
         cols,
         options.releases,
@@ -315,8 +320,8 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
             row().gap(6.).children(
                 [
                     ("All", ReleaseGroup::All),
-                    ("Albums", ReleaseGroup::Album),
-                    ("Singles & EPs", ReleaseGroup::Short),
+                    (mark("Albums"), ReleaseGroup::Album),
+                    (mark("Singles & EPs"), ReleaseGroup::Short),
                 ]
                 .into_iter()
                 .map(|(name, group)| {
@@ -341,7 +346,7 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
                 .children(line.iter().map(|a| tile(v, a, side, false))),
         );
     }
-    body = body.child(label(v.tr("About"), 26., 700., v.p.text).mt(16.));
+    body = body.child(label(v.tr(mark("About")), 26., 700., v.p.text).mt(16.));
     if let Some(bio) = state
         .artist_info
         .get()
@@ -362,9 +367,9 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
         if bio.chars().count() as f32 * 8. > (body_width - 36.) * 5. {
             copy = copy.child(v.button(
                 &v.tr(if options.biography {
-                    "Show less"
+                    mark("Show less")
                 } else {
-                    "See more"
+                    mark("See more")
                 }),
                 false,
                 |s, _| {
@@ -375,7 +380,11 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
         }
         body = body.child(copy);
     } else {
-        body = body.child(status(v, &state.artist_info, "No biography available."));
+        body = body.child(status(
+            v,
+            &state.artist_info,
+            mark("No biography available."),
+        ));
     }
     let related = state
         .artist_info
@@ -386,7 +395,7 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
     body = body.child(
         shelf(
             v,
-            "Similar artists",
+            mark("Similar artists"),
             related.len(),
             artist_cols,
             options.similar,
@@ -398,7 +407,7 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
         body = body.child(status(
             v,
             &state.artist_info,
-            "No similar artists in your library.",
+            mark("No similar artists in your library."),
         ));
     }
     let limit = if options.similar {
@@ -443,7 +452,7 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
     body = body.child(
         shelf(
             v,
-            "Appears on",
+            mark("Appears on"),
             appearances.len(),
             cols,
             options.features,
@@ -455,7 +464,7 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
         body = body.child(status(
             v,
             &state.appearances,
-            "No featured releases in your library.",
+            mark("No featured releases in your library."),
         ));
     }
     let limit = if options.features {
@@ -482,8 +491,8 @@ mod tests {
 
     #[test]
     fn artist_portrait_fades_from_the_header_tint_to_clear() {
-        let top = Color32::from_rgb(40, 62, 82);
-        let bottom = Color32::from_rgb(14, 18, 20);
+        let top = Srgba::from_rgb(40, 62, 82);
+        let bottom = Srgba::from_rgb(14, 18, 20);
         for (x, alpha) in PORTRAIT_STOPS {
             assert_eq!(
                 portrait_shade(top, bottom, x, 0.),

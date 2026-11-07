@@ -30,6 +30,6 @@ body:
     id: fit
     attributes:
       label: Why does this fit Navifast?
-      description: Explain why it belongs in a small, native Spotify client.
+      description: Explain why it belongs in a small, native Navidrome client.
     validations:
       required: true

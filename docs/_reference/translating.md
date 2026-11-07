@@ -4,15 +4,10 @@ description: Help translate Navifast and preview the work so far.
 nav_order: 6
 ---
 
-> **Inherited migration reference.** This page describes the upstream Spotify
-> client. It does not describe the current Navidrome build. See
-> [Getting started](/getting-started/) for implemented Navifast behavior.
-
-
 Navifast follows your computer's language when it has a translation for it,
 and uses English otherwise. **Settings → Appearance → Language** picks another
 language, listed under its own name, and applies it at once; **System** follows
-the computer again. This arrived in 0.10.0. Corrections from
+the computer again. Corrections from
 fluent speakers are welcome.
 
 Translations are stored in `.po` files, a common format supported by editors
@@ -45,7 +40,7 @@ and screen-reader names. The partial catalogues translate the earlier pilot:
 navigation, Library controls, the player bar, Queue and Lyrics. Everything they
 do not translate yet appears in English. The tray menu, the macOS menu bar and
 Dock menu, and the Windows taskbar buttons are still English in every language,
-as are error details reported by Spotify, the network or the system.
+as are error details reported by the server, the network or the system.
 
 A regional system language uses the closest catalogue: `es-MX` and `es-419`
 use Spanish, `de-AT` uses German, `pt-BR` and a plain `pt` use Portuguese
@@ -54,7 +49,7 @@ use Spanish, `de-AT` uses German, `pt-BR` and a plain `pt` use Portuguese
 Traditional Chinese. When the system lists several preferred languages, the
 first one with a catalogue wins.
 
-Song, album, artist and playlist names come from Spotify or their creators and
+Song, album, artist and playlist names come from the server or their creators and
 are kept as provided, as are lyric lines and failure details. Generated queue
 playlist names translate the surrounding words while retaining the song title
 or the date in `YYYY-MM-DD` form.
@@ -68,27 +63,19 @@ keep `msgid`, `msgid_plural`, `msgctxt`, and placeholders such as `{count}`, `{d
 Translator comments explain the placeholders. Clear a fuzzy flag only after
 reviewing the translation against its current English source.
 
-Build and preview your changes in demo mode, which uses sample music data and
-needs no Spotify account. `--demo-language` takes a tag from the table above
-and overrides both the setting and the system language:
+Build and preview your changes with the native sample catalog:
 
 ```sh
-cargo run --features demo -- --demo --demo-language es
-cargo run --features demo -- --demo --demo-language es --demo-show light --demo-size 760x620
-cargo run --features demo -- --demo --demo-language de-DE --demo-show playing-next
-cargo run --features demo -- --demo --demo-language ja --demo-show lyrics-follow
+cargo run --locked --features navidrome-demo -- --demo --demo-page settings
+cargo run --locked --features navidrome-demo -- --demo --demo-show light --demo-size 760x620
 ```
 
-Check a narrow and a normal window, light and dark themes, keyboard navigation,
-and screen-reader names. `--demo-shot PATH` saves the preview and exits. When automating screenshots, give the process
-its own XDG config, data and state directories on Linux so framework window and
-scroll state do not carry between captures.
-
-Panel fixtures also include `queue-empty`, `queue-loading`, `queue-error`,
-`recents-empty`, `recents-loading`, `recents-error`, `lyrics-empty`,
-`lyrics-loading`, `lyrics-error`, `lyrics-instrumental` and `lyrics-no-playback`.
-Combine a lyrics fixture with `lyrics-fullscreen` first to preview that state
-in full screen, for example `--demo-show lyrics-fullscreen,lyrics-error`.
+Choose the language in **Settings → Appearance → Language**. Check narrow and
+normal windows, light and dark themes, keyboard navigation, and accessible names.
+For automated captures, pass `--demo-data PATH` with an isolated profile, set
+`language` in its `config/settings.json`, then use `--demo-shot PATH`.
+Useful sample states include `signed-out`, `restoring`, `details`, `equalizer`
+and `many-favorites`.
 
 ## Update the template and check catalogs
 
@@ -100,7 +87,9 @@ current lyric line, so its translation can differ from following an artist.
 Interpolate with named placeholders, such as `gettext(locale, "Added {name}")`
 followed by `.replace("{name}", &name)`, and explain each one in a
 `// Translators:` comment above the phrase. Add any
-new source file to `assets/i18n/POTFILES`. With GNU gettext tools that support
+new source file to `assets/i18n/POTFILES`. Rune labels chosen from tables use
+`i18n::mark("English text")` so extraction sees the phrase before the view
+translates it. Preserve `pgettext` contexts for labels with several meanings. With GNU gettext tools that support
 Rust installed, run:
 
 ```sh

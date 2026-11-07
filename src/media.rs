@@ -72,7 +72,7 @@ pub(crate) const TRACK_OBJECT_PATH_PREFIX: &str = "/io/github/nizarcan/Navifast/
 
 #[cfg(any(target_os = "linux", test))]
 pub(crate) fn track_object_path(uri: &str) -> Option<String> {
-    if !uri.starts_with("spotify:") && !uri.starts_with("navidrome:track:") {
+    if !uri.starts_with("navidrome:track:") {
         return None;
     }
     use std::fmt::Write;
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn desktop_track_ids_preserve_opaque_ids_and_session_identity() {
         let uris = [
-            "spotify:track:14XWXWv5FoCbFzLksawpEe",
+            "navidrome:track:14XWXWv5FoCbFzLksawpEe",
             "navidrome:track:1:album/song-雪:_&",
             "navidrome:track:1:ab",
             "navidrome:track:1:a/b",

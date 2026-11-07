@@ -12,10 +12,7 @@ mod host;
 use host::Host;
 mod presentation;
 pub mod search;
-use presentation::Artwork;
-pub(crate) use presentation::{decode, encode, view_artists};
-
-type PresentationRevision = (u64, u64, u64, usize, bool, bool, bool, bool, Option<String>);
+pub(crate) use presentation::{decode, encode};
 
 use crate::navidrome::{
     api::{Album, Client, CoverSize, PAGE_SIZE, Song},
@@ -162,8 +159,6 @@ impl Transport {
 
 pub struct App {
     pub(crate) presentation: Box<super::App>,
-    artwork: Arc<Artwork>,
-    presentation_revision: Option<PresentationRevision>,
     pending_play: Option<(String, usize)>,
     pub(crate) playing_album: Option<Album>,
     pub(crate) playing_playlist: Option<String>,
@@ -202,8 +197,6 @@ pub struct App {
     media: Option<crate::media_controls::MediaService>,
     demo: bool,
     _instance: Option<crate::single_instance::Guard>,
-    #[cfg(feature = "navidrome-demo")]
-    pub shot: Option<(std::path::PathBuf, Instant, bool)>,
 }
 
 impl App {
@@ -219,33 +212,10 @@ impl App {
             .and_then(|album| album.cover_art.as_deref())
             .or(song.cover_art.as_deref())
     }
-    pub fn new(
-        cc: &eframe::CreationContext<'_>,
-        dirs: crate::paths::AppDirs,
-        instance: Option<crate::single_instance::Guard>,
-        demo: bool,
-    ) -> Self {
-        crate::theme::install(&cc.egui_ctx);
-        let waker = crate::backend::Waker::default();
-        waker.attach(&cc.egui_ctx);
-        let ctx = cc.egui_ctx.clone();
-        let mut app = Self::with_host(
-            dirs,
-            instance,
-            demo,
-            &waker,
-            Arc::new(move || ctx.request_repaint()),
-        );
-        app.presentation.attach(&cc.egui_ctx);
-        cc.egui_ctx.add_image_loader(app.artwork.clone());
-        app
-    }
-
     fn with_host(
         dirs: crate::paths::AppDirs,
         instance: Option<crate::single_instance::Guard>,
         demo: bool,
-        presentation_waker: &crate::backend::Waker,
         wake: Arc<dyn Fn() + Send + Sync>,
     ) -> Self {
         let mut preferences: Preferences = std::fs::read(dirs.config.join("navidrome.json"))
@@ -263,26 +233,13 @@ impl App {
                 settings.theme = crate::settings::ThemeChoice::Light;
             }
         }
-        // Keep the original interface state, but never authorize its Spotify backend.
+        // Restore the existing presentation preferences.
         settings.check_for_updates = false;
-        settings.winamp_window = false;
         preferences.volume = f32::from(settings.volume) / f32::from(u16::MAX);
         preferences.eq_on = settings.eq_on;
         preferences.bands = settings.eq_bands_db;
         preferences.preamp = settings.eq_preamp_db;
-        let mut presentation = Box::new(super::App::new(
-            presentation_waker,
-            dirs.clone(),
-            settings,
-            super::AppOptions {
-                restore_sign_in: false,
-                media_controls: false,
-                tray: false,
-            },
-        ));
-        presentation.backend.set_offline(true);
-        presentation.offline = true;
-        presentation.navidrome_mode = true;
+        let mut presentation = Box::new(super::App::new(dirs.clone(), settings));
         presentation.recent_contexts = preferences.recent_contexts.clone();
         presentation.history = vec![crate::model::Page::Albums];
         presentation.history_index = 0;
@@ -295,15 +252,13 @@ impl App {
             presentation.settings.custom_theme.clone(),
             theme_wake,
         );
-        let eq = presentation.winamp.eq.clone();
-        let tap = presentation.winamp.tap.clone();
-        let artwork = Arc::new(Artwork::default());
+        let eq = Arc::new(Mutex::new(super::eq_settings(&presentation.settings)));
+        let tap = crate::vis::AudioTap::new();
         let backend = Backend::spawn(wake.clone(), dirs.clone());
         if !demo {
             backend.send(Request::Restore { session: 0 });
         }
-        // System proxy honors normal desktop configuration. Advanced proxy UI
-        // is retained in the old modules until the full settings migration.
+        // System proxy honors the existing native desktop configuration.
         let proxy = crate::settings::ProxyConfig::System;
         let (events, player_events) = mpsc::channel();
         let wake_player = wake.clone();
@@ -325,8 +280,6 @@ impl App {
             != Some(&crate::settings::LibrarySort::Name);
         Self {
             presentation,
-            artwork,
-            presentation_revision: None,
             pending_play: None,
             playing_album: None,
             playing_playlist: None,
@@ -370,8 +323,6 @@ impl App {
             media,
             demo,
             _instance: instance,
-            #[cfg(feature = "navidrome-demo")]
-            shot: None,
         }
     }
 
@@ -588,7 +539,7 @@ impl App {
                         session: self.session,
                         client: client.clone(),
                         size,
-                        cached: self.artwork.cached_bytes(&uri),
+                        cached: None,
                         id,
                     });
                 }
@@ -616,7 +567,6 @@ impl App {
                 });
             }
         }
-        self.presentation.settings_dirty = false;
         self.dirty = None;
     }
 
@@ -810,7 +760,7 @@ impl App {
                     let uri = presentation::artwork_uri(session, &id, size);
                     self.requested_covers.remove(&uri);
                     if let Some(color) = cover.color {
-                        let tint = self.presentation.palette.tint_from_art(color);
+                        let tint = self.palette.tint_from_art(color);
                         self.presentation.accents.insert(uri.clone(), tint);
                     }
                     host.insert_cover(self, uri, cover);
@@ -1009,53 +959,8 @@ impl App {
     }
 }
 
-impl eframe::App for App {
-    fn logic(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        self.poll(ctx);
-        self.presentation.poll_custom_themes(ctx);
-        if self.presentation.settings_dirty {
-            self.mark_dirty();
-        }
-        if !self.presentation.zoom_applied {
-            self.presentation.zoom_applied = true;
-            ctx.set_zoom_factor(self.presentation.settings.zoom.clamp(0.5, 2.5));
-        } else if (ctx.zoom_factor() - self.presentation.settings.zoom).abs() > 0.001 {
-            self.presentation.settings.zoom = ctx.zoom_factor();
-            self.mark_dirty();
-        }
-        self.presentation
-            .toasts
-            .retain(|toast| toast.created.elapsed() < super::TOAST_LIFETIME);
-        if self.transport.song().is_some() && !self.transport.paused {
-            ctx.request_repaint_after(Duration::from_millis(33));
-        }
-        #[cfg(feature = "navidrome-demo")]
-        self.capture(ctx);
-    }
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
-        self.draw(ui);
-    }
-    fn on_exit(&mut self, _: Option<&eframe::glow::Context>) {
-        self.save();
-        self.player.send(player::Command::Stop);
-    }
-}
-
 #[cfg(feature = "navidrome-demo")]
 impl App {
-    pub fn populate_demo(&mut self, page: Option<&str>, flags: Option<&str>, ctx: &egui::Context) {
-        self.populate_demo_model(page, flags, ctx);
-        ctx.set_theme(self.presentation.theme_preference());
-        let flags: Vec<_> = flags.unwrap_or_default().split(',').collect();
-        for (flag, filter) in [("appearance", "Appearance"), ("about", "About")] {
-            if flags.contains(&flag) {
-                ctx.data_mut(|data| {
-                    data.insert_temp(egui::Id::new("settings-filter"), filter.to_owned())
-                });
-            }
-        }
-    }
-
     fn populate_demo_model(&mut self, page: Option<&str>, flags: Option<&str>, host: &impl Host) {
         let flags: Vec<_> = flags.unwrap_or_default().split(',').collect();
         self.preferences.light = flags.contains(&"light");
@@ -1069,55 +974,10 @@ impl App {
             self.connected = false;
             self.connecting = true;
         }
-        // Share catalogue fixtures with the inherited demo so UI comparisons
-        // show the same album names, rows and playback state.
         for index in 0..crate::demo::ALBUMS.len() {
-            let reference = crate::demo::album(index);
-            let id = reference.id.clone();
-            let songs = (0..12)
-                .map(|track| {
-                    let reference = crate::demo::track(track);
-                    Song {
-                        id: reference.id.unwrap_or_default(),
-                        title: reference.name,
-                        credits: crate::navidrome::api::ArtistCredits {
-                            artist_id: reference.artists.first().and_then(|a| a.id.clone()),
-                            ..Default::default()
-                        },
-                        artist: reference
-                            .artists
-                            .iter()
-                            .map(|a| a.name.as_str())
-                            .collect::<Vec<_>>()
-                            .join(", "),
-                        album: reference.album.map_or_else(String::new, |a| a.name),
-                        cover_art: Some(id.clone()),
-                        duration: f64::from(reference.duration_ms) / 1000.0,
-                        suffix: "flac".into(),
-                        track: track as u32 + 1,
-                        disc_number: 1,
-                    }
-                })
-                .collect();
-            self.albums.push(Album {
-                id: id.clone(),
-                name: reference.name,
-                credits: crate::navidrome::api::ArtistCredits {
-                    artist_id: reference.artists.first().and_then(|a| a.id.clone()),
-                    ..Default::default()
-                },
-                artist: reference
-                    .artists
-                    .iter()
-                    .map(|a| a.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                cover_art: Some(id.clone()),
-                song_count: 12,
-                release_types: vec!["Album".into()],
-                year: crate::demo::ALBUMS[index].2.parse().unwrap_or_default(),
-                song: songs,
-            });
+            let album = crate::demo::album(index);
+            let id = album.id.clone();
+            self.albums.push(album);
             let colors: [[u8; 3]; 6] = [
                 [35, 85, 112],
                 [128, 79, 60],
@@ -1231,51 +1091,17 @@ impl App {
             };
         }
     }
-
-    fn capture(&mut self, ctx: &egui::Context) {
-        let Some((path, due, asked)) = &mut self.shot else {
-            return;
-        };
-        ctx.request_repaint();
-        if !*asked && Instant::now() >= *due {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
-            *asked = true;
-        }
-        let image = ctx.input(|input| {
-            input.events.iter().find_map(|event| match event {
-                egui::Event::Screenshot { image, .. } => Some(image.clone()),
-                _ => None,
-            })
-        });
-        if let Some(image) = image {
-            let rgba: Vec<u8> = image
-                .pixels
-                .iter()
-                .flat_map(|pixel| pixel.to_srgba_unmultiplied())
-                .collect();
-            if let Some(image) =
-                image::RgbaImage::from_raw(image.size[0] as u32, image.size[1] as u32, rgba)
-                && let Err(error) = image.save(path)
-            {
-                log::error!("Could not save demo screenshot: {error}");
-            }
-            self.shot = None;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    pub(super) fn with_app(test: impl FnOnce(&mut App, &egui::Context)) {
-        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
+    pub(super) fn with_app(test: impl FnOnce(&mut App, &host::TestHost)) {
         let root = std::env::temp_dir().join(format!(
             "navifast-presentation-{:016x}",
             rand::random::<u64>()
         ));
-        let mut app = App::new(
-            &cc,
+        let mut app = App::with_host(
             crate::paths::AppDirs {
                 config: root.join("config"),
                 state: root.join("state"),
@@ -1283,6 +1109,7 @@ mod tests {
             },
             None,
             true,
+            Arc::new(|| {}),
         );
         app.connected = true;
         app.preferences.username = "listener".into();
@@ -1316,7 +1143,7 @@ mod tests {
         };
         app.albums.push(album.clone());
         app.album = Some(album);
-        test(&mut app, &cc.egui_ctx);
+        test(&mut app, &host::TestHost);
         drop(app);
         let _ = std::fs::remove_dir_all(root);
     }
@@ -1391,7 +1218,6 @@ mod tests {
 
     #[test]
     fn recently_played_albums_survive_autosave_and_exit() {
-        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
         let root = std::env::temp_dir().join(format!(
             "navifast-recent-albums-{:016x}",
             rand::random::<u64>()
@@ -1414,7 +1240,7 @@ mod tests {
             app.apply(Action::Play(0));
         };
         let uri = |id: &str| format!("navidrome:album:{}", presentation::encode(id));
-        let mut app = App::new(&cc, dirs.clone(), None, true);
+        let mut app = App::with_host(dirs.clone(), None, true, Arc::new(|| {}));
         app.remember_account("https://music.example.com/", "listener");
         for index in 0..105 {
             play(&mut app, &format!("older-{index}"));
@@ -1436,19 +1262,19 @@ mod tests {
         // starting audio. The worker drains pending saves when dropped.
         app.demo = false;
         app.dirty = Some(Instant::now() - Duration::from_secs(1));
-        app.poll(&cc.egui_ctx);
+        app.poll(&host::TestHost);
         assert!(app.dirty.is_none());
         drop(app);
 
-        let mut restored = App::new(&cc, dirs.clone(), None, true);
+        let mut restored = App::with_host(dirs.clone(), None, true, Arc::new(|| {}));
         restored.remember_account("https://music.example.com/", "listener");
         assert_eq!(restored.presentation.recent_contexts, expected);
         play(&mut restored, "second");
         restored.demo = false;
-        eframe::App::on_exit(&mut restored, None);
+        restored.save();
         drop(restored);
 
-        let mut restored = App::new(&cc, dirs, None, true);
+        let mut restored = App::with_host(dirs, None, true, Arc::new(|| {}));
         assert_eq!(
             restored.presentation.recent_contexts,
             vec![uri("second"), uri("library:/🌍/first")]
@@ -1467,11 +1293,9 @@ mod tests {
 
     #[test]
     fn restored_login_is_bound_to_its_account_and_cancel_discards_late_results() {
-        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
         let root =
             std::env::temp_dir().join(format!("navifast-restore-{:016x}", rand::random::<u64>()));
-        let mut app = App::new(
-            &cc,
+        let mut app = App::with_host(
             crate::paths::AppDirs {
                 config: root.join("config"),
                 state: root.join("state"),
@@ -1479,6 +1303,7 @@ mod tests {
             },
             None,
             true,
+            Arc::new(|| {}),
         );
         assert!(!app.connecting, "demo never restores a real credential");
         app.login.server = "https://edited-preferences.example.com".into();
@@ -1525,111 +1350,5 @@ mod tests {
         player.select(0, 0.0, false);
         assert_ne!(player.media_uri(1), player.media_uri(2));
         assert_eq!(player.media_uri(2).as_deref(), Some("navidrome:track:2:a"));
-    }
-
-    #[test]
-    fn login_fields_stay_vertical_and_inside_narrow_and_normal_windows() {
-        fn texts(shape: &egui::epaint::Shape, out: &mut Vec<(String, egui::Rect)>) {
-            match shape {
-                egui::epaint::Shape::Text(text) => out.push((
-                    text.galley.job.text.clone(),
-                    text.galley.rect.translate(text.pos.to_vec2()),
-                )),
-                egui::epaint::Shape::Vec(shapes) => {
-                    shapes.iter().for_each(|shape| texts(shape, out));
-                }
-                _ => {}
-            }
-        }
-        let cc = eframe::CreationContext::_new_kittest(egui::Context::default());
-        let root = std::env::temp_dir().join(format!(
-            "navifast-login-layout-{:016x}",
-            rand::random::<u64>()
-        ));
-        let mut app = App::new(
-            &cc,
-            crate::paths::AppDirs {
-                config: root.join("config"),
-                state: root.join("state"),
-                cache: root.join("cache"),
-            },
-            None,
-            true,
-        );
-        for width in [760.0, 1280.0] {
-            for _ in 0..2 {
-                let mut output = cc.egui_ctx.run_ui(
-                    egui::RawInput {
-                        screen_rect: Some(egui::Rect::from_min_size(
-                            egui::Pos2::ZERO,
-                            egui::vec2(width, 800.0),
-                        )),
-                        ..Default::default()
-                    },
-                    |ui| {
-                        app.draw(ui);
-                    },
-                );
-                output.textures_delta.clear();
-                let mut drawn = Vec::new();
-                for shape in &output.shapes {
-                    texts(&shape.shape, &mut drawn);
-                }
-                let fields: Vec<_> = ["Server URL", "Username", "Password"]
-                    .iter()
-                    .map(|label| {
-                        drawn
-                            .iter()
-                            .find(|(text, _)| text == label)
-                            .map(|(_, rect)| *rect)
-                            .expect("login field label is visible")
-                    })
-                    .collect();
-                assert!(fields[0].bottom() < fields[1].top());
-                assert!(fields[1].bottom() < fields[2].top());
-                assert!(fields.iter().all(|rect| {
-                    rect.left() >= 0.0 && rect.right() <= width && rect.bottom() < 800.0
-                }));
-            }
-        }
-        let title = "A long song title that must leave room for its duration";
-        app.connected = true;
-        app.album = Some(Album {
-            name: "Layout fixture".into(),
-            song: vec![Song {
-                title: title.into(),
-                duration: 217.0,
-                ..Default::default()
-            }],
-            ..Default::default()
-        });
-        app.presentation.history = vec![crate::model::Page::Album(String::new())];
-        for width in [760.0, 1280.0] {
-            for _ in 0..2 {
-                let mut output = cc.egui_ctx.run_ui(
-                    egui::RawInput {
-                        screen_rect: Some(egui::Rect::from_min_size(
-                            egui::Pos2::ZERO,
-                            egui::vec2(width, 800.0),
-                        )),
-                        ..Default::default()
-                    },
-                    |ui| {
-                        app.draw(ui);
-                    },
-                );
-                output.textures_delta.clear();
-                let mut drawn = Vec::new();
-                for shape in &output.shapes {
-                    texts(&shape.shape, &mut drawn);
-                }
-                let duration = drawn.iter().find(|(text, _)| text == "3:37").unwrap().1;
-                let name = drawn.iter().find(|(text, _)| text == title).unwrap().1;
-                assert!(duration.right() > width - 80.0);
-                assert!(name.right() < duration.left());
-            }
-        }
-        drop(app);
-        let _ = std::fs::remove_dir_all(root);
     }
 }

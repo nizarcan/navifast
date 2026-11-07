@@ -21,9 +21,6 @@ collections:
   reference:
     output: true
     permalink: "/:name/"
-  legacy:
-    output: true
-    permalink: "/:name/"
 
 defaults:
   - scope:

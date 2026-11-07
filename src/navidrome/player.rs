@@ -192,7 +192,7 @@ fn output_loop(
                         Err(_) => {
                             notify(Event::Failed {
                                 generation,
-                                message: crate::sink::NO_DEVICE.into(),
+                            message: "No audio output device was found. Connect or enable one, then press play again.".into(),
                             });
                             continue;
                         }

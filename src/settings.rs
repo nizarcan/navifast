@@ -4,9 +4,6 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-/// Local Library identity only. Never sent to Spotify as a context URI.
-pub const LIKED_SONGS_KEY: &str = "navifast:liked-songs";
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LibraryShelf {
@@ -47,26 +44,6 @@ pub enum ThemeChoice {
     System,
 }
 
-/// Whether a Home shelf is drawn. Hidden shelves still refresh normally.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct HomeShelfSettings {
-    pub visible: bool,
-}
-
-impl Default for HomeShelfSettings {
-    fn default() -> Self {
-        Self { visible: true }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct HomeSettings {
-    pub made_for_you: HomeShelfSettings,
-    pub recommendations: HomeShelfSettings,
-}
-
 /// What moves behind the player bar's controls.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -85,27 +62,6 @@ impl PlayerBarVis {
             Self::Off => Self::Spectrum,
             Self::Spectrum => Self::Waveform,
             Self::Waveform => Self::Off,
-        }
-    }
-}
-
-/// Mini-player visualizer mode.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum VisMode {
-    #[default]
-    Bars,
-    Scope,
-    Off,
-}
-
-impl VisMode {
-    /// Next mode in the display's click cycle.
-    pub fn next(self) -> Self {
-        match self {
-            Self::Bars => Self::Scope,
-            Self::Scope => Self::Off,
-            Self::Off => Self::Bars,
         }
     }
 }
@@ -223,23 +179,6 @@ fn proxy_mode_is_system(mode: &ProxyMode) -> bool {
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
-    /// The Spotify Connect name other devices see.
-    pub device_name: String,
-    /// 96, 160, or 320 kbps.
-    pub bitrate: u16,
-    pub normalisation: bool,
-    pub autoplay: bool,
-    pub gapless: bool,
-    /// librespot backend name; `None` picks the platform default.
-    pub audio_backend: Option<String>,
-    pub audio_device: Option<String>,
-    /// Windows output buffer in milliseconds. Smaller values may click under
-    /// load; larger values delay playback controls.
-    /// See [`crate::sink::DEFAULT_BUFFER_MS`].
-    #[serde(default = "default_buffer_ms")]
-    pub audio_buffer_ms: u32,
-    pub audio_cache: bool,
-    pub audio_cache_mb: u64,
     pub theme: ThemeChoice,
     /// The interface language; older files without it follow the system.
     pub language: LanguageChoice,
@@ -259,7 +198,6 @@ pub struct Settings {
         skip_serializing_if = "Option::is_none"
     )]
     pub system_theme_cache: Option<crate::theme::CustomTheme>,
-    pub home: HomeSettings,
     /// Tint the interface with the colour of the playing album's art.
     pub accent_from_art: bool,
     /// A spectrum or waveform of the playing song behind the player bar.
@@ -275,8 +213,6 @@ pub struct Settings {
     /// Show the Library as responsive cover cards instead of rows.
     pub sidebar_grid: bool,
     pub sidebar_width: f32,
-    pub lyrics_width: f32,
-    pub queue_width: f32,
     /// Use compact single-line rows without cover art in track lists.
     pub tracklist_compact: bool,
     /// Linux: middle-click a list to autoscroll it. Off by default, because
@@ -284,59 +220,13 @@ pub struct Settings {
     /// Windows always autoscrolls and macOS never does.
     pub middle_click_autoscroll: bool,
     pub search_history: Vec<String>,
-    pub show_shortcut_hints: bool,
-    /// An optional personal Spotify Web API application id. The shared
-    /// application remains active for coverage when this is present.
-    pub web_client_id: Option<String>,
-    /// Legacy reminder time, retained for older Navifast versions.
-    pub personal_app_nudge_at: Option<String>,
-    /// The listener has dismissed or followed the personal-app introduction.
-    pub personal_app_intro_seen: bool,
-    /// Local playback has been authorized at least once on this machine, so
-    /// the app can resume it silently instead of prompting.
-    pub playback_authorized: bool,
-    /// Closing the window hides to the tray and keeps the music playing.
-    pub keep_playing_in_background: bool,
     /// Ask GitHub once a day whether a newer release exists.
     pub check_for_updates: bool,
-    pub download_updates_automatically: bool,
-    /// Context URIs and the local Liked Songs key, in pin order.
-    pub pinned_contexts: Vec<String>,
-    /// Older settings keep Liked Songs first until it is moved or unpinned.
-    pub liked_songs_pinned: bool,
-    /// The sidebar's own playlist order, set by dragging rows. Kept while
-    /// another sort is selected; empty means no saved local arrangement.
-    pub sidebar_order: Vec<String>,
     /// Explicit order per Library shelf. Missing shelves keep their previous
     /// behaviour; selecting another order never deletes the local arrangement.
     pub library_sort: std::collections::BTreeMap<LibraryShelf, LibrarySort>,
-    /// Interface zoom, egui's zoom factor; Ctrl+plus/minus changes it.
+    /// Interface zoom; Ctrl+plus/minus changes it.
     pub zoom: f32,
-    /// The Winamp window is open.
-    pub winamp_window: bool,
-    /// Windows and X11: keep a taskbar button while the Winamp window is visible.
-    pub winamp_show_taskbar: bool,
-    /// Windows: draw Navifast's own title bar and window buttons instead of
-    /// the standard Windows frame.
-    pub custom_titlebar: bool,
-    /// Skin file or folder name. `None` selects the built-in skin.
-    pub skin: Option<String>,
-    /// Pick a different skin each time the mini player opens; `skin` holds
-    /// the one picked.
-    pub random_skin: bool,
-    /// Screen pixels per skin pixel; `None` picks double size for the
-    /// display.
-    pub skin_scale: Option<u8>,
-    /// The Winamp window stays above other windows.
-    pub winamp_on_top: bool,
-    /// The mini player's visualiser: bars, scope, or off.
-    pub vis: VisMode,
-    /// The playlist window is open under the mini player.
-    pub playlist_open: bool,
-    /// How tall the playlist window is, in skin pixels.
-    pub playlist_height: u32,
-    /// The equalizer window is open under the mini player.
-    pub eq_open: bool,
     /// The equalizer shapes local playback.
     pub eq_on: bool,
     /// The preamp, in decibels, never above zero.
@@ -347,27 +237,6 @@ pub struct Settings {
     pub balance: f32,
     /// Play both channels the same.
     pub mono: bool,
-    /// The playlist window is rolled up to its title bar.
-    pub playlist_shaded: bool,
-    /// The equalizer window is rolled up to its title bar.
-    pub eq_shaded: bool,
-    /// The main window is rolled up to its title bar.
-    pub winamp_shaded: bool,
-    /// The MilkDrop window is open (its own window, not part of the skin).
-    pub milkdrop_open: bool,
-    /// How long each preset plays before the next, in seconds.
-    pub milkdrop_seconds: u32,
-    /// How many frames a second the MilkDrop window draws; 0 is uncapped.
-    pub milkdrop_fps: u32,
-    /// Last reported MilkDrop screen refresh rate. The first value sets the
-    /// default frame rate; this field is not directly configurable.
-    pub milkdrop_screen_hz: u32,
-    /// The picture's inner resolution: 1 full, 2 half, 4 quarter.
-    pub milkdrop_scale: u32,
-    /// The MilkDrop window fills the screen.
-    pub milkdrop_fullscreen: bool,
-    /// The MilkDrop window's size in logical points, when not full-screen.
-    pub milkdrop_size: [f32; 2],
     /// Which proxy to use. Older files without this field stay on `system`.
     #[serde(default, skip_serializing_if = "proxy_mode_is_system")]
     pub proxy_mode: ProxyMode,
@@ -393,6 +262,9 @@ pub struct Settings {
     /// succeeds. This flag is only in memory and is never persisted.
     #[serde(skip)]
     pub proxy_password_legacy: bool,
+    /// Retain historical preferences without compiling their retired features.
+    #[serde(flatten)]
+    pub retained: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl std::fmt::Debug for Settings {
@@ -402,6 +274,9 @@ impl std::fmt::Debug for Settings {
         let mut preferences = serde_json::to_value(self).map_err(|_| std::fmt::Error)?;
         if let Some(fields) = preferences.as_object_mut() {
             fields.remove("proxy_username");
+            for key in self.retained.keys() {
+                fields.remove(key);
+            }
         }
         f.debug_struct("Settings")
             .field("preferences", &preferences)
@@ -412,22 +287,12 @@ impl std::fmt::Debug for Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            device_name: "Navifast".to_string(),
-            bitrate: 320,
-            normalisation: false,
-            autoplay: true,
-            gapless: true,
-            audio_backend: None,
-            audio_device: None,
-            audio_buffer_ms: default_buffer_ms(),
-            audio_cache: true,
-            audio_cache_mb: 1024,
+            retained: Default::default(),
             theme: ThemeChoice::System,
             language: LanguageChoice::System,
             custom_theme: None,
             custom_theme_cache: None,
             system_theme_cache: None,
-            home: HomeSettings::default(),
             accent_from_art: true,
             player_bar_vis: PlayerBarVis::Off,
             volume: (u16::MAX as u32 * 70 / 100) as u16,
@@ -436,50 +301,17 @@ impl Default for Settings {
             sidebar_compact: false,
             sidebar_grid: false,
             sidebar_width: 250.0,
-            lyrics_width: 360.0,
-            queue_width: 360.0,
             tracklist_compact: false,
             middle_click_autoscroll: false,
             search_history: Vec::new(),
-            show_shortcut_hints: true,
-            web_client_id: None,
-            personal_app_nudge_at: None,
-            personal_app_intro_seen: false,
-            playback_authorized: false,
-            keep_playing_in_background: true,
             check_for_updates: true,
-            download_updates_automatically: false,
-            pinned_contexts: Vec::new(),
-            liked_songs_pinned: true,
-            sidebar_order: Vec::new(),
             library_sort: std::collections::BTreeMap::new(),
             zoom: 1.0,
-            winamp_window: false,
-            winamp_show_taskbar: true,
-            custom_titlebar: false,
-            skin: None,
-            random_skin: false,
-            skin_scale: None,
-            winamp_on_top: false,
-            vis: VisMode::default(),
-            playlist_open: false,
-            playlist_height: 174,
-            eq_open: false,
             eq_on: false,
             eq_preamp_db: 0.0,
             eq_bands_db: [0.0; 10],
             balance: 0.0,
             mono: false,
-            playlist_shaded: false,
-            eq_shaded: false,
-            winamp_shaded: false,
-            milkdrop_open: false,
-            milkdrop_seconds: crate::milkdrop::DEFAULT_SECONDS,
-            milkdrop_fps: crate::milkdrop::DEFAULT_FPS,
-            milkdrop_screen_hz: 0,
-            milkdrop_scale: 1,
-            milkdrop_fullscreen: false,
-            milkdrop_size: crate::milkdrop::DEFAULT_SIZE,
             proxy_mode: ProxyMode::System,
             proxy: String::new(),
             proxy_host: String::new(),
@@ -489,10 +321,6 @@ impl Default for Settings {
             proxy_password_legacy: false,
         }
     }
-}
-
-fn default_buffer_ms() -> u32 {
-    crate::sink::DEFAULT_BUFFER_MS
 }
 
 impl Settings {
@@ -523,26 +351,6 @@ impl Settings {
         Ok(manual.password_record())
     }
 
-    pub(crate) fn restore_proxy_password(
-        &mut self,
-        saved: &crate::credentials::ProxyPassword,
-    ) -> bool {
-        let Ok(mut manual) = ManualProxy::parse(
-            ManualKind::Http,
-            &self.proxy_host,
-            &self.proxy_port,
-            &self.proxy_username,
-            "",
-        ) else {
-            return false;
-        };
-        if !manual.restore_password(saved) {
-            return false;
-        }
-        self.proxy_password = manual.password;
-        true
-    }
-
     pub fn proxy_preferences(&self) -> ProxyPreferences {
         ProxyPreferences {
             mode: self.proxy_mode,
@@ -550,16 +358,6 @@ impl Settings {
             port: self.proxy_port.clone(),
             username: self.proxy_username.clone(),
         }
-    }
-
-    pub fn library_pins(&self) -> Vec<String> {
-        let mut pins = self.pinned_contexts.clone();
-        if !self.liked_songs_pinned {
-            pins.retain(|key| key != LIKED_SONGS_KEY);
-        } else if !pins.iter().any(|key| key == LIKED_SONGS_KEY) {
-            pins.insert(0, LIKED_SONGS_KEY.into());
-        }
-        pins
     }
 
     pub fn load(path: &Path) -> Self {
@@ -573,18 +371,6 @@ impl Settings {
                     Self::default()
                 });
                 settings.migrate_proxy(text);
-                if settings.device_name == "Fastpotify" {
-                    settings.device_name = "Navifast".into();
-                }
-                for key in settings
-                    .pinned_contexts
-                    .iter_mut()
-                    .chain(settings.sidebar_order.iter_mut())
-                {
-                    if key == "fastpotify:liked-songs" {
-                        *key = LIKED_SONGS_KEY.into();
-                    }
-                }
                 settings.proxy_password_legacy = !settings.proxy_password.is_empty();
                 settings
             }
@@ -596,9 +382,7 @@ impl Settings {
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let text = match self
-            .encode_for_profile(path == crate::paths::AppDirs::legacy().settings_file())
-        {
+        let text = match self.encode() {
             Ok(text) => text,
             Err(error) => {
                 log::warn!("unable to encode settings: {error}");
@@ -613,33 +397,8 @@ impl Settings {
         }
     }
 
-    fn encode_for_profile(&self, legacy: bool) -> serde_json::Result<String> {
-        if !legacy {
-            return serde_json::to_string_pretty(self);
-        }
-        // A trial launch can still roll back to a client that only recognizes
-        // the previous local key. Keep its on-disk spelling until migration.
-        let mut saved = self.clone();
-        for key in saved
-            .pinned_contexts
-            .iter_mut()
-            .chain(saved.sidebar_order.iter_mut())
-        {
-            if key == LIKED_SONGS_KEY {
-                *key = "fastpotify:liked-songs".into();
-            }
-        }
-        serde_json::to_string_pretty(&saved)
-    }
-
-    pub fn platform_backend(&self) -> Option<String> {
-        self.audio_backend.clone().or_else(|| {
-            if cfg!(target_os = "linux") {
-                Some("pulseaudio".to_string())
-            } else {
-                None
-            }
-        })
+    fn encode(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self)
     }
 
     pub fn remember_search(&mut self, query: &str) {
@@ -780,59 +539,6 @@ pub enum ProxyConfig {
     Socks(ManualProxy),
 }
 
-impl ProxyConfig {
-    pub(crate) fn password_record(&self) -> Option<crate::credentials::ProxyPassword> {
-        match self {
-            Self::Http(manual) | Self::Socks(manual) => manual.password_record(),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn restore_password(&mut self, saved: &crate::credentials::ProxyPassword) -> bool {
-        match self {
-            Self::Http(manual) | Self::Socks(manual) => manual.restore_password(saved),
-            _ => false,
-        }
-    }
-
-    /// Librespot's CONNECT client only understands unauthenticated,
-    /// plaintext HTTP proxies. Never give it a credential-bearing URL: the
-    /// upstream client logs that URL at info level and does not send proxy
-    /// authentication in either of its HTTP paths.
-    pub fn librespot_url(&self) -> Option<reqwest::Url> {
-        match self {
-            Self::Http(manual) => manual.librespot_url(),
-            Self::System => system_http_proxy(),
-            Self::Invalid(_) | Self::Off | Self::Socks(_) => None,
-        }
-    }
-}
-
-/// The HTTP proxy System mode would hand librespot, if it can resolve one.
-/// SOCKS system proxies are ignored: the engine cannot use them.
-fn system_http_proxy() -> Option<reqwest::Url> {
-    let matcher = hyper_util::client::proxy::matcher::Matcher::from_system();
-    let dest = http::Uri::from_static("https://apresolve.spotify.com");
-    let intercept = matcher.intercept(&dest)?;
-    librespot_system_proxy(&intercept)
-}
-
-fn librespot_system_proxy(
-    intercept: &hyper_util::client::proxy::matcher::Intercept,
-) -> Option<reqwest::Url> {
-    if intercept.basic_auth().is_some() || intercept.raw_auth().is_some() {
-        return None;
-    }
-    http_proxy_from_uri(intercept.uri())
-}
-
-fn http_proxy_from_uri(uri: &http::Uri) -> Option<reqwest::Url> {
-    match uri.scheme_str() {
-        Some("http") => reqwest::Url::parse(&uri.to_string()).ok(),
-        _ => None,
-    }
-}
-
 #[derive(Clone, Copy)]
 enum ManualKind {
     Http,
@@ -868,17 +574,6 @@ impl ManualProxy {
         })
     }
 
-    fn restore_password(&mut self, saved: &crate::credentials::ProxyPassword) -> bool {
-        if self.endpoint.host_str() != Some(saved.host.as_str())
-            || self.endpoint.port() != Some(saved.port)
-            || self.username != saved.username
-        {
-            return false;
-        }
-        self.password.clone_from(&saved.password);
-        true
-    }
-
     fn parse(
         kind: ManualKind,
         host: &str,
@@ -895,7 +590,7 @@ impl ManualProxy {
         };
         let scheme = match kind {
             ManualKind::Http => "http",
-            // Resolve Spotify hostnames at the proxy, so SOCKS mode does not
+            // Resolve server hostnames at the proxy, so SOCKS mode does not
             // leak DNS queries or fail behind a proxy-only network.
             ManualKind::Socks => "socks5h",
         };
@@ -918,10 +613,6 @@ impl ManualProxy {
         Ok(proxy)
     }
 
-    fn librespot_url(&self) -> Option<reqwest::Url> {
-        (self.username.is_empty() && self.password.is_empty()).then(|| self.endpoint.clone())
-    }
-
     /// The credential-free endpoint, for logs and the debugger.
     pub fn redacted(&self) -> reqwest::Url {
         self.endpoint.clone()
@@ -930,25 +621,22 @@ impl ManualProxy {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn trial_launch_writes_keys_the_previous_release_can_still_read() {
-        let settings = super::Settings {
-            pinned_contexts: vec![super::LIKED_SONGS_KEY.into(), "spotify:playlist:one".into()],
-            sidebar_order: vec![super::LIKED_SONGS_KEY.into()],
-            ..Default::default()
-        };
-        for (legacy, key) in [
-            (true, "fastpotify:liked-songs"),
-            (false, super::LIKED_SONGS_KEY),
-        ] {
-            let saved: super::Settings =
-                serde_json::from_str(&settings.encode_for_profile(legacy).unwrap()).unwrap();
-            assert_eq!(saved.pinned_contexts, [key, "spotify:playlist:one"]);
-            assert_eq!(saved.sidebar_order, [key]);
-        }
-        assert_eq!(settings.pinned_contexts[0], super::LIKED_SONGS_KEY);
-    }
     use super::Settings;
+
+    #[test]
+    fn historical_preferences_round_trip_without_recreating_retired_defaults() {
+        let original = serde_json::json!({"volume": 12345, "home": {"made_for_you": {"visible": false}}, "skin": "custom.wsz", "audio_cache_mb": 777, "pinned_contexts": ["spotify:playlist:one"]});
+        let settings: super::Settings = serde_json::from_value(original.clone()).unwrap();
+        let saved = serde_json::to_value(&settings).unwrap();
+        for (key, value) in original.as_object().unwrap() {
+            assert_eq!(&saved[key], value);
+        }
+        let defaults = serde_json::to_value(super::Settings::default()).unwrap();
+        for key in ["home", "skin", "audio_cache_mb", "pinned_contexts"] {
+            assert!(defaults.get(key).is_none());
+        }
+        assert!(!format!("{settings:?}").contains("spotify:playlist"));
+    }
 
     #[test]
     fn new_profiles_follow_the_system_and_saved_choices_are_preserved() {
@@ -1035,7 +723,7 @@ mod tests {
         assert!(settings.custom_theme.is_none() && settings.custom_theme_cache.is_none());
         settings.custom_theme = Some("gruvbox.json".into());
         let mut palette = crate::theme::Palette::light();
-        palette.shadow = egui::Color32::from_rgba_unmultiplied(37, 128, 249, 117);
+        palette.shadow = crate::color::Srgba::from_rgba_unmultiplied(37, 128, 249, 117);
         settings.custom_theme_cache = Some(crate::theme::CustomTheme {
             filename: "gruvbox.json".into(),
             palette,
@@ -1050,35 +738,8 @@ mod tests {
         damaged["audio_cache_mb"] = 777.into();
         let recovered: Settings = serde_json::from_value(damaged).unwrap();
         assert_eq!(recovered.custom_theme.as_deref(), Some("gruvbox.json"));
-        assert_eq!(recovered.audio_cache_mb, 777);
+        assert_eq!(recovered.retained["audio_cache_mb"], 777);
         assert!(recovered.custom_theme_cache.is_none());
-    }
-
-    #[test]
-    fn partial_home_preferences_keep_defaults_and_survive_a_settings_round_trip() {
-        for (home, made_for_you, recommendations) in [
-            ("{}", true, true),
-            (r#"{"made_for_you":{"visible":false}}"#, false, true),
-            (r#"{"recommendations":{"visible":false}}"#, true, false),
-            (
-                r#"{"made_for_you":{"visible":false},"recommendations":{"visible":false}}"#,
-                false,
-                false,
-            ),
-        ] {
-            let settings: Settings =
-                serde_json::from_str(&format!(r#"{{"volume":12345,"home":{home}}}"#)).unwrap();
-            assert_eq!(settings.home.made_for_you.visible, made_for_you);
-            assert_eq!(settings.home.recommendations.visible, recommendations);
-            assert_eq!(settings.volume, 12345);
-            let restored: Settings =
-                serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
-            assert_eq!(restored, settings);
-        }
-        let old: Settings = serde_json::from_str(r#"{"volume":12345}"#).unwrap();
-        assert!(old.home.made_for_you.visible);
-        assert!(old.home.recommendations.visible);
-        assert_eq!(old.volume, 12345);
     }
 
     /// Notepad and Windows PowerShell can save UTF-8 with a byte order mark.
@@ -1097,69 +758,13 @@ mod tests {
         let settings = Settings::load(&path);
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(settings.volume, 12345);
-        assert!(!settings.home.made_for_you.visible);
+        assert_eq!(settings.retained["home"]["made_for_you"]["visible"], false);
     }
 
     #[test]
     fn older_settings_keep_the_sidebar_visible() {
         let settings: Settings = serde_json::from_str("{}").unwrap();
         assert!(settings.sidebar_visible);
-    }
-
-    #[test]
-    fn older_library_settings_keep_liked_songs_ahead_of_existing_pins() {
-        let settings: Settings = serde_json::from_str(
-            r#"{"pinned_contexts":["spotify:playlist:one"],"sidebar_order":["spotify:playlist:two"]}"#,
-        ).unwrap();
-        assert!(settings.liked_songs_pinned);
-        assert_eq!(
-            settings.library_pins(),
-            [super::LIKED_SONGS_KEY, "spotify:playlist:one"]
-        );
-        assert_eq!(settings.sidebar_order, ["spotify:playlist:two"]);
-    }
-
-    #[test]
-    fn older_settings_keep_the_winamp_window_closed_and_the_built_in_skin() {
-        let settings: Settings = serde_json::from_str(r#"{"zoom": 1.2}"#).unwrap();
-        assert!(!settings.winamp_window);
-        assert!(settings.winamp_show_taskbar);
-        assert_eq!(settings.skin, None);
-        assert_eq!(settings.skin_scale, None);
-        assert!(!settings.winamp_on_top);
-        assert_eq!(settings.vis, super::VisMode::Bars);
-        assert!(!settings.playlist_open);
-        assert_eq!(settings.playlist_height, 174);
-        assert!(!settings.eq_on);
-        assert_eq!(settings.eq_bands_db, [0.0; 10]);
-        assert_eq!(settings.balance, 0.0);
-        assert!(!settings.mono);
-        assert!(!settings.playlist_shaded);
-        assert!(!settings.eq_shaded);
-        assert!(!settings.winamp_shaded);
-    }
-
-    #[test]
-    fn the_visualiser_cycles_bars_scope_off() {
-        use super::VisMode;
-        assert_eq!(VisMode::Bars.next(), VisMode::Scope);
-        assert_eq!(VisMode::Scope.next(), VisMode::Off);
-        assert_eq!(VisMode::Off.next(), VisMode::Bars);
-        let settings: Settings = serde_json::from_str(r#"{"vis": "scope"}"#).unwrap();
-        assert_eq!(settings.vis, VisMode::Scope);
-    }
-
-    #[test]
-    fn a_chosen_skin_round_trips() {
-        let settings = Settings {
-            winamp_window: true,
-            skin: Some("Zaxon.wsz".into()),
-            skin_scale: Some(3),
-            ..Settings::default()
-        };
-        let json = serde_json::to_string(&settings).unwrap();
-        let restored: Settings = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored, settings);
     }
 
     #[test]
@@ -1243,13 +848,6 @@ mod tests {
     }
 
     #[test]
-    fn older_settings_keep_the_chosen_skin() {
-        let settings: Settings = serde_json::from_str(r#"{"skin":"A.wsz"}"#).unwrap();
-        assert!(!settings.random_skin);
-        assert_eq!(settings.skin.as_deref(), Some("A.wsz"));
-    }
-
-    #[test]
     fn middle_click_autoscroll_is_opt_in_and_round_trips() {
         let settings: Settings = serde_json::from_str("{}").unwrap();
         assert!(!settings.middle_click_autoscroll);
@@ -1322,27 +920,12 @@ mod tests {
             ..Default::default()
         };
         let password = original.proxy_password_record().unwrap().unwrap();
-        let mut restored = original.clone();
-        restored.proxy_password.clear();
-        assert!(restored.restore_proxy_password(&password));
-        assert_eq!(restored.proxy_password, original.proxy_password);
-        for (host, port, username) in [
-            ("other.invalid", "8080", "dummy-user"),
-            ("127.0.0.1", "8081", "dummy-user"),
-            ("127.0.0.1", "8080", "other-user"),
-        ] {
-            let mut changed = Settings {
-                proxy_host: host.into(),
-                proxy_port: port.into(),
-                proxy_username: username.into(),
-                ..restored.clone()
-            };
-            changed.proxy_password.clear();
-            assert!(!changed.restore_proxy_password(&password));
-            assert!(changed.proxy_password.is_empty());
-        }
+        assert_eq!(password.host, "127.0.0.1");
+        assert_eq!(password.port, 8080);
+        assert_eq!(password.username, "dummy-user");
+        assert_eq!(password.password, original.proxy_password);
         assert!(
-            !serde_json::to_string(&restored)
+            !serde_json::to_string(&original)
                 .unwrap()
                 .contains("dummy-private-password")
         );
@@ -1396,29 +979,12 @@ mod tests {
         let http = super::ManualProxy::parse(super::ManualKind::Http, "127.0.0.1", "7890", "", "")
             .unwrap();
         assert_eq!(http.redacted().as_str(), "http://127.0.0.1:7890/");
-        assert!(
-            super::ProxyConfig::Http(http.clone())
-                .librespot_url()
-                .is_some()
-        );
 
         let socks =
             super::ManualProxy::parse(super::ManualKind::Socks, "127.0.0.1", "1080", "", "")
                 .unwrap();
         assert_eq!(socks.redacted().scheme(), "socks5h");
         assert_eq!(socks.redacted().port(), Some(1080));
-        assert_eq!(super::ProxyConfig::Socks(socks).librespot_url(), None);
-    }
-
-    #[test]
-    fn engine_only_accepts_plain_http_proxy_urls() {
-        assert_eq!(super::ProxyConfig::Off.librespot_url(), None);
-        let http_uri: http::Uri = "http://127.0.0.1:8080".parse().unwrap();
-        let https_uri: http::Uri = "https://127.0.0.1:8080".parse().unwrap();
-        let socks_uri: http::Uri = "socks5://127.0.0.1:1080".parse().unwrap();
-        assert!(super::http_proxy_from_uri(&http_uri).is_some());
-        assert!(super::http_proxy_from_uri(&https_uri).is_none());
-        assert!(super::http_proxy_from_uri(&socks_uri).is_none());
     }
 
     #[test]
@@ -1436,29 +1002,9 @@ mod tests {
         assert_eq!(redacted.password(), None);
         assert_eq!(proxy.username, "alice/name");
         assert_eq!(proxy.password, " secret/with spaces ");
-        assert_eq!(
-            super::ProxyConfig::Http(proxy.clone()).librespot_url(),
-            None
-        );
         let debug = format!("{proxy:?}");
         assert!(!debug.contains("alice"));
         assert!(!debug.contains("secret"));
-    }
-
-    #[test]
-    fn system_proxy_authentication_and_tls_endpoints_stay_out_of_librespot() {
-        let authenticated = hyper_util::client::proxy::matcher::Matcher::builder()
-            .all("http://alice:secret@127.0.0.1:8080")
-            .build();
-        let destination = http::Uri::from_static("https://apresolve.spotify.com");
-        let intercept = authenticated.intercept(&destination).unwrap();
-        assert!(super::librespot_system_proxy(&intercept).is_none());
-
-        let tls = hyper_util::client::proxy::matcher::Matcher::builder()
-            .all("https://127.0.0.1:8080")
-            .build();
-        let intercept = tls.intercept(&destination).unwrap();
-        assert!(super::librespot_system_proxy(&intercept).is_none());
     }
 
     #[test]
@@ -1496,91 +1042,16 @@ mod tests {
         super::ManualProxy::parse(super::ManualKind::Http, "localhost", "8080", "", "").unwrap();
         super::ManualProxy::parse(super::ManualKind::Http, "::1", "8080", "", "").unwrap();
     }
-
-    #[test]
-    fn personal_app_nudge_time_is_backward_compatible_and_round_trips() {
-        let older: Settings = serde_json::from_str("{}").unwrap();
-        assert_eq!(older.personal_app_nudge_at, None);
-        assert!(!older.personal_app_intro_seen);
-
-        let settings = Settings {
-            personal_app_nudge_at: Some("2026-09-03T15:00:00Z".into()),
-            personal_app_intro_seen: true,
-            ..Settings::default()
-        };
-        let json = serde_json::to_string(&settings).unwrap();
-        let restored: Settings = serde_json::from_str(&json).unwrap();
-        assert_eq!(
-            restored.personal_app_nudge_at,
-            settings.personal_app_nudge_at
-        );
-        assert!(restored.personal_app_intro_seen);
-    }
 }
 
-/// The last playlist tree received for one account.
-///
-/// Only folder order is cached. Edit grants must always come from the live
-/// session because they can be revoked.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CachedRootlist {
-    pub account_id: String,
-    pub entries: Vec<crate::player::RootlistEntry>,
-}
-
-/// Restorable UI session: what was open when the app last closed.
+/// Table preferences retained in the existing session file.
+/// Unknown historical fields round-trip without retaining obsolete service models.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SessionState {
-    pub last_page: Option<String>,
-    /// Context URIs most recently played, newest first.
-    pub recent_contexts: Vec<String>,
-    /// What was playing when the app closed, to resume from a cold start.
-    pub last_context: Option<String>,
-    pub last_track: Option<String>,
-    pub last_position_ms: u32,
-    /// Manually queued songs to restore with the remembered track.
-    ///
-    /// Context rows are excluded to prevent duplicates. This replaced the old
-    /// `last_queue` field, so sessions using that field restore no added rows.
-    pub last_added_queue: Vec<String>,
-    /// Queue rows displayed on the next start. Playback restores manual rows
-    /// from `last_added_queue`; it does not enqueue this list.
-    pub last_queue_rows: Vec<crate::api::models::PlayableItem>,
-    /// Sidebar folders rolled up, by their rootlist ids.
-    pub collapsed_folders: Vec<String>,
-    /// Last good playlist tree, scoped to the account that supplied it.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rootlist: Option<CachedRootlist>,
-    /// Shuffle mode saved across contexts and restarts.
-    pub shuffle_on: bool,
-    /// Each table's chosen sort, by encoded page, restored at start.
     pub sorts: Vec<(String, crate::model::TableSort)>,
-    /// Last window inner size, to restore on next launch.
-    pub window_size: Option<[f32; 2]>,
-    /// Last window outer position, to restore on next launch.
-    pub window_pos: Option<[f32; 2]>,
-    /// Whether the queue panel was open.
-    pub queue_open: Option<bool>,
-    /// Which tab the queue panel showed: `queue` or `recents`.
-    pub queue_tab: Option<String>,
-    /// Last outer position of the Winamp window.
-    pub winamp_pos: Option<[f32; 2]>,
-    /// Last outer position of the MilkDrop window.
-    pub milkdrop_pos: Option<[f32; 2]>,
-    /// The window mode fullscreen lyrics left, when the app closed while
-    /// showing them. eframe restores the window full screen, so the next
-    /// start returns it to this mode instead.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lyrics_fullscreen_from: Option<WindowMode>,
-}
-
-/// Whether a window was full screen, and whether it was maximized.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct WindowMode {
-    pub fullscreen: bool,
-    pub maximized: bool,
+    #[serde(flatten)]
+    pub retained: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl SessionState {
@@ -1613,35 +1084,18 @@ impl SessionState {
 
 #[cfg(test)]
 mod session_tests {
-    use super::{CachedRootlist, SessionState};
-    use crate::player::RootlistEntry;
+    use super::SessionState;
 
     #[test]
-    fn old_sessions_without_a_playlist_tree_remain_readable() {
-        let state: SessionState = serde_json::from_str(r#"{"last_page":"home"}"#).unwrap();
-        assert_eq!(state.last_page.as_deref(), Some("home"));
-        assert_eq!(state.rootlist, None);
-    }
-
-    #[test]
-    fn the_playlist_tree_round_trips_with_its_account() {
-        let state = SessionState {
-            rootlist: Some(CachedRootlist {
-                account_id: "listener".into(),
-                entries: vec![
-                    RootlistEntry::FolderStart {
-                        id: "folder".into(),
-                        name: "Favorites".into(),
-                    },
-                    RootlistEntry::Playlist("spotify:playlist:one".into()),
-                    RootlistEntry::FolderEnd,
-                ],
-            }),
-            ..SessionState::default()
-        };
-
-        let json = serde_json::to_string(&state).unwrap();
-        assert_eq!(serde_json::from_str::<SessionState>(&json).unwrap(), state);
+    fn historical_session_fields_survive_without_service_specific_models() {
+        let original = serde_json::json!({
+            "last_page": "home", "sorts": [],
+            "rootlist": {"account_id": "listener", "entries": [{"Playlist": "old:playlist:one"}]},
+            "last_queue_rows": [{"track": {"uri": "old:track:one", "name": "Remembered"}}],
+            "window_pos": [20.0, 30.0], "winamp_pos": [40.0, 50.0]
+        });
+        let state: SessionState = serde_json::from_value(original.clone()).unwrap();
+        assert_eq!(serde_json::to_value(state).unwrap(), original);
     }
 
     #[test]
@@ -1653,17 +1107,12 @@ mod session_tests {
         ));
         let path = root.join("session.json");
         let state = |page: &str| SessionState {
-            last_page: Some(page.into()),
-            ..SessionState::default()
+            retained: [("last_page".into(), serde_json::json!(page))].into(),
+            ..Default::default()
         };
-
         state("home").save(&path);
-        state("liked").save(&path);
-
-        assert_eq!(
-            SessionState::load(&path).last_page.as_deref(),
-            Some("liked")
-        );
+        state("albums").save(&path);
+        assert_eq!(SessionState::load(&path).retained["last_page"], "albums");
         assert!(!path.with_extension("json.tmp").exists());
         let _ = std::fs::remove_dir_all(root);
     }

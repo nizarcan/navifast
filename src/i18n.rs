@@ -262,6 +262,12 @@ pub const LOCALES: &[Locale] = &[
     Locale::ChineseTraditional,
 ];
 
+/// Mark a phrase selected from a table for translation extraction.
+/// Translation still happens in the current view's locale when it is rendered.
+pub const fn mark(source: &'static str) -> &'static str {
+    source
+}
+
 /// The English source is also the fallback for untranslated messages.
 pub fn gettext(locale: Locale, source: &'static str) -> Cow<'static, str> {
     locale
@@ -389,10 +395,10 @@ mod tests {
 
     #[test]
     fn contextual_messages_do_not_leak_into_other_meanings() {
-        let source = "Follow";
-        let context = "lyrics";
-        assert_eq!(pgettext(Locale::German, context, source), "Folgen");
-        assert_eq!(pgettext(Locale::Japanese, context, source), "追従");
+        let source = "Dark";
+        let context = "theme";
+        assert_eq!(pgettext(Locale::German, context, source), "Dunkel");
+        assert_eq!(pgettext(Locale::Japanese, context, source), "ダーク");
         assert_eq!(pgettext(Locale::English, context, source), source);
         assert_eq!(pgettext(Locale::German, "no such context", source), source);
         assert_eq!(gettext(Locale::German, source), source);

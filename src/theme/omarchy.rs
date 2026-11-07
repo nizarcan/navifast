@@ -292,7 +292,7 @@ mod tests {
             fs::create_dir_all(path).unwrap();
         }
         fs::write(assets.join("navifast-theme"), HOOK).unwrap();
-        // No hook installed: installing one is fastframe-theme's job.
+        // No hook installed: first-run setup handles installation.
         upgrade(&assets, &home).unwrap();
         assert!(!hook.exists());
 

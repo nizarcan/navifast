@@ -1,4 +1,4 @@
-#![cfg(all(target_os = "linux", feature = "demo"))]
+#![cfg(all(target_os = "linux", feature = "navidrome-demo"))]
 
 use std::process::Command;
 

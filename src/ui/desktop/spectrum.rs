@@ -46,11 +46,11 @@ impl Compositor<State> for Spectrum {
         let palette = crate::ui::player_bar::vis_colours(tint, p.dark);
         let scale = slot.params[3];
         let [x, y, w, h] = slot.rect;
-        let bounds = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(w / scale, h / scale));
+        let bounds = [0., 0., w / scale, h / scale];
         let srgb = f.srgb_blend();
-        let ink = |c: egui::Color32| {
+        let ink = |c: crate::color::Srgba| {
             if srgb {
-                // Color32 already stores premultiplied sRGB, the native surface format.
+                // Srgba already stores premultiplied sRGB, the native surface format.
                 c.to_array().map(|channel| f32::from(channel) / 255.)
             } else {
                 color(c).premul(1.)
@@ -67,10 +67,10 @@ impl Compositor<State> for Spectrum {
             |rect, top, bottom| {
                 self.instances.push(Instance {
                     rect: [
-                        x + rect.left() * scale,
-                        y + rect.top() * scale,
-                        rect.width() * scale,
-                        rect.height() * scale,
+                        x + rect[0] * scale,
+                        y + rect[1] * scale,
+                        rect[2] * scale,
+                        rect[3] * scale,
                     ],
                     radii: [0.; 4],
                     fill: ink(top),

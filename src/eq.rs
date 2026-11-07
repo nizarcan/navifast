@@ -9,7 +9,8 @@
 
 use std::sync::{Arc, Mutex};
 
-use librespot_playback::{NUM_CHANNELS, SAMPLE_RATE};
+const NUM_CHANNELS: u8 = 2;
+const SAMPLE_RATE: u32 = 44_100;
 
 /// The centre frequencies, Winamp's, in hertz.
 pub const BANDS: [f32; 10] = [

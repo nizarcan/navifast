@@ -1,3 +1,5 @@
+use crate::color::Srgba;
+use crate::i18n::mark;
 use crate::{
     app::navidrome::{self, desktop::State},
     model::{Action, Page},
@@ -6,7 +8,6 @@ use crate::{
     theme::Palette,
 };
 use crate::{i18n::gettext, theme::Icon};
-use egui::Color32;
 use rune::{Color, ScrollSpec, TextStyle, col, el, row, text, text_input};
 use rune::{Cx, El, Tx};
 
@@ -17,7 +18,7 @@ mod preferences;
 pub(crate) mod spectrum;
 mod transport;
 
-fn color(c: Color32) -> Color {
+fn color(c: Srgba) -> Color {
     let [r, g, b, a] = c.to_srgba_unmultiplied().map(|x| f32::from(x) / 255.);
     Color {
         r: rune::color::srgb_decode(r),
@@ -26,7 +27,7 @@ fn color(c: Color32) -> Color {
         a,
     }
 }
-fn label(value: impl Into<String>, size: f32, weight: f32, ink: Color32) -> El {
+fn label(value: impl Into<String>, size: f32, weight: f32, ink: Srgba) -> El {
     text(value.into())
         .font(TextStyle::new(size, weight))
         .color(color(ink))
@@ -56,7 +57,7 @@ impl Paint<'_> {
     fn tr(&self, value: &'static str) -> String {
         gettext(self.s.app.presentation.locale, value).into_owned()
     }
-    fn spinner(&self, size: f32, ink: Color32) -> El {
+    fn spinner(&self, size: f32, ink: Srgba) -> El {
         let points =
             crate::theme::spinner_points(size, 0.).map(|[x, y]| [size / 2. + x, size / 2. + y]);
         let arc = rune::Shape::new().stroke(points, 2., color(ink));
@@ -74,7 +75,12 @@ impl Paint<'_> {
             .items_center()
             .role("status")
             .child(self.spinner(18., self.p.accent))
-            .child(label(self.tr("Loading…"), 13., 400., self.p.secondary))
+            .child(label(
+                self.tr(mark("Loading…")),
+                13.,
+                400.,
+                self.p.secondary,
+            ))
     }
     fn empty(&self, icon: Icon, title: &str, detail: &str) -> El {
         col()
@@ -85,7 +91,7 @@ impl Paint<'_> {
             .child(label(title, 16., 600., self.p.text).mt(14.))
             .child(label(detail, 13.5, 400., self.p.secondary).mt(8.).wrap())
     }
-    fn icon(&self, icon: Icon, size: f32, ink: Color32) -> El {
+    fn icon(&self, icon: Icon, size: f32, ink: Srgba) -> El {
         let px = (size * self.scale * self.zoom).round().max(1.) as u32;
         let mut cache = self.s.icons.borrow_mut();
         let img = cache.entry((icon, ink, px)).or_insert_with(|| {
@@ -151,7 +157,7 @@ impl Paint<'_> {
         }
         if !edit.text.is_empty() {
             pill = pill.child(
-                self.icon_button(&self.tr("Clear"), Icon::X, 15., clear)
+                self.icon_button(&self.tr(mark("Clear")), Icon::X, 15., clear)
                     .key(format!("clear-{key}"))
                     .size(24., 24.)
                     .pin(None, Some(5.), Some(5.), None),
@@ -173,7 +179,7 @@ impl Paint<'_> {
         name: &str,
         icon: Icon,
         size: f32,
-        ink: Color32,
+        ink: Srgba,
         action: impl Fn(&mut State, &mut Tx) + 'static,
     ) -> El {
         el().size(32., 32.)
@@ -331,8 +337,8 @@ impl Paint<'_> {
             );
         for (key, name, field) in [
             ("server", "Server URL", &self.s.server),
-            ("user", "Username", &self.s.user),
-            ("password", "Password", &self.s.password),
+            ("user", mark("Username"), &self.s.user),
+            ("password", mark("Password"), &self.s.password),
         ] {
             let mut input = text_input(field, TextStyle::new(14., 400.))
                 .single_line()
@@ -377,8 +383,8 @@ impl Paint<'_> {
                 .items_center()
                 .gap(10.)
                 .child(self.spinner(18., self.p.accent))
-                .child(label("Connecting…", 14., 400., self.p.text))
-                .child(self.button("Cancel", false, |s, _| {
+                .child(label(mark("Connecting…"), 14., 400., self.p.text))
+                .child(self.button(mark("Cancel"), false, |s, _| {
                     s.app.apply(navidrome::Action::Cancel)
                 }))
         } else {

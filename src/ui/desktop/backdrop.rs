@@ -79,7 +79,7 @@ impl Backdrop {
         }
         let backdrop = cache.get_or_insert_with(|| Self::new(f));
         let p = f.rt.state.palette(f.rt.env.system_dark);
-        let rgba = |c: egui::Color32| c.to_array().map(|v| f32::from(v) / 255.);
+        let rgba = |c: crate::color::Srgba| c.to_array().map(|v| f32::from(v) / 255.);
         let values = [
             rgba(crate::ui::blend(p.window, p.accent, 0.10)),
             rgba(p.window),

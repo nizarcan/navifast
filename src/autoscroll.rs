@@ -1,17 +1,4 @@
-//! Middle-click scrolling on Windows, and on Linux when the listener turns
-//! it on. macOS retains its existing input.
-//!
-//! Views report their scroll areas; the controller applies changes after drawing.
-
-#[cfg_attr(any(windows, target_os = "linux"), path = "autoscroll/active.rs")]
-#[cfg_attr(
-    not(any(windows, target_os = "linux")),
-    path = "autoscroll/inactive.rs"
-)]
-mod platform;
-
-pub use platform::{Autoscroll, Outcome, lyrics, playlist, row, show};
-
+//! Platform policy for Rune middle-click scrolling.
 /// Whether middle-click scrolling is on: always on Windows, on Linux only by
 /// choice because a middle click there usually pastes, and never on macOS.
 pub fn enabled(chosen_on_linux: bool) -> bool {

@@ -7,7 +7,7 @@ Original copyrights and the MIT license are retained.
 
 ## Current status
 
-The first migration stage supports:
+The current build supports:
 
 - Signing in to a Navidrome server, including servers hosted under a URL path.
 - Browsing recently added or alphabetically sorted albums, with pagination,
@@ -37,10 +37,9 @@ The first migration stage supports:
 
 This is an early playback build. Playlist management, queue editing,
 shuffle/repeat, saved queues, lyrics, scrobbling, transcoding preferences,
-Winamp/MilkDrop controls and tray behavior are still being migrated. Their
-inherited code remains in the repository but these features are not available
-in the normal Navidrome interface. The existing interface keeps its translations;
-the server sign-in form currently uses English.
+and tray behavior are not available in the current Navidrome interface.
+The existing interface keeps its translations; the server sign-in form
+currently uses English.
 
 Audio is decoded with Symphonia and converted to stereo 44.1 kHz for the
 existing DSP. MP3, FLAC, WAV, AAC/ALAC, AIFF and Vorbis codecs are enabled;
@@ -56,13 +55,12 @@ a connection slower than the original file's bitrate can still pause playback.
 ## Run
 
 Install the Rust toolchain pinned in `rust-toolchain.toml`. On macOS, install
-Xcode command-line tools, CMake and Python 3. On Debian/Ubuntu, install `build-essential`,
-`pkg-config`, `cmake`, `clang`, `libclang-dev`, `libasound2-dev`, `libdbus-1-dev`,
+Xcode command-line tools and Python 3. On Debian/Ubuntu, install `build-essential`,
+`pkg-config`, `libasound2-dev`, `libdbus-1-dev`,
 `libpulse-dev`, `libxkbcommon-dev`, `libwayland-dev` and `libgl1-mesa-dev`.
 The Linux desktop renderer also needs `libvulkan1` and a Vulkan driver for the
 graphics device.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for platform checks and optional MilkDrop
-dependencies. Then run:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for platform checks. Then run:
 
 ```sh
 cargo run --locked --bin navifast
@@ -107,17 +105,16 @@ Spotify in normal use. See [privacy](docs/_reference/privacy.md).
 | `src/navidrome/` | OpenSubsonic requests, streaming and local playback |
 | `src/eq.rs`, `src/limiter.rs`, `src/vis.rs` | Shared audio processing and visualizers |
 | `src/settings.rs`, `src/theme/`, `src/i18n.rs`, `assets/` | Shared preferences, themes, translations and assets |
-| `src/entrypoint/legacy.rs`, other `src/ui/` views | Inherited egui comparison and shared UI helpers |
+| Other `src/ui/` modules | Shared layout, icon and visualizer helpers |
 | `tests/`, `examples/` | Regression coverage and development utilities |
 | `packaging/`, `.github/` | Current installers, release automation and CI |
 | `docs/_guide/`, `docs/_reference/` | Current product guides and technical contracts |
-| `docs/_legacy/` | Inherited feature and architecture references |
 
-The legacy comparison still shares models and helpers with the active client.
-The inherited `src/api/`, `src/backend.rs` and `src/player.rs` describe Spotify;
-current Navidrome requests and playback live in `src/navidrome/`. Compatibility
-names and installation fixtures protect older data and coexistence with the
-upstream app. These are deliberate retained code, not abandoned build outputs.
+The legacy renderer, demo, Spotify service modules and their dependencies have
+been removed. Rune is the only UI framework, including in deterministic
+previews. Historical implementation remains available in Git. Compatibility
+command names and installation fixtures protect existing installations. Settings
+retain unknown historical fields without compiling their retired features.
 
 Keep generated binaries, dependency downloads and local QA evidence out of the
 tracked source. Cargo output belongs in the ignored, mbx-managed `target/`;
@@ -129,7 +126,7 @@ Navifast release notes only; upstream history remains in Git and
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and contribution policy.
-The normal build uses Rune and excludes Fastframe. Deterministic Navidrome UI
+The normal build uses Rune and excludes egui, Fastframe and Spotify crates. Deterministic Navidrome UI
 previews use the same dependency set with the `navidrome-demo` feature:
 
 ```sh
@@ -140,11 +137,8 @@ Add `--demo-page search`, `--demo-page album:alb0`, `--demo-page settings`, `--d
 `--demo-show light,equalizer`, `--demo-show signed-out`, or
 `--demo-show restoring` for the startup loading state.
 `--demo-shot PATH --demo-size 1100x760` captures a PNG.
-Build with `--features demo` to include the inherited egui comparison and its
-Fastframe dependencies. Run it with `--demo` alone. This feature also supports
-the Rune preview through `--demo --demo-navidrome`. Demo sessions use isolated
-profiles and local fixtures. Legacy modules and their tests
-remain until their remaining reusable features have moved over.
+Preview sessions use isolated profiles and local fixtures. The preview feature
+adds no alternate renderer or service dependencies.
 
 The first Navifast release candidate is `0.1.0-rc.1`. Release preparation does
 not mean the downloads have been published: use the assets listed on

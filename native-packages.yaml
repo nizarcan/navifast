@@ -50,7 +50,7 @@ nfpm:
       mode: 493
   overrides:
     # ELF inspection cannot discover the GUI's dlopen dependencies. Keep
-    # these aligned with winit/glutin/rfd and packaging/check-runtime-libs.c.
+    # these aligned with Rune/winit and packaging/check-runtime-libs.c.
     deb:
       depends:
       - libdbus-1-3

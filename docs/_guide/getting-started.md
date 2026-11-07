@@ -81,4 +81,4 @@ entered directly. A failed request keeps the app usable and provides a retry.
 
 This first stage has album playback, not the full inherited feature set.
 Playlist management, shuffle/repeat, saved queues, lyrics, scrobbling,
-transcoding, Winamp/MilkDrop controls and tray operation are still pending.
+transcoding and tray operation are still pending.

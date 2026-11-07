@@ -9,7 +9,7 @@ These instructions add implementation constraints for coding agents.
   telemetry or a hosted backend. The requested pivot replaces Spotify services.
 - Playback comes from the user's Navidrome library over OpenSubsonic. Discover
   optional server capabilities and validate codec/output support before
-  advertising them. Inherited Spotify modules are migration references only.
+  advertising them.
 - Do not broaden a task into adjacent features or a general refactor. Preserve
   existing user behaviour unless the task explicitly changes it.
 
@@ -17,10 +17,9 @@ These instructions add implementation constraints for coding agents.
 
 - Build Navidrome views in `src/ui/desktop/`. Route Rune control actions
   through `src/app/navidrome/desktop.rs` to the controller in
-  `src/app/navidrome.rs`. In the inherited egui views, emit actions during
-  drawing and apply them afterward in `src/app.rs`. Keep Fastframe confined
-  to the optional legacy `demo` and its reference tests. Use `navidrome-demo`
-  for Rune screenshots without Fastframe.
+  `src/app/navidrome.rs`. Use `navidrome-demo` for deterministic Rune coverage
+  and screenshots. Do not reintroduce the retired egui/Fastframe demo or
+  Spotify service dependencies.
 - Run Navidrome requests in `src/navidrome/backend.rs` and playback in
   `src/navidrome/player.rs`. Keep blocking work off the UI thread.
 - Keep platform integrations behind target-specific modules or `cfg` blocks.
@@ -32,25 +31,18 @@ These instructions add implementation constraints for coding agents.
 - For dependency fixes, use a maintainer-owned fork pinned to a commit and
   contribute the fix upstream. Use the fork until a release includes the fix;
   do not copy dependency source into this repository.
-- egui and winit come from forks shared with ZapFast, RekordFlash and TonePush
-  (crmne/egui apps-0.36, crmne/winit apps-0.30); move all their crates to a
-  new revision together. On Wayland, eframe from that fork paces frames by
-  the compositor's frame callbacks instead of a vsync swap, so a hidden window
-  cannot freeze the app (#266). Do not add a vsync decision of our own.
-- In the egui views, pass logical text to `crate::bidi`. The fork shapes
-  right-to-left runs in their own direction and the helper reorders the
-  laid-out runs. Never reorder the string before layout.
+- Rune uses the pinned shared `crmne/winit` fork. Keep platform behavior
+  intact when updating it, and do not add a competing frame-pacing policy.
+- Pass logical text to Rune; never reorder strings before text layout.
 
 Read `docs/_reference/how-it-connects.md` before changing authentication,
 server requests, credential storage or network behaviour. Read
 `docs/_reference/queue.md` before touching the queue: its rules are the
-contract, and the queue tests in `src/app.rs` enforce them. Read the
+contract, and the transport tests in `src/navidrome/state.rs` enforce them. Read the
 nearby module tests before changing a state machine or API fallback.
 
-`docs/_reference/what-spotify-allows.md` records inherited Spotify limitations.
-For the current client, follow Navidrome/OpenSubsonic documentation and the
-implemented capabilities in `src/navidrome/`. Never infer support from dormant
-Spotify code.
+Follow Navidrome/OpenSubsonic documentation and the implemented capabilities
+in `src/navidrome/`. Do not infer capabilities from the historical upstream client.
 
 The interface is optimistic, always. A control shows its result the
 moment it is used: a double-clicked song is the playing song, Next pops
@@ -60,7 +52,7 @@ the story from before the user's action is stale, so hold the shown
 state and ask again rather than let the lagging answer undo what the
 user just did. Nothing the user did may ever flicker away and come back.
 
-Every visualiser, the spectrum analyser, the oscilloscope, and MilkDrop,
+Every visualiser, including the spectrum analyser and oscilloscope,
 shows the signal post-equalizer and pre-volume: the EQ shapes what is
 heard so the picture follows it, and the volume knob never moves the
 picture. Zero volume still dances.
@@ -154,7 +146,7 @@ mise or mbx.
 
 ## Definition of done
 
-- Add focused regression tests for changed behaviour. Use the `demo` feature
+- Add focused regression tests for changed behaviour. Use the `navidrome-demo` feature
   for deterministic UI coverage and screenshots.
 - Update the README and docs when user-visible behaviour, settings, files, or
   network access changes.

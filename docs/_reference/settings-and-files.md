@@ -17,12 +17,11 @@ on a background worker. Window geometry is stored by the native shell in its
 own Navifast profile. Logs use the state directory's `navifast.log`.
 
 `settings.json` keeps the original interface preferences: system/light/dark or
-custom theme, language, zoom, sidebar layout and pins, player-bar visualization,
+custom theme, language, zoom, sidebar layout, player-bar visualization,
 volume and EQ. Its playback preferences take precedence on startup; older
 profiles containing only `navidrome.json` remain readable. Custom JSON themes
 live in the config directory's `themes/` folder. Both settings files are written
-atomically on the background worker and contain no password. Spotify-specific
-settings are inactive, and automatic update checks remain disabled.
+atomically on the background worker and contain no password. Unknown historical settings are retained as data, and automatic update checks remain disabled.
 
 A successful Navidrome login is stored separately in Keychain on macOS,
 Credential Manager on Windows, or Secret Service on Linux. The protected record
@@ -34,8 +33,7 @@ fallback if the credential store is locked or unavailable.
 `credential-storage/` in the state directory prevent automatic sign-in even if
 the system store cannot delete the password immediately.
 
-Inherited Spotify session caches and credentials are unused by normal Navidrome
-startup. In-memory artwork and album metadata
+Historical service caches and credentials are not imported. In-memory artwork and album metadata
 are cleared on sign-out. Preferences are local; queues are not saved yet.
 
 ## Custom themes

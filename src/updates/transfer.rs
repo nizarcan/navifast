@@ -14,7 +14,7 @@ const DOWNLOAD_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 pub enum Source {
     #[default]
     GitHub,
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     Local(String),
 }
 
@@ -25,7 +25,7 @@ impl Source {
     pub fn latest(&self) -> String {
         match self {
             Self::GitHub => super::LATEST_RELEASE_URL.into(),
-            #[cfg(feature = "demo")]
+            #[cfg(feature = "navidrome-demo")]
             Self::Local(base) => format!("{base}/latest.json"),
         }
     }
@@ -35,12 +35,12 @@ impl Source {
             Self::GitHub => {
                 format!("https://api.github.com/repos/nizarcan/navifast/releases/tags/v{version}")
             }
-            #[cfg(feature = "demo")]
+            #[cfg(feature = "navidrome-demo")]
             Self::Local(base) => format!("{base}/latest.json"),
         }
     }
 
-    #[cfg(feature = "demo")]
+    #[cfg(feature = "navidrome-demo")]
     pub fn local(value: &str) -> Result<Self> {
         let url = reqwest::Url::parse(value)?;
         ensure!(
@@ -71,7 +71,7 @@ impl Source {
                         )
                     )
             }
-            #[cfg(feature = "demo")]
+            #[cfg(feature = "navidrome-demo")]
             Self::Local(base) => {
                 reqwest::Url::parse(base).is_ok_and(|base| url.origin() == base.origin())
             }
@@ -324,7 +324,7 @@ fn portable_entry(version: &str, target: &str) -> String {
 mod tests {
     use super::*;
 
-    #[cfg(all(feature = "demo", target_os = "linux"))]
+    #[cfg(all(feature = "navidrome-demo", target_os = "linux"))]
     #[test]
     fn an_old_installation_downloads_a_release_with_only_navifast_files() {
         use std::net::TcpListener;
@@ -431,7 +431,10 @@ mod tests {
         }
     }
 
-    #[cfg(all(feature = "demo", any(target_os = "windows", target_os = "linux")))]
+    #[cfg(all(
+        feature = "navidrome-demo",
+        any(target_os = "windows", target_os = "linux")
+    ))]
     #[test]
     fn direct_and_proxied_update_downloads_preserve_integrity_checks() {
         use std::net::TcpListener;

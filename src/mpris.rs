@@ -490,10 +490,10 @@ mod tests {
 
     #[test]
     fn object_paths_round_trip() {
-        let path = object_path_for("spotify:track:14XWXWv5FoCbFzLksawpEe").unwrap();
+        let path = object_path_for("navidrome:track:14XWXWv5FoCbFzLksawpEe").unwrap();
         assert_eq!(
             uri_from_object_path(path.as_str()).as_deref(),
-            Some("spotify:track:14XWXWv5FoCbFzLksawpEe")
+            Some("navidrome:track:14XWXWv5FoCbFzLksawpEe")
         );
     }
 }

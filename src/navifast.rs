@@ -4,6 +4,6 @@
 
 mod entrypoint;
 
-fn main() -> eframe::Result<()> {
+fn main() -> Result<(), String> {
     entrypoint::run()
 }

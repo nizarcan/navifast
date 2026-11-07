@@ -1,8 +1,7 @@
 //! Where Navifast keeps its files.
 //!
 //! Configuration, durable non-secret state, and disposable caches live in the
-//! platform's conventional directories. Spotify grants use the platform store;
-//! the token paths below are retained only for migration and sign-out cleanup.
+//! platform's conventional directories. Credentials use the platform store.
 
 use std::path::PathBuf;
 
@@ -118,37 +117,8 @@ impl AppDirs {
         self.config.join("settings.json")
     }
 
-    /// Winamp skins the listener has added, as `.wsz` files or folders.
-    pub fn skins_dir(&self) -> PathBuf {
-        self.config.join("skins")
-    }
-
-    /// MilkDrop presets, as `.milk` files, in folders or not, with any
-    /// textures they use in a `textures` folder inside.
-    pub fn milkdrop_dir(&self) -> PathBuf {
-        self.config.join("milkdrop")
-    }
-
     pub fn session_file(&self) -> PathBuf {
         self.state.join("session.json")
-    }
-
-    /// What was played here, which Spotify never hears about and so
-    /// cannot tell us later. See [`crate::history`].
-    pub fn history_file(&self) -> PathBuf {
-        self.state.join("history.json")
-    }
-
-    pub fn shared_web_token_file(&self) -> PathBuf {
-        self.state.join("shared_web_api_token.json")
-    }
-
-    pub fn personal_web_token_file(&self) -> PathBuf {
-        self.state.join("personal_web_api_token.json")
-    }
-
-    pub fn legacy_web_token_file(&self) -> PathBuf {
-        self.state.join("web_api_token.json")
     }
 
     /// The log of the current run, replaced at every start.
@@ -161,48 +131,9 @@ impl AppDirs {
         self.state.join("panic.log")
     }
 
-    pub fn credentials_dir(&self) -> PathBuf {
-        self.state.join("credentials")
-    }
-
     /// Optional proxy password, owner-only, never written to settings.json.
     pub fn proxy_secret_file(&self) -> PathBuf {
         self.state.join("proxy_password")
-    }
-
-    pub fn volume_dir(&self) -> PathBuf {
-        self.state.join("volume")
-    }
-
-    pub fn audio_cache_dir(&self) -> PathBuf {
-        self.cache.join("audio")
-    }
-
-    pub fn art_cache_dir(&self) -> PathBuf {
-        self.cache.join("art")
-    }
-
-    pub fn lyrics_cache_dir(&self) -> PathBuf {
-        self.cache.join("lyrics")
-    }
-
-    pub fn playlist_cache_dir(&self) -> PathBuf {
-        self.cache.join("playlists")
-    }
-
-    pub fn account_playlist_cache_dir(&self, account_id: &str) -> PathBuf {
-        self.playlist_cache_dir().join(account_id)
-    }
-
-    pub fn liked_songs_cache_file(&self, account_id: &str) -> PathBuf {
-        // Hex encoding also keeps unusual account IDs within the cache root.
-        let account: String = account_id
-            .bytes()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
-        self.cache
-            .join("liked-songs")
-            .join(format!("{account}.json"))
     }
 
     pub fn ensure(&self) -> std::io::Result<()> {
@@ -258,7 +189,7 @@ mod tests {
             let new = dirs("new");
             old.ensure().unwrap();
             std::fs::write(old.settings_file(), b"preferences").unwrap();
-            std::fs::write(old.history_file(), b"history").unwrap();
+            std::fs::write(old.state.join("history.json"), b"history").unwrap();
             std::fs::write(old.cache.join("artwork"), b"cover").unwrap();
             assert_eq!(
                 AppDirs::select_profile(new.clone(), old.clone(), true).state,
@@ -275,7 +206,10 @@ mod tests {
                 new.state
             );
             assert_eq!(std::fs::read(new.settings_file()).unwrap(), b"preferences");
-            assert_eq!(std::fs::read(new.history_file()).unwrap(), b"history");
+            assert_eq!(
+                std::fs::read(new.state.join("history.json")).unwrap(),
+                b"history"
+            );
             assert_eq!(std::fs::read(new.cache.join("artwork")).unwrap(), b"cover");
             assert_eq!(
                 std::fs::read_to_string(new.state.join("credential-profile")).unwrap(),

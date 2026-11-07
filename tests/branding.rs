@@ -60,36 +60,24 @@ fn the_linux_package_alias_reports_navifast_without_copying_the_app() {
 }
 
 #[test]
-fn existing_preferences_and_custom_connect_names_survive_the_rename() {
+fn existing_preferences_and_historical_fields_survive() {
     use navifast::settings::{Settings, ThemeChoice};
-
     let scratch = Scratch::new();
     let path = scratch.0.join("settings.json");
-    for name in ["Fastpotify", "Living room", "Carmine's laptop"] {
-        let saved = Settings {
-            device_name: name.into(),
-            theme: ThemeChoice::Light,
-            volume: 37,
-            pinned_contexts: vec![
-                "spotify:playlist:123".into(),
-                "fastpotify:liked-songs".into(),
-            ],
-            ..Settings::default()
-        };
-        saved.save(&path);
-        let mut expected = saved;
-        if expected.device_name == "Fastpotify" {
-            expected.device_name = "Navifast".into();
-        }
-        expected.pinned_contexts[1] = navifast::settings::LIKED_SONGS_KEY.into();
-        assert_eq!(Settings::load(&path), expected);
-    }
-    assert_eq!(Settings::default().device_name, "Navifast");
+    let saved: Settings = serde_json::from_value(serde_json::json!({
+        "device_name":"Living room", "theme":"light", "volume":37,
+        "pinned_contexts":["spotify:playlist:123", "fastpotify:liked-songs"]
+    }))
+    .unwrap();
+    saved.save(&path);
+    let loaded = Settings::load(&path);
+    assert_eq!(loaded, saved);
+    assert_eq!(loaded.theme, ThemeChoice::Light);
 }
 
 #[cfg(target_os = "linux")]
 #[test]
-fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
+fn both_commands_forward_controls_to_the_existing_instance_on_a_private_bus() {
     use navifast::single_instance::{ControlCommand, Outcome};
 
     const CHILD: &str = "NAVIFAST_RENAME_PRIVATE_BUS";
@@ -119,7 +107,7 @@ fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
             .arg(std::env::current_exe().unwrap())
             .args([
                 "--exact",
-                "both_commands_forward_links_to_the_existing_instance_on_a_private_bus",
+                "both_commands_forward_controls_to_the_existing_instance_on_a_private_bus",
                 "--nocapture",
             ])
             .env(CHILD, "1")
@@ -133,7 +121,6 @@ fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
         return;
     }
 
-    let scratch = Scratch::new();
     for (_, binary) in COMMANDS {
         let result = Command::new(binary).arg("reload-themes").output().unwrap();
         assert_eq!(result.status.code(), Some(1));
@@ -146,50 +133,13 @@ fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
             String::from_utf8_lossy(&result.stderr)
         );
     }
-    let Outcome::Only(guard) = navifast::single_instance::acquire(&Default::default(), None) else {
+    let Outcome::Only(guard) =
+        navifast::single_instance::acquire_with_wake(std::sync::Arc::new(|| {}))
+    else {
         panic!("the private bus must start without another instance");
     };
     let commands = guard.commands();
     for (_, binary) in COMMANDS {
-        for (link, uri) in [
-            (
-                "spotify:track:4uLU6hMCjMI75M1A2tKUQC",
-                "spotify:track:4uLU6hMCjMI75M1A2tKUQC",
-            ),
-            (
-                "https://open.spotify.com/search/here%20comes%20the%20sun",
-                "spotify:search:here%20comes%20the%20sun",
-            ),
-            (
-                "spotify://search/%E6%9D%B1%E4%BA%AC",
-                "spotify:search:%E6%9D%B1%E4%BA%AC",
-            ),
-        ] {
-            let mut child = Command::new(binary)
-                .arg(link)
-                .env("XDG_CONFIG_HOME", scratch.0.join("config"))
-                .env("XDG_STATE_HOME", scratch.0.join("state"))
-                .env("XDG_CACHE_HOME", scratch.0.join("cache"))
-                .spawn()
-                .unwrap();
-            let started = std::time::Instant::now();
-            let status = loop {
-                if let Some(status) = child.try_wait().unwrap() {
-                    break status;
-                }
-                if started.elapsed() > std::time::Duration::from_secs(10) {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    panic!("a second command did not forward its link and exit");
-                }
-                std::thread::sleep(std::time::Duration::from_millis(20));
-            };
-            assert!(status.success());
-            assert_eq!(
-                std::mem::take(&mut *commands.lock().unwrap()),
-                vec![ControlCommand::OpenLink(uri.into())]
-            );
-        }
         let result = Command::new(binary).arg("reload-themes").output().unwrap();
         assert!(
             result.status.success(),
@@ -199,7 +149,7 @@ fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
         assert_eq!(
             std::mem::take(&mut *commands.lock().unwrap()),
             vec![ControlCommand::ReloadThemes],
-            "a reload only asks for themes, never OpenLink or Show"
+            "a reload only asks for themes, never Show"
         );
         let result = Command::new(binary).arg("like").output().unwrap();
         assert!(
@@ -210,7 +160,7 @@ fn both_commands_forward_links_to_the_existing_instance_on_a_private_bus() {
         assert_eq!(
             std::mem::take(&mut *commands.lock().unwrap()),
             vec![ControlCommand::ToggleSaved],
-            "like only toggles the saved state, never OpenLink or Show"
+            "like only toggles the saved state, never Show"
         );
     }
 }

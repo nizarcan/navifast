@@ -3,14 +3,31 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+struct Point {
+    x: f32,
+    y: f32,
+}
+impl Point {
+    fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+    fn scaled(self, scale: f32) -> Self {
+        Self::new(self.x * scale, self.y * scale)
+    }
+    fn is_finite(self) -> bool {
+        self.x.is_finite() && self.y.is_finite()
+    }
+}
+
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 struct Geometry {
-    inner_position_pixels: Option<egui::Pos2>,
-    outer_position_pixels: Option<egui::Pos2>,
+    inner_position_pixels: Option<Point>,
+    outer_position_pixels: Option<Point>,
     fullscreen: bool,
     maximized: bool,
-    inner_size_points: Option<egui::Vec2>,
+    inner_size_points: Option<Point>,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -45,7 +62,7 @@ impl Placement {
         })
     }
     pub fn size(&self, zoom: f32) -> Option<[f32; 2]> {
-        let size = self.geometry.inner_size_points? * zoom;
+        let size = self.geometry.inner_size_points?.scaled(zoom);
         (size.is_finite() && size.x > 0. && size.y > 0.).then_some([
             size.x.max(crate::window::MAIN_MIN_SIZE[0]),
             size.y.max(crate::window::MAIN_MIN_SIZE[1]),
@@ -72,7 +89,7 @@ impl Placement {
             && width >= crate::window::MAIN_MIN_SIZE[0]
             && height >= crate::window::MAIN_MIN_SIZE[1]
         {
-            self.geometry.inner_size_points = Some(egui::vec2(width, height) / zoom);
+            self.geometry.inner_size_points = Some(Point::new(width, height).scaled(1. / zoom));
         }
     }
     pub fn observe(&mut self, handle: &rune::WindowHandle) {
@@ -96,7 +113,7 @@ impl Placement {
 }
 
 #[cfg(target_os = "macos")]
-fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)> {
+fn native_frame(handle: &rune::WindowHandle) -> Option<(Point, WindowMode)> {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSScreen, NSView};
     use raw_window_handle::RawWindowHandle;
@@ -113,7 +130,7 @@ fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)>
             let frame = window.frame();
             let scale = window.backingScaleFactor();
             Some((
-                egui::pos2(
+                Point::new(
                     (frame.origin.x * scale) as f32,
                     ((primary - frame.origin.y - frame.size.height) * scale) as f32,
                 ),
@@ -130,7 +147,7 @@ fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)>
 }
 
 #[cfg(windows)]
-fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)> {
+fn native_frame(handle: &rune::WindowHandle) -> Option<(Point, WindowMode)> {
     use raw_window_handle::RawWindowHandle;
     use windows_sys::Win32::{
         Foundation::RECT,
@@ -149,7 +166,7 @@ fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)>
             unsafe {
                 (GetWindowRect(hwnd, &mut rect) != 0).then(|| {
                     (
-                        egui::pos2(rect.left as f32, rect.top as f32),
+                        Point::new(rect.left as f32, rect.top as f32),
                         WindowMode {
                             maximized: IsZoomed(hwnd) != 0,
                             fullscreen: GetWindowLongW(hwnd, GWL_STYLE) as u32
@@ -165,7 +182,7 @@ fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)>
 }
 
 #[cfg(target_os = "linux")]
-fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)> {
+fn native_frame(handle: &rune::WindowHandle) -> Option<(Point, WindowMode)> {
     use raw_window_handle::RawWindowHandle;
     use x11rb::{connection::Connection, protocol::xproto::ConnectionExt};
     // Wayland owns window placement. Only read desktop coordinates on X11.
@@ -198,7 +215,7 @@ fn native_frame(handle: &rune::WindowHandle) -> Option<(egui::Pos2, WindowMode)>
                 .ok()?;
             let states: Vec<_> = property.value32().into_iter().flatten().collect();
             Some((
-                egui::pos2(f32::from(position.dst_x), f32::from(position.dst_y)),
+                Point::new(f32::from(position.dst_x), f32::from(position.dst_y)),
                 WindowMode {
                     fullscreen: states.contains(&atoms[1]),
                     maximized: states.contains(&atoms[2]) && states.contains(&atoms[3]),
@@ -362,7 +379,7 @@ mod tests {
             ron::from_str::<Geometry>(&entries["window"])
                 .unwrap()
                 .inner_size_points,
-            Some(egui::vec2(960., 600.))
+            Some(Point::new(960., 600.))
         );
         std::fs::remove_file(path).unwrap();
     }

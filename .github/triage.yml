@@ -56,13 +56,10 @@ instructions: |
   Keep replies short, direct, and free of status chatter, implementation
   plans, headings, and em dashes.
 
-  For Spotify capabilities, select docs/_reference/what-spotify-allows.md. For
-  Web API slowness or throttling, select docs/_guide/make-it-even-faster.md. A
-  personal Client ID provides a separate quota, not caching; it does not fix a
-  librespot session or audio-key refusal. Do not dismiss a valid caching
-  request or repeat setup advice already tried. Local playback needs Premium.
-  No alternate audio sources, DRM bypass, embedded browser, telemetry, or
-  hosted Navifast service. Use wontfix only for an exactly documented
+  For capabilities and network behavior, read docs/_reference/how-it-connects.md
+  and the implemented Navidrome/OpenSubsonic modules. Do not infer support from
+  the retired Spotify implementation in Git history. No alternate audio sources, embedded browser,
+  telemetry, or hosted Navifast service. Use wontfix only for an exactly documented
   unavailable capability; out-of-scope only for a documented product boundary.
   Never infer an antivirus false positive from a detection name, unsigned
   binary, or source code. Ask for the flagged artifact's SHA-256 when missing.
@@ -77,9 +74,9 @@ instructions: |
   cover it. For feature requests, check relevant documentation for existing
   support before leaving product decisions to the maintainer.
 
-  For opening Spotify links, login setup, and proxies, select
+  For server sign-in and playback setup, select
   docs/_guide/getting-started.md. Distinguish released features from support
-  documented only on main; do not imply development features are in 0.8.0.
+  documented only on main; do not imply development features are released.
 
   Address the latest human update and account for checks already tried. Do not
   repeat an answered question or a completed diagnostic step. If a bot replied

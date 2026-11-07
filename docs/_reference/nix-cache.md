@@ -3,11 +3,6 @@ title: Nix Binary Cache
 description: Status and maintainer setup for publishing Nix builds.
 ---
 
-> **Inherited migration reference.** This page describes the upstream Spotify
-> client. It does not describe the current Navidrome build. See
-> [Getting started](/getting-started/) for implemented Navifast behavior.
-
-
 An official public binary cache is not active yet. Nix installations may still
 build Navifast from source. The GitHub Actions cache speeds up CI only; it is
 not a public Nix substituter.

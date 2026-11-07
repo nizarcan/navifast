@@ -1,4 +1,5 @@
 use super::*;
+use crate::i18n::mark;
 use crate::{app::navidrome::Action as Service, settings::PlayerBarVis};
 
 fn slider(
@@ -49,9 +50,9 @@ fn slider(
                 .h(4.)
                 .radius(2.)
                 .fill(color(if v.p.dark {
-                    Color32::from_white_alpha(50)
+                    Srgba::from_white_alpha(50)
                 } else {
-                    Color32::from_black_alpha(40)
+                    Srgba::from_black_alpha(40)
                 }))
                 .child(
                     el().h(4.)
@@ -168,9 +169,20 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             col()
                 .min_w(0.)
                 .gap(2.)
-                .child(label(v.tr("Nothing playing"), 14., 500., v.p.secondary))
+                .child(label(
+                    v.tr(mark("Nothing playing")),
+                    14.,
+                    500.,
+                    v.p.secondary,
+                ))
                 .child(
-                    label(v.tr("Pick a song, album, or playlist"), 12., 400., v.p.dim).truncate(),
+                    label(
+                        v.tr(mark("Pick a song, album, or playlist")),
+                        12.,
+                        400.,
+                        v.p.dim,
+                    )
+                    .truncate(),
                 ),
         );
     }
@@ -179,14 +191,17 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .gap(10.)
         .items_center()
         .child(
-            v.icon_button(&v.tr("Shuffle"), Icon::Shuffle, 17., |_, _| {})
+            v.icon_button(&v.tr(mark("Shuffle")), Icon::Shuffle, 17., |_, _| {})
                 .size(29., 36.)
                 .disabled(true),
         )
         .child(
-            v.icon_button(&v.tr("Previous"), Icon::SkipBackFilled, 18., |s, _| {
-                s.app.apply(Service::Previous)
-            })
+            v.icon_button(
+                &v.tr(mark("Previous")),
+                Icon::SkipBackFilled,
+                18.,
+                |s, _| s.app.apply(Service::Previous),
+            )
             .size(30., 36.)
             .disabled(song.is_none()),
         )
@@ -194,12 +209,12 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             el().key("toggle")
                 .role("button")
                 .focusable(true)
-                .label(v.tr(if play { "Play" } else { "Pause" }))
+                .label(v.tr(if play { mark("Play") } else { mark("Pause") }))
                 .size(36., 36.)
                 .center()
                 .radius(18.)
                 .fill(color(v.p.text))
-                .hover(color(if v.p.dark { Color32::WHITE } else { v.p.text }))
+                .hover(color(if v.p.dark { Srgba::WHITE } else { v.p.text }))
                 .child(if a.playback_loading() {
                     v.spinner(22., v.p.window)
                 } else {
@@ -210,20 +225,20 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                     };
                     let size = 36. * 0.46;
                     let offset = crate::theme::play_glyph_offset(glyph, size);
-                    v.icon(glyph, size, v.p.window).offset(offset.x, offset.y)
+                    v.icon(glyph, size, v.p.window).offset(offset[0], offset[1])
                 })
                 .disabled(song.is_none())
                 .on_press(|s: &mut State| s.app.apply(Service::Toggle)),
         )
         .child(
-            v.icon_button(&v.tr("Next"), Icon::SkipForwardFilled, 18., |s, _| {
+            v.icon_button(&v.tr(mark("Next")), Icon::SkipForwardFilled, 18., |s, _| {
                 s.app.apply(Service::Next)
             })
             .size(30., 36.)
             .disabled(a.transport.next_index().is_none()),
         )
         .child(
-            v.icon_button(&v.tr("Repeat"), Icon::Repeat, 17., |_, _| {})
+            v.icon_button(&v.tr(mark("Repeat")), Icon::Repeat, 17., |_, _| {})
                 .size(29., 36.)
                 .disabled(true),
         );
@@ -255,7 +270,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                 .child(
                     slider(
                         v,
-                        &v.tr("Playback position (%)"),
+                        &v.tr(mark("Playback position (%)")),
                         if duration > 0. {
                             100. * position / duration
                         } else {
@@ -294,9 +309,9 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .gap(6.)
         .children(
             [
-                ("Lyrics", Icon::Mic),
-                ("Queue", Icon::ListVideo),
-                ("Connect to a device", Icon::Speaker),
+                (mark("Lyrics"), Icon::Mic),
+                (mark("Queue"), Icon::ListVideo),
+                (mark("Connect to a device"), Icon::Speaker),
             ]
             .into_iter()
             .map(|(name, icon)| {
@@ -306,9 +321,9 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         )
         .child(v.icon_button(
             &v.tr(if a.preferences.volume == 0. {
-                "Unmute"
+                mark("Unmute")
             } else {
-                "Mute"
+                mark("Mute")
             }),
             match (a.preferences.volume * 100.).round() as u32 {
                 0 => Icon::VolumeX,
@@ -323,7 +338,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
             row().w(92.).child(
                 slider(
                     v,
-                    &v.tr("Volume (%)"),
+                    &v.tr(mark("Volume (%)")),
                     f64::from(a.preferences.volume) * 100.,
                     [0., 100.],
                     5.,
@@ -370,8 +385,8 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .w_full()
         .h(height)
         .role("button")
-        .label(v.tr("Player bar visualizer"))
-        .help(v.tr("Click to change the visualizer"))
+        .label(v.tr(mark("Player bar visualizer")))
+        .help(v.tr(mark("Click to change the visualizer")))
         .on_press_tx(|s: &mut State, tx| s.dispatch(Action::CyclePlayerBarVis, tx))
         .on_layout(|s: &mut State, r| s.plot_width = r[2]);
     match a.presentation.settings.player_bar_vis {
