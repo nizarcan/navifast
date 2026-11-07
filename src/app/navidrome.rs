@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub mod autoplay;
 pub mod browse;
 pub mod desktop;
+pub mod downloads;
 pub mod favorites;
 mod gapless;
 pub mod home;
@@ -225,6 +226,7 @@ pub struct App {
     gapless: gapless::State,
     pub quality: quality::State,
     pub requested_covers: HashSet<String>,
+    pub downloads: downloads::State,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
     backend: Backend,
@@ -370,6 +372,7 @@ impl App {
                 ..Default::default()
             },
             requested_covers: HashSet::new(),
+            downloads: Default::default(),
             show_eq: false,
             palette: crate::theme::Palette::dark(),
             backend,
@@ -448,6 +451,7 @@ impl App {
             }
             Action::SignOut => {
                 self.reset_autoplay();
+                self.downloads = Default::default();
                 self.browse = Default::default();
                 self.stats = Default::default();
                 self.ratings = Default::default();
@@ -728,6 +732,7 @@ impl App {
         self.refresh_streaming_capabilities();
         self.presentation.navidrome_playlists = Default::default();
         self.presentation.navidrome_favorites = Default::default();
+        self.open_downloads();
     }
 
     fn fetch_albums(&mut self, offset: usize) {
@@ -779,6 +784,14 @@ impl App {
         self.cancel_preparation();
         if position == 0.0 {
             self.quality.active = self.preferences.streaming_quality;
+            self.quality.deferred = false;
+        }
+        if self
+            .transport
+            .song()
+            .is_some_and(|song| self.download_ready(&song.id))
+        {
+            self.quality.active = crate::navidrome::quality::Quality::Original;
             self.quality.deferred = false;
         }
         self.transport.seekable = self
@@ -853,6 +866,7 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::Downloads {session, revision, update} => self.download_update(session, revision, update),
                 Event::Autoplay { session, request, result } => self.autoplay_result(session, request, result),
                 Event::Stats { session, request, result } => self.stats_result(session, request, result),
                 Event::Browse {session, request, query, offset, result} => self.browse_result(session,request,query,offset,result),

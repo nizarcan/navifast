@@ -309,3 +309,21 @@ from the larger lyric passage with space and an outline divider. Use Inter and R
 wrapping and bidi layout without reordering strings. Show the rendered PNG itself in
 the preview so Copy and Save cannot differ from it. Keep editing and export actions
 visible below the scrolling preview.
+
+## Downloads
+
+Use approved NAV-28 layout A: an **Available offline** shelf on Home, with the
+same collection cards as Albums and Playlists. **Manage** opens Downloads within
+Home; keep exactly four sidebar destinations. The manager uses virtual compact
+rows with a sleeve, title, completed-song count, bytes and the existing Cancel,
+Retry and Remove pills. Selection details reuse the collection header, playback
+controls and virtual track table. Local availability uses a small accent check;
+queued, transferring and failed tracks have muted or error status icons with
+accessible labels and per-track Cancel/Retry controls. Preserve the collection's
+ordering and duplicate occurrences.
+
+Offline Home retains the shelf and Manage, with a quiet Working offline label
+and Reconnect pill. Empty, loading, transfer and storage failures remain distinct.
+Put Open downloads offline below the existing sign-in controls. Reuse Palette,
+Inter, spacing, artwork fallbacks, focus behavior and responsive collection sizes;
+there is no fifth navigation destination or new application shell.

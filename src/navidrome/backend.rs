@@ -9,6 +9,7 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Downloads(super::downloads::worker::Command),
     StreamingCapabilities {
         session: u64,
         client: Client,
@@ -192,6 +193,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    Downloads {
+        session: u64,
+        revision: u64,
+        update: super::downloads::worker::Update,
+    },
     StreamingCapabilities {
         session: u64,
         result: Result<super::quality::Capabilities, String>,
@@ -344,6 +350,7 @@ pub struct Cover {
 }
 
 pub struct Backend {
+    downloads: super::downloads::worker::Shared,
     send: tokio::sync::mpsc::UnboundedSender<Request>,
     pub events: mpsc::Receiver<Event>,
     thread: Option<std::thread::JoinHandle<()>>,
@@ -366,10 +373,18 @@ impl Backend {
     ) -> Self {
         let (send, mut requests) = tokio::sync::mpsc::unbounded_channel();
         let (events, receive) = mpsc::channel();
+        let downloads: super::downloads::worker::Shared = Default::default();
+        let local_files = downloads.clone();
         let thread = std::thread::Builder::new().name("navifast-library".into()).spawn(move || {
             let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().expect("create Navidrome runtime");
             runtime.block_on(async move {
                 let credentials = create_store();
+                let download_events = events.clone();
+                let download_wake = wake.clone();
+                let (downloads, download_task) = super::downloads::worker::spawn(local_files, Arc::new(move |session, revision, update| {
+                    let _ = download_events.send(Event::Downloads {session, revision, update});
+                    download_wake();
+                }));
                 let permits = Arc::new(tokio::sync::Semaphore::new(4));
                 let mut tasks = tokio::task::JoinSet::new();
                 let mut scrobbles = tokio::task::JoinSet::new();
@@ -392,6 +407,7 @@ impl Backend {
                             let Some(request) = request else { break; };
                             match request {
                                 Request::Shutdown => break,
+                                Request::Downloads(command) => { let _ = downloads.send(command); }
                                 Request::StreamingPlan { client, id, quality, position, mut reply } => {
                                     let permits = permits.clone();
                                     tasks.spawn(async move {
@@ -406,6 +422,7 @@ impl Backend {
                                     });
                                 }
                                 Request::Cancel => {
+                                    let _ = downloads.send(super::downloads::worker::Command { session: 0, revision: 0, action: super::downloads::worker::Action::Close });
                                     credentials.invalidate(Slot::Navidrome);
                                     scrobbles.abort_all();
                                     listening_reports.clear();
@@ -592,10 +609,13 @@ impl Backend {
                     }
                 }
                 tasks.abort_all();
+                drop(downloads);
+                let _ = download_task.await;
             });
             runtime.shutdown_timeout(std::time::Duration::from_secs(1));
         }).expect("start library worker");
         Self {
+            downloads,
             send,
             events: receive,
             thread: Some(thread),
@@ -603,7 +623,7 @@ impl Backend {
     }
 
     pub(crate) fn stream_resolver(&self) -> StreamResolver {
-        StreamResolver(self.send.clone())
+        StreamResolver::new(self.send.clone(), self.downloads.clone())
     }
 
     pub fn send(&self, request: Request) {
@@ -613,8 +633,20 @@ impl Backend {
 
 /// Playback asks the library runtime for API decisions without blocking the UI.
 #[derive(Clone)]
-pub(crate) struct StreamResolver(tokio::sync::mpsc::UnboundedSender<Request>);
+pub(crate) struct StreamResolver(
+    tokio::sync::mpsc::UnboundedSender<Request>,
+    super::downloads::worker::Shared,
+);
 impl StreamResolver {
+    pub(crate) fn new(
+        requests: tokio::sync::mpsc::UnboundedSender<Request>,
+        downloads: super::downloads::worker::Shared,
+    ) -> Self {
+        Self(requests, downloads)
+    }
+    pub(crate) fn local(&self, scope: &str, id: &str) -> Option<std::path::PathBuf> {
+        super::downloads::worker::local(&self.1, scope, id)
+    }
     pub fn request(
         &self,
         client: Client,
@@ -930,6 +962,7 @@ async fn execute(
         | Request::CancelBrowse
         | Request::Scrobble { .. }
         | Request::CancelScrobbles
+        | Request::Downloads(_)
         | Request::Shutdown => return None,
     })
 }

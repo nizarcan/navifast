@@ -61,9 +61,10 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     let page = s.app.presentation.page();
     let content = match page {
         Page::Home => home::page(v),
+        Page::Downloads => downloads::page(v),
         Page::Stats => stats::page(v),
         page if page.is_browse() => browse::page(v),
-        Page::Album(_) | Page::Playlist(_) => songs(v),
+        Page::Album(_) | Page::Playlist(_) | Page::Download(_) => songs(v),
         Page::Playlists => playlists(v),
         Page::Search => search(v),
         Page::Artist(_) => collection(v),
@@ -229,6 +230,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             });
             collection_queue_items(v, v.menu("album-more"), None)
                 .child(rating)
+                .child(downloads::menu_item(v, &uri))
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
                 }))
@@ -245,6 +247,14 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                     Some(Icon::ListMusic),
                     |s, tx| s.add_to_playlists(None, tx),
                 ));
+            menu = menu.child(
+                v.menu_item(&v.tr(mark("Download")), None, |s, _| {
+                    s.app.download_playlist();
+                    s.menu = None;
+                })
+                .disabled(s.app.offline() || s.app.downloads.library.is_none())
+                .key("download-playlist"),
+            );
             if s.app.playlist_writable() {
                 menu = menu.child(v.menu_item(&v.tr(mark("Delete playlist")), None, |s, tx| {
                     s.dispatch(
@@ -277,6 +287,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             .border(1., color(v.p.outline))
             .role("menu")
             .modal(true, |s: &mut State| s.favorite_menu = None);
+        popup = popup.child(downloads::menu_item(v, &uri));
         if let Some(saved) = s.app.presentation.navidrome_favorites.contains(&uri) {
             let name = v.tr(if saved {
                 mark("Remove from Favorites")
@@ -716,6 +727,7 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
     ] {
         let current = app.presentation.page();
         let active = &page == current
+            || page == Page::Home && matches!(current, Page::Downloads | Page::Download(_))
             || page == Page::Albums && current.discover_root().is_some()
             || page == Page::LikedSongs && current.is_favorites()
             || page == Page::Playlists && matches!(current, Page::Playlist(_));
@@ -1222,7 +1234,7 @@ fn album_status(v: &Paint<'_>) -> El {
     page
 }
 /// The album page defines the common layout for playable collections.
-fn collection_header(
+pub(super) fn collection_header(
     v: &Paint<'_>,
     kind: &str,
     name: &str,
@@ -1265,7 +1277,12 @@ fn collection_header(
         .child(actions)
 }
 
-fn collection_actions(v: &Paint<'_>, key: &'static str, active: bool, empty: bool) -> El {
+pub(super) fn collection_actions(
+    v: &Paint<'_>,
+    key: &'static str,
+    active: bool,
+    empty: bool,
+) -> El {
     row()
         .mt(14.)
         .mb(20.)
@@ -1580,7 +1597,9 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                 .as_ref()
                 .is_some_and(|a| navidrome::encode(&a.id) == *id)
         }
-        page if page.is_browse_songs() => v.s.app.browse.playing.as_ref() == Some(page),
+        page if page.is_browse_songs() || matches!(page, Page::Download(_)) => {
+            v.s.app.browse.playing.as_ref() == Some(page)
+        }
         _ => false,
     };
     let current_key = context_playing.then(|| v.s.playing_row()).flatten();
@@ -1610,6 +1629,8 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
             if r == 0 {
                 let header = if browsing {
                     browse::heading(&v)
+                } else if matches!(s.app.presentation.page(), Page::Download(_)) {
+                    downloads::collection_heading(&v)
                 } else if matches!(s.app.presentation.page(), Page::Playlist(_)) {
                     playlist_header(&v)
                 } else {
@@ -1744,6 +1765,12 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                 }))
                 .child(number)
                 .child(description)
+                .child(downloads::availability(&v, &song.id))
+                .child(if matches!(s.app.presentation.page(), Page::Download(_)) {
+                    downloads::song_control(&v, &song.id)
+                } else {
+                    el()
+                })
                 .child(
                     el().w(36.)
                         .center()

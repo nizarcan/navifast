@@ -7,6 +7,33 @@ use std::borrow::Cow;
 pub(super) fn page(v: &Paint<'_>) -> El {
     let app = &v.s.app;
     let columns = crate::ui::widgets::card_columns(v.content_width());
+    if app.offline() {
+        let mut page = col()
+            .w_full()
+            .child(downloads::heading(v))
+            .child(downloads::shelf_heading(v));
+        if app.downloads.order.is_empty() && !app.downloads.loading && app.downloads.error.is_none()
+        {
+            page = page.child(
+                label(
+                    v.tr(mark("No downloaded music is available for this account.")),
+                    14.,
+                    400.,
+                    v.p.secondary,
+                )
+                .wrap(),
+            );
+        }
+        return page.child(downloads::shelf(v, columns));
+    }
+    let download_rows = if !app.downloads.order.is_empty()
+        || app.downloads.loading
+        || app.downloads.error.is_some()
+    {
+        2
+    } else {
+        0
+    };
     let playlists = app
         .presentation
         .navidrome_playlists
@@ -30,7 +57,7 @@ pub(super) fn page(v: &Paint<'_>) -> El {
     } else {
         usize::from(count > 0)
     };
-    let rows = 2 + playlist_rows + 1 + artist_rows;
+    let rows = 2 + playlist_rows + 1 + artist_rows + download_rows;
     let (p, scale, zoom, width, height) = (v.p, v.scale, v.zoom, v.width, v.height);
     col()
         .key("home-rows")
@@ -52,6 +79,15 @@ pub(super) fn page(v: &Paint<'_>) -> El {
                 if i == 0 {
                     return intro(&v);
                 }
+                if download_rows > 0 {
+                    if i == 1 {
+                        return downloads::shelf_heading(&v);
+                    }
+                    if i == 2 {
+                        return downloads::shelf(&v, columns);
+                    }
+                }
+                let i = i - download_rows;
                 if i == 1 {
                     return playlist_heading(&v, playlists, columns);
                 }

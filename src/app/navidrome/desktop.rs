@@ -143,6 +143,7 @@ impl App {
                 self.browse.current().map(super::browse::Listing::songs)
             }
             Page::Album(_) => self.album.as_ref().map(|a| a.song.as_slice()),
+            Page::Download(_) => Some(&self.downloads.songs),
             Page::Playlist(_) => match self.presentation.navidrome_search.collection.get() {
                 Some(Collection::Playlist { songs, .. }) => Some(songs),
                 _ => None,
@@ -446,6 +447,10 @@ impl State {
         if launch.demo {
             state.populate_lyric_share_demo(&flags);
         }
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo {
+            state.app.demo_downloads(launch.page.as_deref(), &flags);
+        }
         state.sync_tracks();
         #[cfg(feature = "navidrome-demo")]
         if launch.demo && flags.contains(&"artwork") {
@@ -576,11 +581,16 @@ impl State {
         }
     }
     pub(crate) fn sync_tracks(&mut self) {
+        self.app.sync_download_page();
         let page = self.app.presentation.page();
-        let revision = page.is_browse_songs().then(|| {
+        let revision = (page.is_browse_songs() || matches!(page, Page::Download(_))).then(|| {
             (
                 page.clone(),
-                self.app.browse.current().map_or(0, |list| list.revision),
+                if matches!(page, Page::Download(_)) {
+                    self.app.downloads.content_revision
+                } else {
+                    self.app.browse.current().map_or(0, |list| list.revision)
+                },
                 self.collection_sort(),
             )
         });
@@ -598,7 +608,9 @@ impl State {
     }
     pub(crate) fn collection_sort(&self) -> Option<crate::model::TableSort> {
         let page = self.app.presentation.page();
-        if matches!(page, Page::Album(_) | Page::Playlist(_)) || page.is_browse_songs() {
+        if matches!(page, Page::Album(_) | Page::Playlist(_) | Page::Download(_))
+            || page.is_browse_songs()
+        {
             self.app.presentation.table_sorts.get(page).copied()
         } else {
             None
@@ -615,7 +627,7 @@ impl State {
     }
     pub(crate) fn play_collection_row(&mut self, index: usize) {
         let page = self.app.presentation.page().clone();
-        if matches!(page, Page::Playlist(_)) || page.is_browse_songs() {
+        if matches!(page, Page::Playlist(_) | Page::Download(_)) || page.is_browse_songs() {
             let Some(source) = self.app.page_songs().filter(|songs| index < songs.len()) else {
                 return;
             };

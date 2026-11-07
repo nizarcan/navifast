@@ -117,7 +117,7 @@ an inline explanation, with no automatic retry loop. Toggle Autoplay to retry.
 One random sample of at most 20 songs prefers a playable candidate different from
 the current song. A one-song library may repeat it. Obvious unsupported formats,
 video and zero-duration entries are skipped; the audio decoder validates the
-actual stream. No offline catalogue is available yet. Automatic occurrences are
+actual stream. Autoplay requires a server connection; explicit downloads do not form an offline discovery catalogue. Automatic occurrences are
 stored with their origin in the local checkpoint, share song data, and use the
 same bounded 128-occurrence history. They never grow the original collection.
 
@@ -159,3 +159,13 @@ The queue model and regression tests live in `src/navidrome/queue.rs`; controlle
 and transport coverage lives in `src/app/navidrome/queue.rs` and
 `src/app/navidrome.rs`. Rune interaction tests live in
 `src/app/navidrome/desktop/regression.rs`.
+
+## Downloaded music
+
+Downloaded selections use the same occurrence IDs, ordered queue, seek and
+prepared handoff as server music. Each ready Original file is opened locally.
+Removing a selection does not remove its playing or queued occurrences. An already
+open file can finish; a later play or seek reports unavailable if its last local
+owner was removed while offline. Availability icons describe the local file, not
+a promise about server reachability. Downloaded metadata preserves duplicate
+playlist occurrences while storing the audio once.

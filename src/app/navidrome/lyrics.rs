@@ -76,7 +76,9 @@ impl App {
                     .presentation
                     .settings
                     .lrclib_lyrics
-                    .then(|| Box::new(self.proxy.clone())),
+                    .then_some(())
+                    .filter(|_| !client.is_offline())
+                    .map(|_| Box::new(self.proxy.clone())),
             });
             self.lyrics.data = Loadable::Loading;
         }

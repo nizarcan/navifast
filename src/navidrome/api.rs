@@ -98,6 +98,8 @@ pub struct Song {
     #[serde(default)]
     pub suffix: String,
     #[serde(default)]
+    pub size: Option<u64>,
+    #[serde(default)]
     pub track: u32,
     #[serde(default)]
     pub disc_number: u32,
@@ -282,6 +284,7 @@ pub enum Collection {
 // Deliberately no Debug: both the secret and authenticated request URLs are sensitive.
 #[derive(Clone)]
 pub struct Client {
+    offline: bool,
     base: reqwest::Url,
     username: String,
     password: Arc<String>,
@@ -325,8 +328,27 @@ impl Client {
         password: String,
         proxy: &crate::settings::ProxyConfig,
     ) -> Result<Self, String> {
+        Self::with_connection(server, username, password, proxy, false)
+    }
+    pub(crate) fn offline(
+        server: &str,
+        username: &str,
+        proxy: &crate::settings::ProxyConfig,
+    ) -> Result<Self, String> {
+        Self::with_connection(server, username, String::new(), proxy, true)
+    }
+    pub fn is_offline(&self) -> bool {
+        self.offline
+    }
+    fn with_connection(
+        server: &str,
+        username: &str,
+        password: String,
+        proxy: &crate::settings::ProxyConfig,
+        offline: bool,
+    ) -> Result<Self, String> {
         let base = server_url(server)?;
-        if username.trim().is_empty() || password.is_empty() {
+        if username.trim().is_empty() || (!offline && password.is_empty()) {
             return Err("Enter your Navidrome username and password.".into());
         }
         let username = username.trim().to_owned();
@@ -335,6 +357,7 @@ impl Client {
             Sha256::digest(format!("{}\0{username}", base.as_str()))
         );
         Ok(Self {
+            offline,
             base,
             username,
             password: Arc::new(password),
@@ -416,6 +439,11 @@ impl Client {
         &self,
         request: reqwest::RequestBuilder,
     ) -> Result<serde_json::Value, RequestError> {
+        if self.offline {
+            return Err(RequestError::Unconfirmed(
+                "Working offline. Reconnect to use your server.".into(),
+            ));
+        }
         let mut response = request
             .send()
             .await
@@ -750,6 +778,9 @@ impl Client {
     }
 
     pub async fn cover(&self, id: &str, size: CoverSize) -> Result<Vec<u8>, String> {
+        if self.offline {
+            return Err("Artwork is unavailable offline.".into());
+        }
         let mut params = vec![("id", id.into())];
         if size != CoverSize::Original {
             params.push(("size", size.pixels().to_string()));
@@ -770,6 +801,51 @@ impl Client {
             bytes.extend_from_slice(&chunk);
         }
         Ok(bytes)
+    }
+
+    pub(crate) async fn download_allowed(&self) -> Result<bool, String> {
+        let body = self
+            .request("getUser", &[("username", self.username.clone())])
+            .await?;
+        let user = &body["user"];
+        if user["username"].as_str() != Some(self.username()) {
+            return Err("The server did not confirm this account's download permission.".into());
+        }
+        match &user["downloadRole"] {
+            serde_json::Value::Bool(allowed) => Ok(*allowed),
+            serde_json::Value::String(value) if value == "true" => Ok(true),
+            serde_json::Value::String(value) if value == "false" => Ok(false),
+            _ => Err("The server did not report download permission.".into()),
+        }
+    }
+
+    pub(crate) async fn download_response(
+        &self,
+        http: &reqwest::Client,
+        id: &str,
+    ) -> Result<reqwest::Response, String> {
+        if self.offline {
+            return Err("Reconnect to download music.".into());
+        }
+        let response = http
+            .get(self.url("download", &[("id", id.into())]))
+            .send()
+            .await
+            .map_err(network_error)?
+            .error_for_status()
+            .map_err(network_error)?;
+        if response.status() != reqwest::StatusCode::OK {
+            return Err("The server did not return a complete download.".into());
+        }
+        let kind = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default();
+        if kind.contains("xml") || kind.contains("json") || kind.contains("html") {
+            return Err("The server refused the download or the song is unavailable.".into());
+        }
+        Ok(response)
     }
 
     pub(super) fn stream_url(&self, id: &str) -> reqwest::Url {

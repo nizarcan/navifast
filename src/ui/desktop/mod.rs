@@ -16,6 +16,7 @@ pub(crate) mod artist;
 mod artwork;
 mod backdrop;
 mod browse;
+mod downloads;
 mod home;
 mod inspector;
 mod library;
@@ -420,6 +421,15 @@ impl Paint<'_> {
         } else {
             row().child(self.button("Connect", true, |s, _| s.connect()))
         };
+        let buttons = buttons.gap(10.).flex_wrap().child(
+            self.button(&self.tr(mark("Open downloads offline")), false, |s, _| {
+                let server = s.server.text.clone();
+                let username = s.user.text.clone();
+                s.app.open_offline(&server, &username);
+            })
+            .key("open-offline")
+            .disabled(self.s.server.text.is_empty() || self.s.user.text.is_empty()),
+        );
         form=form.child(buttons.mt(22.)).child(label("Your login is saved in the system credential store. Use HTTPS for a remote server.",12.,400.,self.p.secondary).wrap().mt(16.));
         let top = ((self.height - 430.) * 0.35).max(12.) + 14.;
         let scroll = col()
@@ -609,7 +619,11 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
             && s.app.presentation.dialog.is_none()
             && matches!(
                 s.app.presentation.page(),
-                Page::Album(_) | Page::Playlist(_) | Page::Songs | Page::Genre(_)
+                Page::Album(_)
+                    | Page::Playlist(_)
+                    | Page::Download(_)
+                    | Page::Songs
+                    | Page::Genre(_)
             )
             && s.table.cursor.is_some() =>
         {

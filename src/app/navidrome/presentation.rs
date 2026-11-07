@@ -140,7 +140,9 @@ impl App {
             }
             UiAction::Open(Page::Stats) if self.connected => self.presentation.open(Page::Stats),
             UiAction::Reload(Page::Stats) if self.connected => self.refresh_stats(),
-            UiAction::Open(Page::Settings) => self.presentation.open(Page::Settings),
+            UiAction::Open(page @ (Page::Settings | Page::Downloads | Page::Download(_))) => {
+                self.presentation.open(page)
+            }
             UiAction::Back | UiAction::Forward => {
                 host.local_action(self, action);
                 if let Page::Album(id) = self.presentation.page()

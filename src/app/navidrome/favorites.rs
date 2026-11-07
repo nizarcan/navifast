@@ -290,6 +290,7 @@ impl App {
                             .filter_map(|e| self.transport.queue.song(e)),
                     )
                     .chain(playlist)
+                    .chain(self.downloads.songs.iter())
                     .chain(
                         self.browse
                             .current()

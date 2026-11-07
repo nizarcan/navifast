@@ -4,6 +4,8 @@ use std::{sync::Arc, time::Instant};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Page {
     Home,
+    Downloads,
+    Download(String),
     Stats,
     Search,
     LikedSongs,
@@ -49,6 +51,8 @@ impl Page {
     pub fn encode(&self) -> String {
         match self {
             Page::Home => "home".into(),
+            Page::Downloads => "downloads".into(),
+            Page::Download(key) => format!("download:{key}"),
             Page::Stats => "stats".into(),
             Page::Search => "search".into(),
             Page::LikedSongs => "liked".into(),
@@ -72,6 +76,7 @@ impl Page {
     pub fn decode(text: &str) -> Option<Self> {
         Some(match text {
             "home" => Page::Home,
+            "downloads" => Page::Downloads,
             "stats" => Page::Stats,
             "search" => Page::Search,
             "liked" => Page::LikedSongs,
@@ -88,6 +93,7 @@ impl Page {
                 match kind {
                     "playlist" => Page::Playlist(id.into()),
                     "album" => Page::Album(id.into()),
+                    "download" => Page::Download(id.into()),
                     "albums" => Page::AlbumList(crate::navidrome::albums::Order::decode(id)?),
                     "artist" => Page::Artist(id.into()),
                     "genre" => Page::Genre(id.into()),

@@ -311,6 +311,9 @@ fn track(v: &Paint<'_>, entry: &Entry, current: bool) -> El {
                     .truncate(),
                 ),
         );
+    if let Some(song) = queue.song(entry) {
+        track = track.child(downloads::availability(v, &song.id));
+    }
     if !current {
         track = track
             .role("option")
@@ -374,6 +377,10 @@ pub(super) fn menu(v: &Paint<'_>) -> Option<El> {
             .key("inspect-queue-track"),
         );
         menu = menu.child(ratings::menu(
+            v,
+            &crate::navidrome::ratings::Kind::Song.uri(&song.id),
+        ));
+        menu = menu.child(downloads::menu_item(
             v,
             &crate::navidrome::ratings::Kind::Song.uri(&song.id),
         ));

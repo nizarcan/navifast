@@ -14,6 +14,33 @@ mod decode;
 mod pipeline;
 use pipeline::{Boundary, ContinuousSource, Input, Preparation, Track};
 
+/// Verify the downloaded container/codec with the same decoder as playback.
+/// HTTP length validation proves transfer completion; decoding one PCM block
+/// avoids decoding an entire album twice just to recognize its file formats.
+pub(crate) fn inspect_download(
+    path: &std::path::Path,
+    suffix: &str,
+) -> Result<super::audio::Decoded, String> {
+    let file = std::fs::File::open(path).map_err(|_| "Could not open the downloaded file.")?;
+    let mut info = None;
+    let mut pcm = false;
+    decode::decode_observed(
+        Box::new(file),
+        suffix,
+        0.0,
+        None,
+        |decoded| info = Some(decoded),
+        |_| {
+            pcm = true;
+            false
+        },
+    )?;
+    if !pcm {
+        return Err("The downloaded file contains no playable audio.".into());
+    }
+    info.ok_or_else(|| "The downloaded audio format could not be verified.".into())
+}
+
 /// Unique across explicit loads and reserved natural handoffs. A seek cannot
 /// accidentally reuse the token of a prepared occurrence.
 pub(crate) fn next_generation() -> u64 {
@@ -242,6 +269,14 @@ fn decode_job(
     resolver: &super::backend::StreamResolver,
     notify: &dyn Fn(Event),
 ) -> Result<(), String> {
+    let local = (job.track.quality == Quality::Original)
+        .then(|| resolver.local(&job.client.scope, &job.track.song.id))
+        .flatten();
+    if job.client.is_offline() && local.is_none() {
+        return Err(
+            "This song is not downloaded. Reconnect or choose available offline music.".into(),
+        );
+    }
     let plan = if job.track.quality == Quality::Original {
         super::quality::Plan {
             url: job.client.stream_url(&job.track.song.id),
@@ -273,29 +308,35 @@ fn decode_job(
             }
         }
     };
-    let http = Client::stream_client(proxy)?;
-    let source: Box<dyn symphonia::core::io::MediaSource> = if plan.ranged {
-        Box::new(
-            HttpSource::open_url(
-                http,
-                plan.url,
-                current.clone(),
-                job.chain,
-                Some(job.track.gate.clone()),
-            )
-            .map_err(|e| e.to_string())?,
-        )
+    let source: Box<dyn symphonia::core::io::MediaSource> = if let Some(path) = local {
+        Box::new(std::fs::File::open(path).map_err(
+            |_| "The downloaded file is unavailable. Download it again or remove its local copy.",
+        )?)
     } else {
-        Box::new(
-            super::stream::forward::ForwardSource::open(
-                http,
-                plan.url,
-                current.clone(),
-                job.chain,
-                Some(job.track.gate.clone()),
+        let http = Client::stream_client(proxy)?;
+        if plan.ranged {
+            Box::new(
+                HttpSource::open_url(
+                    http,
+                    plan.url,
+                    current.clone(),
+                    job.chain,
+                    Some(job.track.gate.clone()),
+                )
+                .map_err(|e| e.to_string())?,
             )
-            .map_err(|e| e.to_string())?,
-        )
+        } else {
+            Box::new(
+                super::stream::forward::ForwardSource::open(
+                    http,
+                    plan.url,
+                    current.clone(),
+                    job.chain,
+                    Some(job.track.gate.clone()),
+                )
+                .map_err(|e| e.to_string())?,
+            )
+        }
     };
     let mut ready = false;
     let consume = |block| {

@@ -322,3 +322,47 @@ have counted it. Now-playing failures wait for the next genuine start. Reports
 and failures are not persisted across exit or disconnection yet; durable replay
 belongs to offline synchronization. Navifast contacts only the configured server,
 which may forward reports to scrobbling services configured on that server.
+
+## Explicit downloads
+
+Download in a song, album or playlist menu saves the original file returned by
+OpenSubsonic `download`, after checking the current user's `downloadRole` through
+`getUser`. There is one transfer at a time on the library runtime. HTTP connects
+are limited to eight seconds and stalled reads to fifteen seconds; each failed
+track waits for explicit Retry. Completed tracks remain usable after a storage
+failure. Downloads do not use transcoding or the optional streaming quality.
+
+Only explicitly selected song metadata and ordered membership are persisted.
+This is not a whole-library offline index. State lives under
+`downloads/<account hash>/`, scoped by normalized server URL and username. Song
+IDs become hashed filenames, never paths or authenticated URLs. Overlapping
+selections share one Original file per song, while repeated playlist entries keep
+their play order. Selection intent is atomically written before work begins;
+progress stays in memory and small completion records are written per track.
+The manifest is limited to 16 MiB, 1,000 selections and 10,000 unique tracks.
+
+Transfers stream into a private `.partial` file with no whole-file memory buffer.
+A completed download must match its declared length (or the original song size
+for a chunked response), stay within 8 GiB and produce audio through the shipping
+Symphonia decoder. Invalid, missing, unsupported and interrupted sources are never
+advertised ready. The worker flushes the file and atomically publishes it only
+after validation. Restart requires the completion record and a matching file size;
+interrupted work restarts from zero. Cancel stops unfinished work, Retry preserves
+completed files, and Remove deletes only files with no remaining selection owner.
+Unowned managed files from interrupted removals are collected after a valid list
+is loaded. Damaged or incompatible lists preserve their audio for recovery.
+
+Home's Available offline shelf opens downloaded collections. Manage shows unique
+bytes used and each selection's progress. The original track table and queue show
+local availability. The sign-in screen's Open downloads offline uses the entered
+server and username without requiring a password or contacting the network. Local
+files use the same seek, EQ, visualizer and prepared playback path as streaming.
+A missing local file reports an error rather than silently contacting the server
+in offline mode. Reconnect restores the saved credential flow. Artwork and lyrics
+are not downloaded; offline playback makes no server or LRCLIB requests. Open a
+downloaded collection to resume listening after an offline launch.
+
+Explicit downloads stay until removed, including across sign-out, and are not
+subject to streaming-cache eviction. They are ordinary unencrypted media and
+metadata protected by the operating system account, not a separate encrypted
+library. No credentials or signed URLs are stored in download files.

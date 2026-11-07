@@ -1534,3 +1534,60 @@ fn inspector_scrolls_to_device_facts_and_escape_dismisses_without_changing_playb
         assert!(rt.state.app.transport.paused);
     }
 }
+
+#[test]
+fn downloads_keep_four_destinations_and_reuse_collection_playback() {
+    for flags in ["restored,downloads", "restored,downloads,light"] {
+        let mut rt = runtime("home", flags);
+        rt.set_viewport((760., 800.), 2.);
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(rt.accessibility_action(
+            "home-downloads-manage",
+            rune::accesskit::Action::Click,
+            None
+        ));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.presentation.page(), &Page::Downloads);
+        let key = format!(
+            "download-open-{}",
+            crate::navidrome::downloads::Kind::Album.key("alb0")
+        );
+        assert!(rt.accessibility_action(&key, rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(matches!(
+            rt.state.app.presentation.page(),
+            Page::Download(_)
+        ));
+        assert_eq!(rt.state.app.page_songs().unwrap().len(), 12);
+        assert!(rt.accessibility_action("download-play", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert_eq!(rt.state.app.transport.song().unwrap().id, "trk0");
+        assert!(!rt.state.app.transport.paused);
+        let playing = rt.state.app.transport.song().unwrap().id.clone();
+        assert!(rt.accessibility_action("download-remove", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(rt.state.app.page_songs().unwrap().is_empty());
+        assert_eq!(rt.state.app.transport.song().unwrap().id, playing);
+    }
+}
+
+#[test]
+fn offline_home_and_empty_downloads_offer_manage_and_reconnect() {
+    let mut rt = runtime("home", "restored,downloads-empty,downloads-offline");
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.state.app.offline());
+    assert!(rt.accessibility_action(
+        "home-downloads-manage",
+        rune::accesskit::Action::Click,
+        None
+    ));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &Page::Downloads);
+    assert!(
+        rt.elements()
+            .iter()
+            .any(|e| e.key.as_deref() == Some("downloads-reconnect"))
+    );
+}

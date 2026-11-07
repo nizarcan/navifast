@@ -6,6 +6,7 @@ pub mod audio;
 pub mod autoplay;
 pub mod backend;
 pub mod browse;
+pub mod downloads;
 pub mod lyrics;
 pub mod player;
 pub mod playlists;

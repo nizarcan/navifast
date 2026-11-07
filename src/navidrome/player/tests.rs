@@ -676,3 +676,92 @@ fn inspector_observes_96khz_before_stereo_44100_processing() {
     assert!(observed[0].codec.contains("pcm"));
     assert!((samples as i64 - i64::from(RATE) * 2).abs() < 200);
 }
+
+#[test]
+fn downloaded_audio_decodes_and_seeks_without_any_network_or_output_device() {
+    use crate::{
+        navidrome::downloads::{
+            audio_path,
+            worker::{Available, Shared},
+        },
+        settings::ProxyConfig,
+    };
+    let root = std::env::temp_dir().join(format!(
+        "navifast-local-player-{:016x}",
+        rand::random::<u64>()
+    ));
+    std::fs::create_dir(&root).unwrap();
+    let client = Client::offline("http://127.0.0.1:1", "listener", &ProxyConfig::Off).unwrap();
+    let audio = wav(44_100, 2);
+    let song = Song {
+        id: "downloaded".into(),
+        suffix: "wav".into(),
+        ..Default::default()
+    };
+    let path = audio_path(&root, &song.id);
+    std::fs::write(&path, &audio).unwrap();
+    let available = Shared::default();
+    *available.write().unwrap() = Available {
+        scope: client.scope.clone(),
+        root: root.clone(),
+        songs: [(song.id.clone(), song.clone())].into(),
+    };
+    let (requests, mut received) = tokio::sync::mpsc::unbounded_channel();
+    let resolver = super::super::backend::StreamResolver::new(requests, available.clone());
+    for offset in [0., 0.1, 0.5] {
+        let mut next = track(1, 1);
+        let details = Arc::get_mut(&mut next).unwrap();
+        details.song = song.clone();
+        details.offset = offset;
+        let (samples, receive) = mpsc::sync_channel(512);
+        let job = DecodeJob {
+            chain: 1,
+            track: next,
+            client: client.clone(),
+            samples,
+        };
+        decode_job(
+            &job,
+            &ProxyConfig::Off,
+            &Arc::new(AtomicU64::new(1)),
+            &resolver,
+            &|_| {},
+        )
+        .unwrap();
+        drop(job);
+        let actual: Vec<f32> = receive.into_iter().flat_map(Result::unwrap).collect();
+        let expected: Vec<f32> = raw(audio.clone(), "wav", offset)
+            .into_iter()
+            .flatten()
+            .collect();
+        assert!(!actual.is_empty());
+        assert_eq!(actual, expected);
+    }
+    assert!(
+        received.try_recv().is_err(),
+        "local audio never asks for a stream"
+    );
+    // An account mismatch cannot fall through to unauthenticated networking.
+    available.write().unwrap().scope = "another-account".into();
+    let (samples, _) = mpsc::sync_channel(1);
+    let mut next = track(1, 1);
+    Arc::get_mut(&mut next).unwrap().song = song;
+    let job = DecodeJob {
+        chain: 1,
+        track: next,
+        client,
+        samples,
+    };
+    assert!(
+        decode_job(
+            &job,
+            &ProxyConfig::Off,
+            &Arc::new(AtomicU64::new(1)),
+            &resolver,
+            &|_| {}
+        )
+        .unwrap_err()
+        .contains("not downloaded")
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}

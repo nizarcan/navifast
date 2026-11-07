@@ -91,6 +91,11 @@ The current build supports:
 - Track details in song and queue menus, and on a right-click of the playing
   track. It separates server file metadata, decoded audio, processing format and
   configured device output, with unknown values shown explicitly.
+- Download songs, albums or playlists in Original quality from their menus.
+  Home → Available offline → Manage shows progress, retry, cancellation and removal.
+  Overlapping selections share files; removing one keeps music owned by another.
+  Use **Open downloads offline** on the sign-in screen with the same server and
+  username. Completed downloads play and seek locally, including after restart.
 - Basic native media controls.
 
 This is an early playback build. Tray behavior is not available in the current
@@ -112,7 +117,7 @@ An unsupported encoder or wrong returned codec reports an error; it never silent
 falls back to a larger original file. Quality changes retain position and pause.
 Servers without converted-audio seeking apply changes on the next song instead.
 Opus is not offered because the current decoder does not support it. There is no
-whole-file download fallback or offline cache.
+automatic whole-file streaming fallback. Explicit downloads are separate from streaming.
 Original streaming downloads up to 4 MiB ahead per occurrence, with at most the playing
 and next occurrence active, and prepares a 200 ms audio
 reserve before starting or recovering from an interruption. This cushions brief
