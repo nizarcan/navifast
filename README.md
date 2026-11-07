@@ -48,10 +48,6 @@ The current build supports:
 - Starring songs, albums and artists on your Navidrome account. Open **Favorites**
   in the sidebar for two-row artwork previews. Choose **See all** to browse
   the full grid of favorite songs, albums or artists.
-- Creating public music links from a song or album's **Share music…** menu.
-  Choose 1, 7 or 30 days; **Music links** in Settings lists server-issued links,
-  expiry and revocation controls. Sharing depends on the server and your account.
-  Links are copied only on request and contain no authenticated stream URLs.
 - Rating songs and albums from **More** or their context menu. Choose 1–5 or
   **Clear rating**; ratings are shared across views and independent of Favorites.
   Failed saves identify the item and offer **Retry**.

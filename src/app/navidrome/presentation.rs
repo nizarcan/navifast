@@ -79,7 +79,6 @@ impl App {
             }
             UiAction::Queue(action) if self.connected => self.queue_action(action),
             UiAction::EditPlaylists(action) if self.connected => self.playlist_action(action),
-            UiAction::Share(action) => self.share_action(action),
             UiAction::Scrobble(action) => self.scrobble_action(action),
             UiAction::Rating(action) if self.connected => self.rating_action(action),
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),

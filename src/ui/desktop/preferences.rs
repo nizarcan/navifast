@@ -220,23 +220,6 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             );
         page = page.child(section(v, &account, vec![account_row]));
     }
-    let sharing = v.tr(mark("Music links"));
-    if matches(&[&account, &sharing]) {
-        visible = true;
-        page = page.child(section(
-            v,
-            &sharing,
-            vec![
-                v.button(&sharing, false, |s, tx| {
-                    s.dispatch(
-                        Action::Share(crate::app::navidrome::shares::Action::Open(None)),
-                        tx,
-                    );
-                })
-                .key("manage-shares"),
-            ],
-        ));
-    }
     let listening = v.tr(mark("Listening history"));
     let name = v.tr(mark("Scrobble to Navidrome"));
     let detail = v.tr(mark("Send now playing and qualifying listens to your server. Your server may forward reports to services you configured."));

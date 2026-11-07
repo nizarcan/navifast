@@ -9,12 +9,6 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
-    Shares {
-        session: u64,
-        request: u64,
-        client: Client,
-        task: super::shares::Task,
-    },
     Stats {
         session: u64,
         request: u64,
@@ -180,11 +174,6 @@ pub enum Request {
 }
 
 pub enum Event {
-    Shares {
-        session: u64,
-        request: u64,
-        result: Result<super::shares::Outcome, RequestError>,
-    },
     Stats {
         session: u64,
         request: u64,
@@ -588,16 +577,6 @@ async fn execute(
     provider: &super::lyrics::lrclib::Lookup,
 ) -> Option<Event> {
     Some(match request {
-        Request::Shares {
-            session,
-            request,
-            client,
-            task,
-        } => Event::Shares {
-            session,
-            request,
-            result: client.share_task(&task).await,
-        },
         Request::Stats {
             session,
             request,

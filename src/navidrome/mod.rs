@@ -11,7 +11,6 @@ pub mod queue;
 pub mod ratings;
 pub mod scrobble;
 pub mod session;
-pub mod shares;
 pub mod stats;
 pub mod stream;
 

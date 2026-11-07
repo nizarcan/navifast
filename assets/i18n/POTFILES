@@ -32,4 +32,3 @@ src/ui/desktop/albums.rs
 src/ui/desktop/ratings.rs
 src/ui/desktop/scrobble.rs
 src/ui/desktop/stats.rs
-src/ui/desktop/shares.rs

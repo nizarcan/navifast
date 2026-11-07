@@ -148,26 +148,6 @@ impl App {
     }
 }
 impl State {
-    pub(crate) fn copy_music_link(&mut self, id: &str, tx: &mut Tx) {
-        let Some(url) = self.app.shares.copy_url(id).map(str::to_owned) else {
-            return;
-        };
-        let id = id.to_owned();
-        self.app.shares.error = None;
-        self.app.shares.copied = None;
-        let session = self.app.session;
-        tx.copy(url.clone());
-        tx.read_clipboard(move |s: &mut State, content, _| {
-            if session != s.app.session || s.app.shares.copy_url(&id) != Some(url.as_str()) {
-                return;
-            }
-            if content.text() == url {
-                s.app.shares.copied = Some(id.clone());
-            } else {
-                s.app.shares.error = Some("The link could not be copied. Try again.".into());
-            }
-        });
-    }
     pub(crate) fn open_stats_song(&mut self, page: Page, id: String, tx: &mut Tx) {
         self.dispatch(Action::Open(page.clone()), tx);
         self.stats_song = Some((page, id));
@@ -1030,34 +1010,6 @@ pub fn run(mut launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> 
 mod tests {
     use super::*;
     use rune::{Env, Key, KeyEvent, Mods, Runtime};
-
-    #[test]
-    fn shares_copy_the_exact_public_link_and_report_a_failed_clipboard_write() {
-        let mut rt = runtime("album:alb0", "share-created,restored");
-        let board = rune::clipboard::memory();
-        rt.use_clipboard(&board);
-        let expected = "https://public.example/share.php?id=exact&secret=a%2Bb";
-        rt.update(|s, _| s.app.shares.list[0].url = Some(expected.into()));
-        for failed in [true, false] {
-            board.fail_writes(failed.then_some("unavailable"));
-            rt.update(|s, tx| s.copy_music_link("listen", tx));
-            let deadline = std::time::Instant::now() + Duration::from_secs(3);
-            while rt.state.app.shares.copied.is_none() && rt.state.app.shares.error.is_none() {
-                rt.frame(0.);
-                assert!(
-                    std::time::Instant::now() < deadline,
-                    "clipboard result timed out"
-                );
-                std::thread::sleep(Duration::from_millis(1));
-            }
-            if failed {
-                assert!(rt.state.app.shares.error.is_some());
-            } else {
-                assert_eq!(board.content().unwrap().text(), expected);
-                assert_eq!(rt.state.app.shares.copied.as_deref(), Some("listen"));
-            }
-        }
-    }
 
     #[test]
     fn stats_song_opens_its_album_and_selects_the_loaded_track_without_playing() {

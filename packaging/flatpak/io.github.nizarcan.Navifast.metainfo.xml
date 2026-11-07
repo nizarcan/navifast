@@ -32,11 +32,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.19" date="2026-11-07" type="development">
+      <description><p>Remove public sharing links at the maintainer’s request.</p></description>
+    </release>
     <release version="0.1.0-rc.18" date="2026-11-07" type="development">
       <description><p>Remove the sleep timer at the maintainer’s request.</p></description>
-    </release>
-    <release version="0.1.0-rc.16" date="2026-11-07" type="development">
-      <description><p>Create expiring public music links from your server and revoke them later.</p></description>
     </release>
     <release version="0.1.0-rc.15" date="2026-11-07" type="development">
       <description><p>See your account’s most-played songs, albums and artists with an on-demand listening summary.</p></description>
