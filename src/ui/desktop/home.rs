@@ -171,15 +171,24 @@ pub(super) fn page(v: &Paint<'_>) -> El {
                     }
                 } else {
                     for artist in history.artists.iter().skip(start).take(columns) {
+                        let id = artist.id.clone();
                         band = band.child(library::favorite_context(
                             library::collection_card(
                                 &v,
-                                format!("home-artist-{}", artist.id),
+                                s.artwork_visibility_key(&format!("home-artist-{}", artist.id)),
                                 &artist.name,
                                 artist.cover.as_deref(),
                                 label(v.tr(mark("Artist")), 12.5, 400., p.secondary),
                                 el(),
                                 artist.page(),
+                            )
+                            .on_visible(
+                                move |s: &mut State, on, tx| {
+                                    if on {
+                                        s.request_home_artist_cover(&id);
+                                    }
+                                    tx.live_only();
+                                },
                             ),
                             crate::navidrome::api::FavoriteKind::Artist,
                             &artist.id,

@@ -177,7 +177,9 @@ album identifiers are saved in `navidrome.json`, along with the ten most recent
 submitted searches for each server and account.
 Home also keeps bounded local metadata for the last 24 collections and 24 artists
 in that file. This history belongs to the saved server/account, contains no audio
-or image files, and changes accounts with your login.
+or image files, and changes accounts with your login. Restored covers load as soon
+as sign-in finishes. Home looks up missing photos for visible recent artists from
+your server and remembers their artwork IDs for the next launch.
 `navidrome-session.json` in the state directory stores the listening session using
 opaque IDs and a server/account identity hash, without credentials or stream URLs.
 Sign-out deletes it.

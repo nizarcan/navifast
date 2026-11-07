@@ -183,6 +183,11 @@ pub enum Request {
         id: String,
     },
     CancelCollection,
+    ArtistCover {
+        session: u64,
+        client: Client,
+        id: String,
+    },
     Cover {
         size: CoverSize,
         session: u64,
@@ -200,6 +205,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    ArtistCover {
+        session: u64,
+        id: String,
+        result: Result<Option<String>, String>,
+    },
     Cache(super::cache::Summary),
     Sync {
         session: u64,
@@ -969,6 +979,15 @@ async fn execute(
             session,
             request,
             result: client.artist_info(&id).await,
+        },
+        Request::ArtistCover {
+            session,
+            client,
+            id,
+        } => Event::ArtistCover {
+            session,
+            result: client.artist_cover(&id).await,
+            id,
         },
         Request::Cover {
             size,

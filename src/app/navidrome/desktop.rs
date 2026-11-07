@@ -854,7 +854,20 @@ impl State {
     pub(crate) fn cover_image(&self, id: &str, size: CoverSize) -> (String, Option<rune::Pixels>) {
         let uri = presentation::artwork_uri(self.app.session, id, size);
         let covers = self.window.covers.borrow();
-        (covers.view_key(&uri), covers.get(&uri))
+        (
+            self.artwork_visibility_key(&covers.view_key(&uri)),
+            covers.get(&uri),
+        )
+    }
+
+    /// Restored cards can become visible before credentials finish loading.
+    /// Re-arm visibility when authenticated requests become possible.
+    pub(crate) fn artwork_visibility_key(&self, key: &str) -> String {
+        format!("{key}/{}/{}", self.app.session, self.app.client.is_some())
+    }
+
+    pub(crate) fn request_home_artist_cover(&mut self, id: &str) {
+        self.app.request_home_artist_cover(id);
     }
 
     pub(crate) fn request_cover(&mut self, id: &str, size: CoverSize) {

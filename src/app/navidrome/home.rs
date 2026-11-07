@@ -94,7 +94,7 @@ impl History {
         }
     }
 
-    fn push(&mut self, entry: Entry) -> bool {
+    fn push(&mut self, mut entry: Entry) -> bool {
         if !entry.valid() {
             return false;
         }
@@ -103,6 +103,13 @@ impl History {
         } else {
             &mut self.collections
         };
+        // Sparse playback credits must not erase a previously resolved portrait.
+        if entry.cover.is_none() {
+            entry.cover = entries
+                .iter()
+                .find(|old| old.kind == entry.kind && old.id == entry.id)
+                .and_then(|old| old.cover.clone());
+        }
         if entries.first() == Some(&entry) {
             return false;
         }
@@ -114,6 +121,59 @@ impl History {
 }
 
 impl App {
+    pub(super) fn request_home_artist_cover(&mut self, id: &str) {
+        let artists = &self.preferences.home_history.artists;
+        if !artists
+            .iter()
+            .any(|entry| entry.id == id && entry.cover.is_none())
+        {
+            return;
+        }
+        let Some(client) = &self.client else { return };
+        // History is capped at 24 artists. Retain no session-long catalogue cache.
+        self.home_artist_covers
+            .retain(|id| artists.iter().any(|entry| entry.id == *id));
+        if self.home_artist_covers.insert(id.to_owned()) {
+            self.backend
+                .send(crate::navidrome::backend::Request::ArtistCover {
+                    session: self.session,
+                    client: client.clone(),
+                    id: id.to_owned(),
+                });
+        }
+    }
+
+    pub(super) fn home_artist_cover(
+        &mut self,
+        session: u64,
+        id: &str,
+        result: Result<Option<String>, String>,
+    ) {
+        if session != self.session || !self.home_artist_covers.contains(id) {
+            return;
+        }
+        match result {
+            Ok(Some(cover)) if !cover.trim().is_empty() && cover.len() <= FIELD_LIMIT => {
+                if let Some(entry) = self
+                    .preferences
+                    .home_history
+                    .artists
+                    .iter_mut()
+                    .find(|entry| entry.id == id && entry.cover.is_none())
+                {
+                    entry.cover = Some(cover);
+                    self.mark_dirty();
+                }
+            }
+            // A later visit can retry a failed lookup. Missing artwork stays a
+            // placeholder without sending the same request on every frame.
+            Err(_) => {
+                self.home_artist_covers.remove(id);
+            }
+            _ => {}
+        }
+    }
+
     pub(super) fn remember_home_album(&mut self, album: &Album) {
         if let Some(entry) = Entry::album(album)
             && self.preferences.home_history.push(entry)
@@ -344,6 +404,56 @@ mod tests {
             app.remember_account("https://another.example", "listener");
             assert!(app.preferences.home_history.collections.is_empty());
             assert!(app.preferences.home_history.artists.is_empty());
+        });
+    }
+
+    #[test]
+    fn resolved_portraits_survive_sparse_credits_and_restarts() {
+        with_app(|app, _| {
+            let entry = Entry::new(Kind::Artist, "a", "Artist", "", None).unwrap();
+            app.preferences.home_history.push(entry.clone());
+            app.home_artist_covers.insert(entry.id.clone());
+            app.home_artist_cover(app.session + 1, "a", Ok(Some("wrong-account".into())));
+            assert!(app.preferences.home_history.artists[0].cover.is_none());
+            app.home_artist_cover(app.session, "a", Ok(Some("portrait".into())));
+            assert!(!app.preferences.home_history.push(entry.clone()));
+            // Late metadata must not replace a newer cover or change history order.
+            app.preferences
+                .home_history
+                .push(Entry::new(Kind::Artist, "b", "Other", "", None).unwrap());
+            app.home_artist_cover(app.session, "a", Ok(Some("stale".into())));
+            let json = serde_json::to_string(&app.preferences.home_history).unwrap();
+            let mut restored: History = serde_json::from_str(&json).unwrap();
+            restored.sanitize();
+            assert_eq!(restored.artists[0].id, "b");
+            assert_eq!(restored.artists[1].cover.as_deref(), Some("portrait"));
+            restored.push(entry);
+            assert_eq!(restored.artists[0].cover.as_deref(), Some("portrait"));
+            app.preferences.home_history.artists.clear();
+            app.home_artist_cover(app.session, "a", Ok(Some("late".into())));
+            assert!(app.preferences.home_history.artists.is_empty());
+        });
+    }
+
+    #[test]
+    fn failed_portraits_retry_on_a_later_visit_but_absent_artwork_does_not() {
+        with_app(|app, _| {
+            app.preferences
+                .home_history
+                .push(Entry::new(Kind::Artist, "a", "Artist", "", None).unwrap());
+            app.request_home_artist_cover("a");
+            assert!(
+                app.home_artist_covers.is_empty(),
+                "no request before sign-in"
+            );
+            app.home_artist_covers.insert("a".into());
+            app.home_artist_cover(app.session, "a", Ok(None));
+            assert!(app.home_artist_covers.contains("a"));
+            app.home_artist_cover(app.session, "a", Err("temporarily unavailable".into()));
+            assert!(!app.home_artist_covers.contains("a"));
+            app.home_artist_covers.insert("a".into());
+            app.home_artist_cover(app.session, "a", Ok(Some("x".repeat(FIELD_LIMIT + 1))));
+            assert!(app.preferences.home_history.artists[0].cover.is_none());
         });
     }
 }

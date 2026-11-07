@@ -96,9 +96,17 @@ independently of search. Refresh keeps existing rows available if it fails.
 Leaving the page cancels its pending list request and ignores late results.
 Home shares this playlist list and its cancellation group. Moving directly between
 Home and Playlists retains the current request; leaving both cancels it. Startup
-loads Home after authentication. Its recent collections and artist metadata live
-in bounded, account-scoped preferences and reuse playback metadata without extra
-lookup requests. Old album-only history is filled from already loaded albums.
+restores Home while authentication is pending. Visible artwork requests re-arm
+when the client becomes available. Its recent collections and artist metadata live
+in bounded, account-scoped preferences and reuse playback metadata. A visible
+recent artist whose credits omitted `coverArt` resolves it through `getArtist`
+on the backend's shared four-request limit. Only the opaque artwork ID is retained,
+not the discography or external image URLs. At most 24 history artists are tracked;
+duplicate lookups and successful responses without artwork are suppressed for the
+session. A failed lookup can retry when the card becomes visible again. Signing
+out cancels requests and rejects late replies. Resolved IDs survive restarts and
+later playback with sparse credits, and their images use the existing artwork
+cache. Old album-only history is filled from already loaded albums.
 Home uses virtual rows, including expanded playlist and artist sections.
 Playlist edits use `createPlaylist`, `updatePlaylist`, and `deletePlaylist` on
 workers. The destination list respects the server's `readonly` flag, falling

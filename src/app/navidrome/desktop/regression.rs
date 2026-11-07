@@ -246,6 +246,132 @@ fn home_navigation_keeps_restored_playback_and_opens_recent_collections() {
 }
 
 #[test]
+fn home_artwork_loads_when_sign_in_finishes_after_cards_are_visible() {
+    use crate::app::navidrome::home::{Entry, History, Kind};
+    use crate::navidrome::{
+        api::Client,
+        test_server::{Server, response},
+    };
+    use std::{
+        io::Cursor,
+        sync::{Arc, Mutex},
+        time::{Duration, Instant},
+    };
+
+    let mut png = Cursor::new(Vec::new());
+    image::RgbaImage::from_pixel(4, 4, image::Rgba([40, 150, 80, 255]))
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let seen = requests.clone();
+    let server = Server::spawn(move |request| {
+        let url = reqwest::Url::parse(&format!(
+            "http://localhost{}",
+            request.split_whitespace().nth(1).unwrap()
+        ))
+        .unwrap();
+        let query: HashMap<_, _> = url.query_pairs().collect();
+        let id = query.get("id").unwrap().to_string();
+        seen.lock()
+            .unwrap()
+            .push((url.path().to_owned(), id.clone()));
+        if url.path() == "/rest/getArtist.view" {
+            assert_eq!(id, "recent-artist");
+            response("200 OK", "Content-Type: application/json\r\n", br#"{"subsonic-response":{"status":"ok","artist":{"coverArt":"portrait:/opaque"}}}"#)
+        } else {
+            assert_eq!(url.path(), "/rest/getCoverArt.view");
+            assert_eq!(query["size"], "300");
+            response("200 OK", "Content-Type: image/png\r\n", png.get_ref())
+        }
+    });
+    let mut rt = runtime("home", "restored");
+    rt.set_viewport((1280., 1200.), 2.);
+    rt.update(|s, _| {
+        s.app.client = None;
+        s.app.preferences.home_history = History {
+            collections: vec![Entry {
+                kind: Kind::Album,
+                id: "recent-album".into(),
+                name: "Recent album".into(),
+                by: "Artist".into(),
+                cover: Some("recent-cover:/opaque".into()),
+            }],
+            artists: vec![Entry {
+                kind: Kind::Artist,
+                id: "recent-artist".into(),
+                name: "Artist".into(),
+                by: String::new(),
+                cover: None,
+            }],
+        };
+    });
+    // Visibility reports are delivered on the next frame. Let them all run
+    // while credential restoration is still pending, including virtual rows.
+    for _ in 0..8 {
+        rt.frame(0.);
+        rt.settle_all();
+    }
+    assert!(requests.lock().unwrap().is_empty());
+    let client = Client::new(
+        &server.url,
+        "listener",
+        "dummy".into(),
+        &crate::settings::ProxyConfig::Off,
+    )
+    .unwrap();
+    rt.update(|s, _| {
+        // Same session and mounted cards, as with automatic credential restoration.
+        s.app.client = Some(client);
+    });
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        rt.update(|s, _| {
+            s.app.poll(&s.window);
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        if ["recent-cover:/opaque", "portrait:/opaque"]
+            .iter()
+            .all(|id| rt.state.cover_image(id, CoverSize::Sleeve).1.is_some())
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "restored Home artwork never loaded: {:?}",
+            requests.lock().unwrap()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        rt.state.app.preferences.home_history.artists[0]
+            .cover
+            .as_deref(),
+        Some("portrait:/opaque")
+    );
+    for _ in 0..4 {
+        rt.frame(0.);
+        rt.settle_all();
+    }
+    let requests = requests.lock().unwrap();
+    for id in [
+        "recent-album",
+        "recent-cover:/opaque",
+        "recent-artist",
+        "portrait:/opaque",
+    ] {
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|(_, requested)| requested == id)
+                .count(),
+            usize::from(id != "recent-album"),
+            "duplicate or unnecessary request for {id}"
+        );
+    }
+}
+
+#[test]
 fn home_expands_a_large_playlist_library_with_bounded_mounted_rows() {
     let mut rt = runtime("home", "restored");
     rt.update(|s, _| {

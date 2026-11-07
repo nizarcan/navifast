@@ -231,6 +231,7 @@ pub struct App {
     gapless: gapless::State,
     pub quality: quality::State,
     pub requested_covers: HashSet<String>,
+    home_artist_covers: HashSet<String>,
     pub downloads: downloads::State,
     pub sync: sync::State,
     pub audio_cache: crate::navidrome::cache::Summary,
@@ -388,6 +389,7 @@ impl App {
                 ..Default::default()
             },
             requested_covers: HashSet::new(),
+            home_artist_covers: HashSet::new(),
             downloads: Default::default(),
             sync: Default::default(),
             audio_cache: Default::default(),
@@ -502,6 +504,7 @@ impl App {
                 self.albums.clear();
                 self.album = None;
                 self.requested_covers.clear();
+                self.home_artist_covers.clear();
                 let generation = player::next_generation();
                 self.playing_album = None;
                 self.playing_playlist = None;
@@ -717,6 +720,7 @@ impl App {
     }
 
     fn set_client(&mut self, client: Client) {
+        self.home_artist_covers.clear();
         self.reset_autoplay();
         self.browse = Default::default();
         self.stats = Default::default();
@@ -996,6 +1000,9 @@ impl App {
                         self.presentation.accents.insert(uri.clone(), tint);
                     }
                     host.insert_cover(self, uri, cover);
+                }
+                Event::ArtistCover { session, id, result } => {
+                    self.home_artist_cover(session, &id, result);
                 }
                 Event::Cover {
                     size,

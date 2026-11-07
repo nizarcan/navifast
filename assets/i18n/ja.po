@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-08 00:44+0300\n"
+"POT-Creation-Date: 2026-11-08 01:23+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Japanese\n"
@@ -172,7 +172,7 @@ msgid "EP"
 msgstr "EP"
 
 #: src/ui/desktop/artist.rs:278 src/ui/desktop/autoplay.rs:44
-#: src/ui/desktop/library.rs:2427 src/ui/desktop/home.rs:180
+#: src/ui/desktop/library.rs:2427 src/ui/desktop/home.rs:181
 msgid "Artist"
 msgstr "アーティスト"
 
@@ -353,7 +353,7 @@ msgstr "ログアウト"
 msgid "Library order"
 msgstr "ライブラリ順"
 
-#: src/ui/desktop/library.rs:667 src/ui/desktop/home.rs:290
+#: src/ui/desktop/library.rs:667 src/ui/desktop/home.rs:299
 msgid "Recently played"
 msgstr "最近再生した順"
 
@@ -406,7 +406,7 @@ msgid "Show or hide the sidebar"
 msgstr "サイドバーの表示／非表示"
 
 #: src/ui/desktop/library.rs:1146 src/ui/desktop/library.rs:1423
-#: src/ui/desktop/home.rs:298
+#: src/ui/desktop/home.rs:307
 msgid "Playlist"
 msgstr "プレイリスト"
 
@@ -429,7 +429,7 @@ msgstr "一時停止"
 
 #: src/ui/desktop/library.rs:1365 src/ui/desktop/library.rs:1428
 #: src/ui/desktop/library.rs:1737 src/ui/desktop/library.rs:2175
-#: src/ui/desktop/home.rs:208 src/ui/desktop/queue.rs:324
+#: src/ui/desktop/home.rs:217 src/ui/desktop/queue.rs:324
 msgid "More"
 msgstr "その他"
 
@@ -460,7 +460,7 @@ msgid "Create playlist"
 msgstr "プレイリストを作成"
 
 #: src/ui/desktop/library.rs:2029 src/ui/desktop/library.rs:2334
-#: src/ui/desktop/home.rs:224 src/ui/desktop/browse.rs:23
+#: src/ui/desktop/home.rs:233 src/ui/desktop/browse.rs:23
 #: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "更新"
@@ -548,35 +548,35 @@ msgstr "最近聴いたアーティスト"
 msgid "Artists you listen to appear here."
 msgstr "聴いたアーティストがここに表示されます。"
 
-#: src/ui/desktop/home.rs:206
+#: src/ui/desktop/home.rs:215
 msgid "Less"
 msgstr "折りたたむ"
 
-#: src/ui/desktop/home.rs:219
+#: src/ui/desktop/home.rs:228
 msgid "Your playlists"
 msgstr "あなたのプレイリスト"
 
-#: src/ui/desktop/home.rs:237
+#: src/ui/desktop/home.rs:246
 msgid "Playlists from your server appear here."
 msgstr "サーバーのプレイリストがここに表示されます。"
 
-#: src/ui/desktop/home.rs:254
+#: src/ui/desktop/home.rs:263
 msgid "Welcome to your library"
 msgstr "ライブラリへようこそ"
 
-#: src/ui/desktop/home.rs:256
+#: src/ui/desktop/home.rs:265
 msgid "Welcome back"
 msgstr "おかえりなさい"
 
-#: src/ui/desktop/home.rs:267
+#: src/ui/desktop/home.rs:276
 msgid "Start with an album or one of your playlists."
 msgstr "アルバムやプレイリストから聴き始めましょう。"
 
-#: src/ui/desktop/home.rs:269
+#: src/ui/desktop/home.rs:278
 msgid "Your music, close at hand."
 msgstr "あなたの音楽を、すぐそばに。"
 
-#: src/ui/desktop/home.rs:282
+#: src/ui/desktop/home.rs:291
 msgid "Your recent listening will appear here as you play."
 msgstr "音楽を再生すると、最近聴いた音楽がここに表示されます。"
 

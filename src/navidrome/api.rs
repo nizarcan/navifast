@@ -672,6 +672,17 @@ impl Client {
         })
     }
 
+    /// Credits may omit artwork. Resolve the server's opaque ID without retaining
+    /// an artist's discography or fetching external image URLs.
+    pub async fn artist_cover(&self, id: &str) -> Result<Option<String>, String> {
+        let body = self.request("getArtist", &[("id", id.into())]).await?;
+        let artist = body
+            .get("artist")
+            .filter(|value| value.is_object())
+            .ok_or("The server returned no artist.")?;
+        decode(artist.get("coverArt").cloned().unwrap_or_default())
+    }
+
     /// Look up guest performances when getArtist returns only album-artist releases.
     /// A search hit supplies candidates. Only a matching performer ID establishes a credit.
     pub async fn appearances(
@@ -929,6 +940,55 @@ fn envelope(bytes: &[u8]) -> Result<serde_json::Value, RequestError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn artist_cover_uses_only_the_servers_opaque_cover_id() {
+        use crate::navidrome::test_server::{Server, response};
+        let server = Server::spawn(|request| {
+            let url = reqwest::Url::parse(&format!(
+                "http://localhost{}",
+                request.split_whitespace().nth(1).unwrap()
+            ))
+            .unwrap();
+            assert_eq!(url.path(), "/rest/getArtist.view");
+            let id = url
+                .query_pairs()
+                .find(|(key, _)| key == "id")
+                .unwrap()
+                .1
+                .into_owned();
+            let artist = match id.as_str() {
+                "photo" => {
+                    serde_json::json!({"coverArt": "portrait:/λ", "album": [{"id": "unneeded"}]})
+                }
+                "none" => {
+                    serde_json::json!({"artistImageUrl": "https://external.example/photo.png"})
+                }
+                _ => serde_json::json!({"coverArt": 42}),
+            };
+            response(
+                "200 OK",
+                "Content-Type: application/json\r\n",
+                &serde_json::to_vec(
+                    &serde_json::json!({"subsonic-response": {"status": "ok", "artist": artist}}),
+                )
+                .unwrap(),
+            )
+        });
+        let client = Client::new(
+            &server.url,
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        assert_eq!(
+            client.artist_cover("photo").await.unwrap().as_deref(),
+            Some("portrait:/λ")
+        );
+        assert!(client.artist_cover("none").await.unwrap().is_none());
+        assert!(client.artist_cover("invalid").await.is_err());
+    }
 
     #[tokio::test]
     async fn artwork_original_omits_resize_and_preserves_binary_bytes() {

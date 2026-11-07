@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-08 00:44+0300\n"
+"POT-Creation-Date: 2026-11-08 01:23+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Simplified Chinese\n"
@@ -163,7 +163,7 @@ msgid "EP"
 msgstr "EP"
 
 #: src/ui/desktop/artist.rs:278 src/ui/desktop/autoplay.rs:44
-#: src/ui/desktop/library.rs:2427 src/ui/desktop/home.rs:180
+#: src/ui/desktop/library.rs:2427 src/ui/desktop/home.rs:181
 msgid "Artist"
 msgstr "艺人"
 
@@ -340,7 +340,7 @@ msgstr "退出登录"
 msgid "Library order"
 msgstr "音乐库顺序"
 
-#: src/ui/desktop/library.rs:667 src/ui/desktop/home.rs:290
+#: src/ui/desktop/library.rs:667 src/ui/desktop/home.rs:299
 msgid "Recently played"
 msgstr "最近播放"
 
@@ -393,7 +393,7 @@ msgid "Show or hide the sidebar"
 msgstr "显示或隐藏侧边栏"
 
 #: src/ui/desktop/library.rs:1146 src/ui/desktop/library.rs:1423
-#: src/ui/desktop/home.rs:298
+#: src/ui/desktop/home.rs:307
 msgid "Playlist"
 msgstr "歌单"
 
@@ -416,7 +416,7 @@ msgstr "暂停"
 
 #: src/ui/desktop/library.rs:1365 src/ui/desktop/library.rs:1428
 #: src/ui/desktop/library.rs:1737 src/ui/desktop/library.rs:2175
-#: src/ui/desktop/home.rs:208 src/ui/desktop/queue.rs:324
+#: src/ui/desktop/home.rs:217 src/ui/desktop/queue.rs:324
 msgid "More"
 msgstr "更多"
 
@@ -447,7 +447,7 @@ msgid "Create playlist"
 msgstr "创建播放列表"
 
 #: src/ui/desktop/library.rs:2029 src/ui/desktop/library.rs:2334
-#: src/ui/desktop/home.rs:224 src/ui/desktop/browse.rs:23
+#: src/ui/desktop/home.rs:233 src/ui/desktop/browse.rs:23
 #: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "刷新"
@@ -535,35 +535,35 @@ msgstr "最近听过的艺人"
 msgid "Artists you listen to appear here."
 msgstr "你听过的艺人会显示在这里。"
 
-#: src/ui/desktop/home.rs:206
+#: src/ui/desktop/home.rs:215
 msgid "Less"
 msgstr "收起"
 
-#: src/ui/desktop/home.rs:219
+#: src/ui/desktop/home.rs:228
 msgid "Your playlists"
 msgstr "你的播放列表"
 
-#: src/ui/desktop/home.rs:237
+#: src/ui/desktop/home.rs:246
 msgid "Playlists from your server appear here."
 msgstr "服务器上的播放列表会显示在这里。"
 
-#: src/ui/desktop/home.rs:254
+#: src/ui/desktop/home.rs:263
 msgid "Welcome to your library"
 msgstr "欢迎来到你的音乐库"
 
-#: src/ui/desktop/home.rs:256
+#: src/ui/desktop/home.rs:265
 msgid "Welcome back"
 msgstr "欢迎回来"
 
-#: src/ui/desktop/home.rs:267
+#: src/ui/desktop/home.rs:276
 msgid "Start with an album or one of your playlists."
 msgstr "从一张专辑或一个播放列表开始吧。"
 
-#: src/ui/desktop/home.rs:269
+#: src/ui/desktop/home.rs:278
 msgid "Your music, close at hand."
 msgstr "你的音乐，触手可及。"
 
-#: src/ui/desktop/home.rs:282
+#: src/ui/desktop/home.rs:291
 msgid "Your recent listening will appear here as you play."
 msgstr "开始播放后，最近听过的音乐会显示在这里。"
 
