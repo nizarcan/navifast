@@ -56,6 +56,9 @@ Select a sleeve in Discography to open the full release. Use **See more**
 to browse the whole catalogue. The **Albums** and **Singles & EPs** filters appear
 when the library has both kinds of release.
 
+The artist header crops the portrait around its center and fades it behind the name.
+When the server has no portrait, the header shows a record.
+
 Below Discography, **About** shows the artist biography. **Similar artists**
 links to artists on your server. **Appears on** shows other artists’ releases
 that credit this artist on a track. Select a cover in either release shelf,

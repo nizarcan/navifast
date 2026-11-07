@@ -234,7 +234,7 @@ impl Paint<'_> {
         };
         let (view_key, pixels) = self.s.cover_image(id, size);
         if let Some(p) = pixels {
-            tile = tile.pixels(&p)
+            tile = tile.pixels_fit(&p, rune::SurfaceFit::Fill)
         } else {
             tile = tile.child(self.icon(Icon::Music, edge * 0.35, self.p.dim));
         }

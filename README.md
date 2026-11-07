@@ -18,7 +18,8 @@ The first migration stage supports:
   album, artist or playlist.
 - Opening credited artists from search results, album tracks, playlists, and the
   player bar. Artist pages show Discography, About, Similar artists from your
-  library, and Appears on for guest releases. Open a release cover to pick a song.
+  library, and Appears on for guest releases. The header shows the artist portrait
+  when available and a record otherwise. Open a release cover to pick a song.
 - Starring songs, albums and artists on your Navidrome account. Open **Favorites**
   in the sidebar for two-row artwork previews. Choose **See all** to browse
   the full grid of favorite songs, albums or artists.

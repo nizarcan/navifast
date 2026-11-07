@@ -138,6 +138,7 @@ pub(crate) struct State {
     pub(crate) plot_width: f32,
     pub(crate) volume_wheel_points: f32,
     pub(crate) seek_preview: Option<(u64, f64)>,
+    pub(crate) portrait_fade: RefCell<views::artist::PortraitFade>,
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
     pub(crate) menu: Option<&'static str>,
@@ -226,6 +227,7 @@ impl State {
             plot_width: 0.,
             volume_wheel_points: 0.,
             seek_preview: None,
+            portrait_fade: Default::default(),
             artist_views: Default::default(),
             favorite_menu: None,
             menu: None,
@@ -690,6 +692,78 @@ mod tests {
         rt.pointer_down(x + 90., y + h / 3.);
         rt.pointer_up(x + 90., y + h / 3.);
         rt.frame(0.);
+    }
+
+    #[test]
+    fn artist_photo_crops_to_the_banner_without_stretching() {
+        use crate::navidrome::{api::Collection, backend::Cover};
+
+        let mut rt = runtime("artist:art0", "details");
+        for (width, height) in [(150, 210), (200, 80)] {
+            rt.update(|s, _| {
+                let Some(Collection::Artist { cover_art, .. }) =
+                    s.app.presentation.navidrome_search.collection.get_mut()
+                else {
+                    panic!("artist fixture missing")
+                };
+                *cover_art = Some("portrait".into());
+                let uri = presentation::artwork_uri(s.app.session, "portrait", CoverSize::Portrait);
+                s.window.covers.borrow_mut().insert(
+                    uri,
+                    Cover {
+                        image: image::RgbaImage::new(width, height),
+                        preview: image::RgbaImage::new(1, 1),
+                        bytes: Arc::from([]),
+                        color: None,
+                    },
+                );
+            });
+            for viewport in [760., 1673.] {
+                rt.set_viewport((viewport, 800.), 2.);
+                rt.frame(0.);
+                rt.settle_all();
+                let image = rt
+                    .instances
+                    .iter()
+                    .find(|i| {
+                        i.params[1] == rune::render::KIND_IMAGE
+                            && i.rect[3] >= 432.
+                            && ((i.uv[2] - width as f32).abs() < 0.01
+                                || (i.uv[3] - height as f32).abs() < 0.01)
+                    })
+                    .expect("the loaded portrait is drawn");
+                let aspect = image.rect[2] / image.rect[3];
+                assert!((image.uv[2] / image.uv[3] - aspect).abs() < 0.01);
+            }
+        }
+    }
+
+    #[test]
+    fn long_artist_name_uses_the_second_line_in_a_narrow_window() {
+        use crate::navidrome::api::Collection;
+
+        let mut rt = runtime("artist:art0", "details");
+        let name = "AnnenMayKantereit";
+        rt.update(|s, _| {
+            let Some(Collection::Artist { name: artist, .. }) =
+                s.app.presentation.navidrome_search.collection.get_mut()
+            else {
+                panic!("artist fixture missing")
+            };
+            *artist = name.into();
+        });
+        rt.set_viewport((760., 800.), 2.);
+        rt.frame(0.);
+        rt.settle_all();
+        let title = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.text.as_deref() == Some(name))
+            .unwrap();
+        assert!(
+            title.rect[3] >= 90.,
+            "title should wrap to two lines: {title:?}"
+        );
     }
 
     #[test]

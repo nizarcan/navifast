@@ -1,7 +1,9 @@
 use super::*;
 use crate::model::Loadable;
 use crate::navidrome::api::{Album, FavoriteKind};
-use crate::ui::navidrome_artist::{ReleaseGroup, grid_size, release_group, release_summary};
+use crate::ui::navidrome_artist::{
+    PORTRAIT_STOPS, ReleaseGroup, grid_size, release_group, release_summary,
+};
 
 #[derive(Default, Clone, Copy)]
 pub(crate) struct Options {
@@ -97,6 +99,96 @@ fn tile(v: &Paint<'_>, album: &Album, side: f32, appearance: bool) -> El {
     library::favorite_context(tile, FavoriteKind::Album, &album.id)
 }
 
+/// A small reusable texture for the reference's vertex-colored mesh. Only the
+/// artist tint changes its pixels. The photograph remains a separate cached image.
+#[derive(Default)]
+pub(crate) struct PortraitFade {
+    colors: Option<(Color32, Color32)>,
+    pixels: rune::Pixels,
+}
+
+impl PortraitFade {
+    fn texture(&mut self, top: Color32, bottom: Color32) -> &rune::Pixels {
+        if self.colors != Some((top, bottom)) {
+            let (width, height) = (256, 64);
+            let mut rgba = Vec::with_capacity(width * height * 4);
+            for y in 0..height {
+                for x in 0..width {
+                    let u = x as f32 / (width - 1) as f32;
+                    let v = y as f32 / (height - 1) as f32;
+                    rgba.extend(portrait_shade(top, bottom, u, v).to_srgba_unmultiplied());
+                }
+            }
+            self.pixels.set(width as u32, height as u32, rgba);
+            self.colors = Some((top, bottom));
+        }
+        &self.pixels
+    }
+}
+
+fn portrait_shade(top: Color32, bottom: Color32, u: f32, v: f32) -> Color32 {
+    let band = PORTRAIT_STOPS.partition_point(|&(x, _)| x < u).clamp(1, 3);
+    let (left, a) = PORTRAIT_STOPS[band - 1];
+    let (right, b) = PORTRAIT_STOPS[band];
+    let x = (u - left) / (right - left);
+    // Interpolate premultiplied sRGB in the same two triangles as the reference.
+    let (corner, weight, other, across, down) = if x + v <= 1. {
+        (
+            top.gamma_multiply_u8(a),
+            1. - x - v,
+            top.gamma_multiply_u8(b),
+            x,
+            v,
+        )
+    } else {
+        (
+            bottom.gamma_multiply_u8(b),
+            x + v - 1.,
+            top.gamma_multiply_u8(b),
+            1. - v,
+            1. - x,
+        )
+    };
+    let lower_left = bottom.gamma_multiply_u8(a);
+    let [r, g, b, a] = std::array::from_fn(|i| {
+        (f32::from(corner[i]) * weight
+            + f32::from(other[i]) * across
+            + f32::from(lower_left[i]) * down)
+            .round() as u8
+    });
+    Color32::from_rgba_premultiplied(r, g, b, a)
+}
+
+fn record(v: &Paint<'_>, albums: &[Album], radius: f32, plum: Color32, ink: Color32) -> El {
+    let mut record = el()
+        .size(radius * 2., radius * 2.)
+        .center()
+        .radius(radius)
+        .fill(color(Color32::from_rgb(40, 34, 58)));
+    for i in 0..30 {
+        let r = radius * (0.38 + i as f32 * 0.021);
+        record = record.child(
+            el().absolute(radius - r, radius - r)
+                .size(2. * r, 2. * r)
+                .radius(r)
+                .border(1., Color::WHITE.alpha(27. / 255.)),
+        );
+    }
+    let label = match albums.iter().find_map(|a| a.cover_art.as_deref()) {
+        Some(id) => v.cover(Some(id), CoverSize::Sleeve, radius * 0.70, radius * 0.35),
+        None => el()
+            .size(radius * 0.70, radius * 0.70)
+            .radius(radius * 0.35)
+            .fill(color(plum)),
+    };
+    record.child(label).child(
+        el().absolute(radius - 3.5, radius - 3.5)
+            .size(7., 7.)
+            .radius(3.5)
+            .fill(color(ink)),
+    )
+}
+
 fn hero(
     v: &Paint<'_>,
     name: &str,
@@ -105,7 +197,21 @@ fn hero(
     w: f32,
     gutter: f32,
 ) -> El {
-    let height = (w * 0.24).clamp(216., 324.);
+    let text_width = ((w - 2. * gutter) * 0.70).max(1.);
+    let title_size = (w * 0.065).clamp(38., 84.);
+    // The reference uses Inter's default optical cut even at display sizes.
+    let title_style = TextStyle::new(title_size, 700.)
+        .optical_sizing(rune::OpticalSize::FontDefault)
+        .lh(title_size * 1.21);
+    let (_, measured) = rune::text::measure_with(
+        name,
+        &[],
+        title_style,
+        Some(text_width),
+        rune::text::RichLayoutOptions::new().wrap_anywhere(),
+    );
+    let title_height = measured.min(2. * title_style.line_px());
+    let height = (w * 0.24).clamp(216., 324.).max(title_height + 81.);
     let p = &v.s.app.presentation;
     let tint = p
         .navidrome_search
@@ -122,43 +228,37 @@ fn hero(
         .clip_soft(0.)
         .gradient(color(plum), color(ink));
     let art = (w * 0.63).min(height * 2.35);
-    let center = w - art * 0.40;
-    let radius = height * 0.72;
-    let mut record = el()
-        .absolute(center - radius, height / 2. - radius)
-        .size(radius * 2., radius * 2.)
-        .center()
-        .radius(radius)
-        .fill(color(Color32::from_rgb(40, 34, 58)));
-    for i in 0..30 {
-        let r = radius * (0.38 + i as f32 * 0.021);
-        record = record.child(
-            el().absolute(radius - r, radius - r)
-                .size(2. * r, 2. * r)
-                .radius(r)
-                .border(1., Color::WHITE.alpha(0.055)),
+    // Clip the fallback to the same artwork area as the photo. Keep a missing
+    // portrait's visibility callback mounted so its fetch and retry still run.
+    let mut picture = el().absolute(w - art, 0.).size(art, height).clip_soft(0.);
+    let loaded = portrait.is_some_and(|id| v.s.cover_image(id, CoverSize::Portrait).1.is_some());
+    if !loaded {
+        let r = height * 0.72;
+        picture = picture
+            .child(record(v, albums, r, plum, ink).absolute(art * 0.60 - r, height / 2. - r));
+    }
+    if let Some(id) = portrait {
+        picture = picture.child(
+            v.cover(Some(id), CoverSize::Portrait, art, 0.)
+                .absolute(0., 0.)
+                .size(art, height)
+                .opacity(if loaded { 1. } else { 0. }),
         );
     }
-    record = record.child(v.cover(
-        albums.iter().find_map(|a| a.cover_art.as_deref()),
-        CoverSize::Sleeve,
-        radius * 0.7,
-        radius * 0.35,
-    ));
-    hero = hero.child(record);
-    if let Some(id) = portrait {
-        let loaded = v.s.cover_image(id, CoverSize::Portrait).1.is_some();
-        let image = v
-            .cover(Some(id), CoverSize::Portrait, art, 0.)
-            .size(art, height)
-            .absolute(w - art, 0.);
-        hero = hero.child(image.opacity(if loaded { 1. } else { 0. }));
-    }
+    let mut fade = v.s.portrait_fade.borrow_mut();
+    hero = hero.child(
+        picture.child(
+            el().absolute(0., 0.)
+                .size(art, height)
+                .pixels(fade.texture(plum, ink))
+                .a11y_hidden(),
+        ),
+    );
     let mut meta = row().items_center().gap(8.).child(label(
         release_summary(v.s.app.presentation.locale, albums),
         14.,
-        600.,
-        Color32::WHITE,
+        500.,
+        Color32::from_gray(235),
     ));
     if let Page::Artist(id) = v.s.app.presentation.page()
         && let Some(id) = navidrome::decode(id)
@@ -167,14 +267,17 @@ fn hero(
     }
     hero.child(
         col()
-            .absolute(gutter, 0.)
-            .w((w - 2. * gutter) * 0.70)
-            .h(height)
-            .pb(16.)
-            .justify_end()
+            .absolute(gutter, (height - title_height - 73.).max(8.))
+            .w(text_width)
             .gap(2.)
-            .child(label(v.tr("Artist"), 14., 600., Color32::WHITE))
-            .child(label(name, (w * 0.065).clamp(38., 84.), 700., Color32::WHITE).max_lines(2))
+            .child(label(v.tr("Artist"), 14., 600., Color32::from_gray(236)).h(17.))
+            .child(
+                text(name.to_owned())
+                    .font(title_style)
+                    .color(Color::WHITE)
+                    .wrap_anywhere()
+                    .max_lines(2),
+            )
             .child(meta),
     )
 }
@@ -371,4 +474,26 @@ pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option
         .w_full()
         .child(hero(v, name, albums, portrait, w, gutter))
         .child(body)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn artist_portrait_fades_from_the_header_tint_to_clear() {
+        let top = Color32::from_rgb(40, 62, 82);
+        let bottom = Color32::from_rgb(14, 18, 20);
+        for (x, alpha) in PORTRAIT_STOPS {
+            assert_eq!(
+                portrait_shade(top, bottom, x, 0.),
+                top.gamma_multiply_u8(alpha)
+            );
+            assert_eq!(
+                portrait_shade(top, bottom, x, 1.),
+                bottom.gamma_multiply_u8(alpha)
+            );
+        }
+        assert_eq!(portrait_shade(top, bottom, 0.51, 0.5).a(), 128);
+    }
 }

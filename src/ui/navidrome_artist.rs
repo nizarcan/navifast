@@ -11,6 +11,9 @@ use crate::model::{Action, Loadable, Page};
 use crate::navidrome::api::{Album, Collection, FavoriteKind};
 use crate::theme::{self, Icon, Palette};
 
+/// Opacity of the title background across the artist artwork, from its left edge.
+pub(crate) const PORTRAIT_STOPS: [(f32, u8); 4] = [(0., 255), (0.29, 226), (0.73, 30), (1., 0)];
+
 pub(super) fn show(app: &mut App, ui: &mut Ui) {
     let artist_page = app.page().clone();
     let state = &app.navidrome_search;
@@ -157,13 +160,9 @@ impl ArtistPage<'_> {
         // Leave the photograph clear at its far edge and give the title a solid reading area.
         let mut mesh = egui::Mesh::default();
         let start = photo.left();
-        for (x, opacity) in [
-            (rect.left(), 255),
-            (start, 255),
-            (start + art_width * 0.29, 226),
-            (start + art_width * 0.73, 30),
-            (rect.right(), 0),
-        ] {
+        for (x, opacity) in std::iter::once((rect.left(), 255))
+            .chain(PORTRAIT_STOPS.map(|(t, a)| (start + art_width * t, a)))
+        {
             for (y, c) in [(rect.top(), plum), (rect.bottom(), ink)] {
                 mesh.colored_vertex(
                     pos2(x, y),
