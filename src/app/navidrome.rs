@@ -17,6 +17,7 @@ pub mod queue;
 pub mod ratings;
 pub mod scrobble;
 mod session;
+pub mod shares;
 pub mod stats;
 use host::Host;
 mod presentation;
@@ -196,6 +197,7 @@ pub struct App {
     pub lyrics: lyrics::State,
     pub browse: browse::State,
     pub stats: stats::State,
+    pub shares: shares::State,
     pub ratings: ratings::State,
     pub scrobbles: scrobble::State,
     pub requested_covers: HashSet<String>,
@@ -325,6 +327,7 @@ impl App {
             lyrics: Default::default(),
             browse: Default::default(),
             stats: Default::default(),
+            shares: Default::default(),
             ratings: Default::default(),
             scrobbles: Default::default(),
             transport: Transport {
@@ -408,6 +411,7 @@ impl App {
             Action::SignOut => {
                 self.browse = Default::default();
                 self.stats = Default::default();
+                self.shares = Default::default();
                 self.ratings = Default::default();
                 self.scrobbles.reset();
                 self.forget_session();
@@ -649,6 +653,7 @@ impl App {
     fn set_client(&mut self, client: Client) {
         self.browse = Default::default();
         self.stats = Default::default();
+        self.shares = Default::default();
         self.ratings = Default::default();
         self.scrobbles.reset();
         self.lyrics = Default::default();
@@ -788,6 +793,7 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::Shares { session, request, result } => self.share_result(session, request, result),
                 Event::Stats { session, request, result } => self.stats_result(session, request, result),
                 Event::Browse {session, request, query, offset, result} => self.browse_result(session,request,query,offset,result),
                 Event::Lyrics { session, request, song, result } => self.lyrics_result(session, request, &song, result),
@@ -1292,6 +1298,7 @@ impl App {
             self.presentation.history = vec![crate::model::Page::Stats];
             self.configure_demo_stats(&flags);
         }
+        self.configure_demo_shares(&flags);
         self.populate_demo_lyrics(&flags);
         if page == Some("albums") {
             self.presentation.history = vec![crate::model::Page::Albums];

@@ -65,6 +65,16 @@ of invented listening history. Loading and failed refreshes keep their own inlin
 feedback, with usable cached cards retained. The recent list is local to the
 current server/account, never a claim about listening in other clients.
 
+## Music links
+
+Sharing starts in the existing song/album menu. Use the shared 470-pixel modal,
+20-pixel title, standard buttons and a 1/7/30-day pill choice. Name the selected
+item, explain public access, and keep disabled permissions and failures inline.
+Settings opens the same Music links manager. Rows show the server-issued URL,
+expiration or expired status, Copy link and Revoke. Wrap long public URLs and
+virtualize the list within the modal's scrolling body. Retain the selection on
+creation failure and keep the existing application shell behind the modal.
+
 ## Listening stats
 
 Use a standard sidebar destination, 28-pixel heading and the existing refresh

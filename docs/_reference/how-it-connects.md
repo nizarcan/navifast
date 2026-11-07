@@ -38,6 +38,32 @@ page grows only through demand paging; leaving an oversized page evicts it.
 Tables and grids virtualize their rows. Back navigation restores cached selection
 and scroll position. No browse index is persisted to disk yet.
 
+Music links reads `getUser(username=current account)` and its `shareRole` on
+opening the dialog or refreshing. A denied role is a normal unavailable state.
+Permitted accounts use `getShares`, `createShare(id, description, expires)` and
+`deleteShare(id)`. Creation sends only the selected song/album ID and title, with
+an absolute expiration in milliseconds. The returned expiration must be within
+the requested period; if the server ignores it, Navifast attempts to revoke that
+new share and reports whether rollback succeeded. Uncertain creation requires a
+list refresh before another attempt. Writes never retry automatically.
+
+Only validated, server-issued HTTP(S) public links can reach the clipboard, and
+the exact returned string is copied on request. URLs with credentials, Subsonic
+API paths or authentication query fields are excluded. Navifast never builds a
+public link from its stream or artwork URL. Link state is memory-only and clears
+on sign-out. Server error codes become safe messages; raw server error text and
+authenticated request URLs are never echoed. Clipboard writes are read back to
+confirm success. Share metadata is limited to 10,000 entries and the transport's
+response-size limit; only visible rows are built.
+
+Revocation removes a row immediately. A definite rejection restores the row with
+Retry; an uncertain result keeps it hidden and offers an idempotent retry. A
+server-level missing share counts as already revoked. Successful writes refresh
+the list, with confirmed additions and revocations held through stale responses.
+Other links cannot be revoked until a failed revocation is resolved or a definite
+rejection is dismissed. Reads and writes stop on sign-out; closing the dialog
+allows an already requested write to finish.
+
 Listening stats performs a complete, sequential `search3` song scan on first entry
 or explicit Refresh, on the library worker using one shared request slot. Leaving
 the page or signing out cancels it. The summary is cached only for this account

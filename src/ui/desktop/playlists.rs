@@ -3,7 +3,7 @@ use super::*;
 use crate::app::navidrome::playlists::Action as Edit;
 use crate::model::Loadable;
 
-fn dialog(v: &Paint<'_>, title: &str, contents: El, actions: El) -> El {
+pub(super) fn dialog(v: &Paint<'_>, title: &str, contents: El, actions: El) -> El {
     let panel = col()
         .w(470_f32.min(v.width - 16.))
         .padding(24.)

@@ -217,6 +217,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         Some("album") => s.app.album.as_ref().map(|a| {
             let uri = FavoriteKind::Album.uri(&a.id);
             let rating = ratings::menu(v, &uri);
+            let share = shares::menu(v, &uri);
             let saved = s.app.presentation.navidrome_favorites.contains(&uri) == Some(true);
             let name = v.tr(if saved {
                 mark("Remove from Favorites")
@@ -225,6 +226,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             });
             collection_queue_items(v, v.menu("album-more"), None)
                 .child(rating)
+                .child(share)
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
                 }))
@@ -349,7 +351,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 ));
             }
         }
-        popup = popup.child(ratings::menu(v, &menu.uri));
+        popup = popup
+            .child(ratings::menu(v, &menu.uri))
+            .child(shares::menu(v, &menu.uri));
         if let Some([x, y]) = menu.at {
             shell = shell.child(
                 el().key("item-menu-point")
@@ -380,6 +384,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     }
     if let Some(dialog) = &s.app.presentation.dialog {
         shell = shell.child(match dialog {
+            crate::model::Dialog::Shares => shares::dialog(v),
             crate::model::Dialog::Shortcuts => preferences::shortcuts(v),
             crate::model::Dialog::Playlists => playlists::editor(v),
             crate::model::Dialog::DeletePlaylist => playlists::confirm_delete(v),

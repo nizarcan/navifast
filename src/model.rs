@@ -223,6 +223,7 @@ pub enum Dialog {
     Shortcuts,
     Playlists,
     DeletePlaylist,
+    Shares,
 }
 #[derive(Clone, Debug)]
 pub enum Action {
@@ -257,6 +258,7 @@ pub enum Action {
     ToggleSaved(String),
     Rating(crate::app::navidrome::ratings::Action),
     Scrobble(crate::app::navidrome::scrobble::Action),
+    Share(crate::app::navidrome::shares::Action),
     ShowDialog(Dialog),
     CloseDialog,
     OpenUrl(String),
