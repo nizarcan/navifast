@@ -341,7 +341,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                             }
                         },
                     )
-                    .disabled(duration <= 0.),
+                    .disabled(duration <= 0. || !a.can_seek()),
                 )
                 .child(label(elapsed(duration), 11.5, 400., v.p.secondary).w(42.)),
         );

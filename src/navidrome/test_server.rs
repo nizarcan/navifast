@@ -41,6 +41,19 @@ impl Server {
                         if !request.ends_with(b"\r\n\r\n") {
                             continue;
                         }
+                        let length = std::str::from_utf8(&request)
+                            .unwrap()
+                            .lines()
+                            .filter_map(|line| line.split_once(':'))
+                            .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+                            .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+                            .unwrap_or(0);
+                        assert!(length <= 64 * 1024, "fixture request body is bounded");
+                        let header_length = request.len();
+                        request.resize(header_length + length, 0);
+                        if socket.read_exact(&mut request[header_length..]).is_err() {
+                            continue;
+                        }
                         let response = respond(std::str::from_utf8(&request).unwrap());
                         let _ = socket.write_all(&response);
                     }
@@ -128,4 +141,26 @@ pub fn response(status: &str, headers: &str, body: &[u8]) -> Vec<u8> {
     .into_bytes();
     bytes.extend_from_slice(body);
     bytes
+}
+
+#[test]
+fn fragmented_post_body_is_complete_before_responding() {
+    let server = Server::spawn(|request| {
+        assert!(request.ends_with("\r\n\r\n{\"codec\":\"mp3\"}"));
+        response("200 OK", "", b"accepted")
+    });
+    let mut socket =
+        std::net::TcpStream::connect(server.url.trim_start_matches("http://")).unwrap();
+    socket
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .unwrap();
+    socket
+        .write_all(
+            b"POST /fixture HTTP/1.1\r\nHost: localhost\r\nContent-Length: 15\r\n\r\n{\"codec\":",
+        )
+        .unwrap();
+    socket.write_all(b"\"mp3\"}").unwrap();
+    let mut result = String::new();
+    socket.read_to_string(&mut result).unwrap();
+    assert!(result.ends_with("accepted"));
 }

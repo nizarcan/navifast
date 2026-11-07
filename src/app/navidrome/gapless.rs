@@ -47,6 +47,7 @@ impl App {
             .reserve(self.session, self.presentation.settings.scrobbling);
         self.gapless.prepared = Some((self.transport.generation, generation, occurrence));
         self.player.send(player::Command::Prepare {
+            quality: self.preferences.streaming_quality,
             from: self.transport.generation,
             generation,
             occurrence,

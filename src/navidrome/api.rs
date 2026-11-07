@@ -376,9 +376,25 @@ impl Client {
         endpoint: &str,
         params: &[(&str, String)],
     ) -> Result<serde_json::Value, RequestError> {
-        let mut response = self
-            .http
-            .get(self.url(endpoint, params))
+        self.checked_response(self.http.get(self.url(endpoint, params)))
+            .await
+    }
+
+    pub(super) async fn checked_post(
+        &self,
+        endpoint: &str,
+        params: &[(&str, String)],
+        body: &serde_json::Value,
+    ) -> Result<serde_json::Value, RequestError> {
+        self.checked_response(self.http.post(self.url(endpoint, params)).json(body))
+            .await
+    }
+
+    async fn checked_response(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> Result<serde_json::Value, RequestError> {
+        let mut response = request
             .send()
             .await
             .map_err(|error| RequestError::Unconfirmed(network_error(error)))?

@@ -90,8 +90,39 @@ fn choice(v: &Paint<'_>, key: &'static str, name: &str, current: &str) -> El {
         .on_press(move |s: &mut State| s.menu = Some(key))
 }
 
+fn quality_name(v: &Paint<'_>, quality: crate::navidrome::quality::Quality) -> String {
+    match quality.kbps() {
+        None => v.tr(mark("Original")),
+        Some(bitrate) => v
+            .tr(mark("MP3 · {bitrate} kbps"))
+            .replace("{bitrate}", &bitrate.to_string()),
+    }
+}
+
 pub(super) fn choice_menu(v: &Paint<'_>, key: &'static str) -> El {
     let p = &v.s.app.presentation;
+    if key == "streaming-quality" {
+        return v.menu(key).children(
+            crate::navidrome::quality::Quality::ALL
+                .into_iter()
+                .filter(|quality| {
+                    *quality == crate::navidrome::quality::Quality::Original
+                        || matches!(v.s.app.quality.capabilities, Some(Ok(_)))
+                })
+                .map(|quality| {
+                    v.button(
+                        &quality_name(v, quality),
+                        quality == v.s.app.preferences.streaming_quality,
+                        move |s, _| {
+                            s.set_streaming_quality(quality);
+                            s.menu = None;
+                        },
+                    )
+                    .role("menuitemradio")
+                    .checked(quality == v.s.app.preferences.streaming_quality)
+                }),
+        );
+    }
     let options = if key == "themes" {
         let mut opts = vec![
             (
@@ -219,6 +250,54 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
                     .border(1., color(v.p.dim)),
             );
         page = page.child(section(v, &account, vec![account_row]));
+    }
+    let playback = v.tr(mark("Playback"));
+    let quality = v.tr(mark("Streaming quality"));
+    let detail = v.tr(mark(
+        "Original keeps the server file. Choose MP3 to limit the audio bitrate.",
+    ));
+    if matches(&[&playback, &quality, &detail, "MP3", "bitrate"]) {
+        visible = true;
+        let mut rows = vec![setting(
+            v,
+            &quality,
+            &detail,
+            choice(
+                v,
+                "streaming-quality",
+                &quality,
+                &quality_name(v, a.preferences.streaming_quality),
+            ),
+            200.,
+        )];
+        match &a.quality.capabilities {
+            None => rows.push(
+                label(
+                    v.tr(mark("Checking streaming support…")),
+                    13.,
+                    400.,
+                    v.p.secondary,
+                )
+                .wrap(),
+            ),
+            Some(Err(error)) => rows.push(
+                col()
+                    .w_full()
+                    .gap(8.)
+                    .child(label(error, 13., 400., v.p.secondary).wrap())
+                    .child(v.button(&v.tr(mark("Retry")), false, |s, _| {
+                        s.app.refresh_streaming_capabilities()
+                    })),
+            ),
+            Some(Ok(capabilities)) if !capabilities.can_seek(a.preferences.streaming_quality) => {
+                rows.push(label(v.tr(mark("Seeking is unavailable for converted audio on this server. Choose Original to seek.")), 13., 400., v.p.secondary).wrap());
+            }
+            Some(Ok(_)) => {}
+        }
+        if a.quality.deferred {
+            rows.push(label(v.tr(mark("The new quality applies to the next track. The current track keeps its position and quality.")), 13., 400., v.p.secondary).wrap());
+        }
+        page = page.child(section(v, &playback, rows));
     }
     let listening = v.tr(mark("Listening history"));
     let name = v.tr(mark("Scrobble to Navidrome"));

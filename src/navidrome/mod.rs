@@ -8,6 +8,7 @@ pub mod browse;
 pub mod lyrics;
 pub mod player;
 pub mod playlists;
+pub mod quality;
 pub mod queue;
 pub mod ratings;
 pub mod scrobble;

@@ -152,7 +152,9 @@ fn playlist_only_match_survives_catalogue_failure_and_retry_then_enter_opens_it(
         app.album = None;
         let mut searches = 0;
         let server = Server::spawn(move |request| {
-            let body = if request.starts_with("GET /rest/search3.view?") {
+            let body = if request.starts_with("GET /rest/getOpenSubsonicExtensions.view?") {
+                r#"{"status":"ok","openSubsonicExtensions":[]}"#
+            } else if request.starts_with("GET /rest/search3.view?") {
                 assert!(request.contains("query=mIx"));
                 searches += 1;
                 if searches == 1 {
@@ -181,11 +183,7 @@ fn playlist_only_match_survives_catalogue_failure_and_retry_then_enter_opens_it(
         );
         app.ui_action(UiAction::Search("mIx".into()), ctx);
         let receive = |app: &mut App| {
-            let event = app
-                .backend
-                .events
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap();
+            let event = next_search_event(app);
             app.search_event(event);
         };
         receive(app);
@@ -265,7 +263,9 @@ fn submitted_searches_round_trip_per_server_and_user_with_immediate_removal() {
 fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
     with_app(|app, ctx| {
         let server = Server::spawn(|request| {
-            let body = if request.starts_with("GET /rest/search3.view?") {
+            let body = if request.starts_with("GET /rest/getOpenSubsonicExtensions.view?") {
+                r#"{"status":"ok","openSubsonicExtensions":[]}"#
+            } else if request.starts_with("GET /rest/search3.view?") {
                 r#"{"status":"ok","searchResult3":{"song":[{"id":"s","title":"Dawn"}],"album":[{"id":"a","name":"Dawn"}],"artist":[{"id":"r/x","name":"Dawn"}]}}"#
             } else if request.starts_with("GET /rest/getPlaylists.view?") {
                 r#"{"status":"failed","error":{"code":50}}"#
@@ -290,11 +290,7 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
         );
         app.ui_action(UiAction::Search("Dawn".into()), ctx);
         for _ in 0..2 {
-            let event = app
-                .backend
-                .events
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap();
+            let event = next_search_event(app);
             app.search_event(event);
         }
         let state = &app.presentation.navidrome_search;
@@ -308,11 +304,7 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
             app.presentation.page(),
             &Page::Artist(navidrome::encode("r/x"))
         );
-        let event = app
-            .backend
-            .events
-            .recv_timeout(Duration::from_secs(5))
-            .unwrap();
+        let event = next_search_event(app);
         app.search_event(event);
         let Some(Collection::Artist { albums, .. }) =
             app.presentation.navidrome_search.collection.get()
@@ -324,11 +316,7 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
         // Hold the optional response until the listener leaves the artist page.
         let mut delayed = None;
         for _ in 0..2 {
-            let event = app
-                .backend
-                .events
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap();
+            let event = next_search_event(app);
             match event {
                 event @ Event::Appearances { .. } => app.search_event(event),
                 event @ Event::ArtistInfo { .. } => delayed = Some(event),
@@ -367,4 +355,20 @@ fn artist_hit_opens_its_albums_when_playlist_lookup_fails() {
         assert_eq!(app.transport.generation, generation);
         assert_eq!(app.presentation.search.query, "Dawn");
     });
+}
+
+// Startup capability discovery can finish in either order with search reads.
+fn next_search_event(app: &App) -> Event {
+    loop {
+        let event = app
+            .backend
+            .events
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap();
+        if let Event::StreamingCapabilities { result, .. } = event {
+            assert!(result.is_ok());
+        } else {
+            return event;
+        }
+    }
 }

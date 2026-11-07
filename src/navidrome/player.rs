@@ -1,5 +1,6 @@
 //! Bounded decoding workers and one continuous device source for queued tracks.
 use super::api::{Client, Song};
+use super::quality::Quality;
 use super::stream::HttpSource;
 use rodio::Source;
 use std::collections::VecDeque;
@@ -27,6 +28,7 @@ const PCM_PREBUFFER_SAMPLES: usize = PCM_BLOCK_SAMPLES * 10;
 
 pub enum Command {
     Load {
+        quality: Quality,
         generation: u64,
         listening: super::scrobble::Context,
         client: Client,
@@ -35,12 +37,17 @@ pub enum Command {
         paused: bool,
     },
     Prepare {
+        quality: Quality,
         from: u64,
         generation: u64,
         occurrence: u64,
         listening: super::scrobble::Context,
         client: Client,
         song: Box<Song>,
+    },
+    DecodeFailed {
+        generation: u64,
+        message: String,
     },
     CancelPreparation,
     Scrobbling {
@@ -58,7 +65,13 @@ pub enum Event {
         context: super::scrobble::Context,
         report: super::scrobble::Report,
     },
+    Ready {
+        generation: u64,
+        seekable: bool,
+    },
     Transition {
+        quality: Quality,
+        seekable: bool,
         from: u64,
         generation: u64,
         occurrence: u64,
@@ -84,8 +97,9 @@ pub struct Player {
     thread: Option<std::thread::JoinHandle<()>>,
 }
 impl Player {
-    pub fn spawn(
+    pub(crate) fn spawn(
         proxy: crate::settings::ProxyConfig,
+        resolver: super::backend::StreamResolver,
         eq: crate::eq::SharedEq,
         tap: Arc<crate::vis::AudioTap>,
         notify: Arc<dyn Fn(Event) + Send + Sync>,
@@ -97,7 +111,10 @@ impl Player {
         // A slow cancelled HTTP request cannot create an unbounded worker pool.
         let jobs = std::array::from_fn(|worker| {
             let (send, work) = mpsc::channel::<DecodeJob>();
+            let failures = commands.clone();
             let proxy = proxy.clone();
+            let resolver = resolver.clone();
+            let notify = notify.clone();
             let current = current.clone();
             std::thread::Builder::new()
                 .name(format!("navifast-decoder-{worker}"))
@@ -109,9 +126,20 @@ impl Player {
                         if !job.valid(&current) {
                             continue;
                         }
-                        if let Err(message) = decode_job(&job, &proxy, &current)
+                        if let Err(message) =
+                            decode_job(&job, &proxy, &current, &resolver, &*notify)
                             && job.valid(&current)
                         {
+                            // A paused current occurrence is not pulling PCM.
+                            // Surface its failure without waiting for Play. A
+                            // future occurrence keeps its error at the boundary.
+                            let _ = failures.send((
+                                0,
+                                Command::DecodeFailed {
+                                    generation: job.track.generation,
+                                    message: message.clone(),
+                                },
+                            ));
                             job.send(Err(message), &current);
                         }
                     }
@@ -206,24 +234,93 @@ fn decode_job(
     job: &DecodeJob,
     proxy: &crate::settings::ProxyConfig,
     current: &Arc<AtomicU64>,
+    resolver: &super::backend::StreamResolver,
+    notify: &dyn Fn(Event),
 ) -> Result<(), String> {
+    let plan = if job.track.quality == Quality::Original {
+        super::quality::Plan {
+            url: job.client.stream_url(&job.track.song.id),
+            ranged: true,
+            seekable: true,
+            decode_position: job.track.offset,
+        }
+    } else {
+        let mut result = resolver.request(
+            job.client.clone(),
+            job.track.song.id.clone(),
+            job.track.quality,
+            job.track.offset,
+        );
+        loop {
+            if !job.valid(current) {
+                return Ok(());
+            }
+            match result.try_recv() {
+                Ok(plan) => break plan?,
+                Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
+                    return Err(
+                        "Streaming preparation was interrupted. Press Play to retry.".into(),
+                    );
+                }
+                Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
+                    std::thread::sleep(Duration::from_millis(5))
+                }
+            }
+        }
+    };
     let http = Client::stream_client(proxy)?;
-    let source = HttpSource::open_guarded(
-        job.client.clone(),
-        http,
-        job.track.song.id.clone(),
-        current.clone(),
-        job.chain,
-        Some(job.track.gate.clone()),
-    )
-    .map_err(|e| e.to_string())?;
-    decode::decode_raw(
-        Box::new(source),
-        &job.track.song.suffix,
-        job.track.offset,
-        |block| job.send(Ok(block), current),
-    )
+    let source: Box<dyn symphonia::core::io::MediaSource> = if plan.ranged {
+        Box::new(
+            HttpSource::open_url(
+                http,
+                plan.url,
+                current.clone(),
+                job.chain,
+                Some(job.track.gate.clone()),
+            )
+            .map_err(|e| e.to_string())?,
+        )
+    } else {
+        Box::new(
+            super::stream::forward::ForwardSource::open(
+                http,
+                plan.url,
+                current.clone(),
+                job.chain,
+                Some(job.track.gate.clone()),
+            )
+            .map_err(|e| e.to_string())?,
+        )
+    };
+    let mut ready = false;
+    let consume = |block| {
+        if !ready {
+            job.track.seekable.store(plan.seekable, Ordering::Release);
+            notify(Event::Ready {
+                generation: job.track.generation,
+                seekable: plan.seekable,
+            });
+            ready = true;
+        }
+        job.send(Ok(block), current)
+    };
+    if job.track.quality == Quality::Original {
+        decode::decode_raw(
+            source,
+            &job.track.song.suffix,
+            plan.decode_position,
+            consume,
+        )
+    } else {
+        decode::decode_mp3(source, plan.decode_position, consume).map_err(|message| {
+            format!(
+                "MP3 at up to {} kbps could not play: {message}",
+                job.track.quality.kbps().unwrap_or(128)
+            )
+        })
+    }
 }
+
 struct Playing {
     track: Arc<Track>,
     chain: u64,
@@ -262,6 +359,8 @@ fn transition(
     }
     listening.begin(context, &track.song);
     notify(Event::Transition {
+        quality: track.quality,
+        seekable: track.seekable.load(Ordering::Acquire),
         from: track.from,
         generation: track.generation,
         occurrence: track.occurrence,
@@ -333,6 +432,7 @@ fn output_loop(
             Ok((
                 _,
                 Command::Load {
+                    quality,
                     generation,
                     listening: context,
                     client,
@@ -371,6 +471,8 @@ fn output_loop(
                     sink.pause();
                 }
                 let track = Arc::new(Track {
+                    quality,
+                    seekable: std::sync::atomic::AtomicBool::new(false),
                     generation,
                     from: generation,
                     occurrence: 0,
@@ -408,6 +510,7 @@ fn output_loop(
             Ok((
                 revision,
                 Command::Prepare {
+                    quality,
                     from,
                     generation,
                     occurrence,
@@ -423,6 +526,8 @@ fn output_loop(
                     continue;
                 }
                 let track = Arc::new(Track {
+                    quality,
+                    seekable: std::sync::atomic::AtomicBool::new(false),
                     generation,
                     from,
                     occurrence,
@@ -440,6 +545,28 @@ fn output_loop(
                         track,
                         client,
                         samples: send,
+                    });
+                }
+            }
+            Ok((
+                _,
+                Command::DecodeFailed {
+                    generation,
+                    message,
+                },
+            )) => {
+                if playing.as_ref().is_some_and(|play| {
+                    play.track.generation == generation
+                        && !play.failed
+                        && current.load(Ordering::Acquire) == play.chain
+                }) {
+                    let play = playing.take().expect("matched active playback");
+                    preparation.cancel();
+                    play.sink.stop();
+                    report(&play.track, &mut listening, &*notify);
+                    notify(Event::Failed {
+                        generation,
+                        message,
                     });
                 }
             }

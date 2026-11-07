@@ -155,6 +155,27 @@ playing occurrence and one prepared successor. Each original-audio download uses
 and one in-flight request (4.5 MiB per occurrence). Preparation is bounded to one
 resolved next occurrence; it never skips a pending album. No audio is cached to disk.
 
+Streaming quality is saved per current account in `navidrome.json`, defaulting to
+Original. On sign-in, the shared `getOpenSubsonicExtensions` cache discovers
+`transcoding` and `transcodeOffset`. Original uses `stream(format=raw)`. An MP3
+choice negotiates a JSON MP3-only client profile through `getTranscodeDecision`
+when supported, validating the declared codec, protocol, channels and bitrate.
+`getTranscodeStream` receives the unchanged opaque token and source-time `offset`.
+An original MP3 already within the requested limit retains the ranged path.
+Legacy servers receive `stream(format=mp3,maxBitRate=...)`, with `timeOffset`
+only when advertised. API decisions run on the bounded backend runtime and cancel
+when obsolete. See the [transcoding contract](https://opensubsonic.netlify.app/docs/extensions/transcoding/).
+
+Converted bodies use a forward reader, never fake byte lengths or range requests.
+The decoder verifies MP3 before delivering audio. Errors do not trigger an Original
+fallback. Reopening a converted stream seeks with a fresh server time offset.
+Without that capability, seeking and lyric seek actions are disabled; a mid-song
+quality change is saved for the next song, preserving the current stream. Supported
+quality changes preserve position and paused intent and use playback generations
+to reject stale replies. Paused decoding errors surface without pressing Play.
+The reader checks cancellation around each read; a blocked read retains the
+15-second inactivity deadline. Only bounded PCM and HTTP buffers remain in memory.
+
 Decoders produce stereo 44.1 kHz PCM in 20 ms blocks, through a 500 ms channel per
 occurrence. One continuous device source gathers a 200 ms reserve at startup or
 after starvation and applies EQ and limiting across track boundaries. Limiter

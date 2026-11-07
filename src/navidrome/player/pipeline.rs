@@ -7,6 +7,8 @@ const PREPARED: u8 = 1;
 const ACTIVE: u8 = 2;
 
 pub(super) struct Track {
+    pub quality: super::super::quality::Quality,
+    pub seekable: std::sync::atomic::AtomicBool,
     pub generation: u64,
     pub from: u64,
     pub occurrence: u64,

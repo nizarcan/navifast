@@ -3,6 +3,8 @@ use symphonia::core::io::MediaSource;
 
 pub(super) fn track(generation: u64, from: u64) -> Arc<Track> {
     Arc::new(Track {
+        quality: Quality::Original,
+        seekable: std::sync::atomic::AtomicBool::new(true),
         generation,
         from,
         occurrence: generation,
@@ -479,5 +481,156 @@ fn flac_and_lame_gap_metadata_preserve_track_lengths_and_continuous_output() {
         prep.put(0, input(track(2, 1), second));
         let actual: Vec<_> = rodio::source::UniformSourceIterator::new(joined, 2, 48_000).collect();
         assert_eq!(actual, expected, "{suffix} 48 kHz output boundary");
+    }
+}
+
+#[test]
+fn selected_mp3_rejects_an_original_codec_before_emitting_audio() {
+    let mut emitted = false;
+    let result = decode::decode_mp3(Box::new(std::io::Cursor::new(wav(RATE, 2))), 0.0, |_| {
+        emitted = true;
+        true
+    });
+    assert!(result.is_err());
+    assert!(!emitted);
+}
+
+#[test]
+#[ignore = "requires the disposable local Navidrome fixture"]
+fn local_navidrome_quality_decodes_seeks_and_reconnects() {
+    let server = std::env::var("NAVIFAST_TEST_SERVER").unwrap();
+    assert!(
+        server.starts_with("http://127.0.0.1:"),
+        "use only an isolated local fixture"
+    );
+    let client = Client::new(
+        &server,
+        &std::env::var("NAVIFAST_TEST_USER").unwrap(),
+        std::env::var("NAVIFAST_TEST_PASSWORD").unwrap(),
+        &crate::settings::ProxyConfig::Off,
+    )
+    .unwrap();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let song = runtime.block_on(async {
+        client.ping().await.unwrap();
+        let albums = client.albums(0, true).await.unwrap();
+        client.album(&albums[0].id).await.unwrap().song[0].clone()
+    });
+    for quality in Quality::ALL {
+        for position in [0.0, 5.0, 17.0] {
+            let plan = runtime
+                .block_on(client.streaming_plan(&song.id, quality, position))
+                .unwrap();
+            assert!(plan.seekable);
+            let current = Arc::new(AtomicU64::new(1));
+            let http = Client::stream_client(&crate::settings::ProxyConfig::Off).unwrap();
+            let source: Box<dyn MediaSource> = if plan.ranged {
+                Box::new(HttpSource::open_url(http, plan.url, current, 1, None).unwrap())
+            } else {
+                Box::new(
+                    super::super::stream::forward::ForwardSource::open(
+                        http, plan.url, current, 1, None,
+                    )
+                    .unwrap(),
+                )
+            };
+            let mut count = 0;
+            let consume = |block: Vec<f32>| {
+                count += block.len();
+                true
+            };
+            if quality == Quality::Original {
+                decode::decode_raw(source, &song.suffix, plan.decode_position, consume).unwrap();
+            } else {
+                decode::decode_mp3(source, plan.decode_position, consume).unwrap();
+            }
+            let seconds = count as f64 / (2.0 * f64::from(RATE));
+            assert!(
+                (seconds - (song.duration - position)).abs() < 0.15,
+                "{quality:?} at {position}: {seconds} decoded seconds"
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires a native audio output device; opens a paused, muted sink"]
+fn paused_native_output_reports_quality_failure_without_playing() {
+    use crate::navidrome::test_server::{Server, response};
+    let server = Server::spawn(|request| {
+        let body = if request.contains("getOpenSubsonicExtensions") {
+            serde_json::json!({"status":"ok","openSubsonicExtensions":[{"name":"transcoding","versions":[1]}]})
+        } else {
+            serde_json::json!({"status":"ok","transcodeDecision":{"canTranscode":false,"sourceStream":{"protocol":"http","container":"flac","codec":"flac","audioChannels":2,"audioBitrate":900000}}})
+        };
+        response(
+            "200 OK",
+            "Content-Type: application/json\r\n",
+            &serde_json::to_vec(&serde_json::json!({"subsonic-response":body})).unwrap(),
+        )
+    });
+    let root = std::env::current_dir()
+        .unwrap()
+        .join(".cache")
+        .join(format!("paused-output-test-{}", next_generation()));
+    let dirs = crate::paths::AppDirs {
+        config: root.join("config"),
+        state: root.join("state"),
+        cache: root.join("cache"),
+    };
+    let backend = super::super::backend::Backend::spawn(Arc::new(|| {}), dirs);
+    let (send, receive) = mpsc::channel();
+    let player = Player::spawn(
+        crate::settings::ProxyConfig::Off,
+        backend.stream_resolver(),
+        crate::eq::shared(),
+        crate::vis::AudioTap::new(),
+        Arc::new(move |event| {
+            let _ = send.send(event);
+        }),
+    );
+    player.send(Command::Volume(0.0));
+    let generation = next_generation();
+    player.send(Command::Load {
+        quality: Quality::Mp3Standard,
+        generation,
+        listening: Default::default(),
+        client: Client::new(
+            &server.url,
+            "fixture",
+            "fixture-only".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap(),
+        song: Box::new(Song {
+            id: "fixture".into(),
+            duration: 40.0,
+            ..Default::default()
+        }),
+        position: 0.0,
+        paused: true,
+    });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let event = receive
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .expect("paused failure must arrive without pressing play");
+        match event {
+            Event::Failed {
+                generation: actual,
+                message,
+            } => {
+                assert_eq!(actual, generation);
+                assert!(message.contains("cannot provide MP3"), "{message}");
+                break;
+            }
+            Event::Position { started, .. } => assert!(!started),
+            _ => {}
+        }
+    }
+    drop(player);
+    drop(backend);
+    if root.exists() {
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

@@ -225,7 +225,9 @@ fn line(v: &Paint<'_>, index: usize) -> El {
             .spans(spans)
             .wrap(),
     );
-    if let Some(at) = line.at_ms {
+    if let Some(at) = line.at_ms
+        && v.s.app.can_seek()
+    {
         row = row
             .role("button")
             .focusable(true)

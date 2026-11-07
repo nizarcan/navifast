@@ -156,6 +156,15 @@ on macOS and Windows; Linux requires an available Secret Service provider.
 The ordinary test suite uses an isolated fake store and never reads a real
 user credential. Demo mode also skips credential restoration.
 
+Streaming changes can run against a disposable real Navidrome 0.64.2 server:
+`python3 tests/navidrome-fixture.py test` requires Docker and Cargo. It creates one
+synthetic 40-second WAV, a generated dummy account, a loopback-only container and
+bounded temporary container storage. No user library or credentials are read.
+`start` keeps the fixture available for manual QA; `stop` removes only its
+checkout-specific container and `.cache/navidrome-fixture` files. Run `stop` after
+recording results. The ignored tests validate Original and MP3 decoding, source-time
+seek and reopening streams. Native output and other platforms need separate checks.
+
 Flatpak state-persistence changes also need
 `packaging/flatpak/test-state.sh`. It requires Flatpak, Ruby, and an installed
 Platform runtime, and checks both manifests using disposable dummy state.

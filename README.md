@@ -83,10 +83,12 @@ The current build supports:
   lyrics. Word highlighting uses genuine timestamps from either source.
 - Select lyric lines and preview a local image with optional cover art and a
   choice of background. Copy it or save a PNG through the native file chooser.
+- Original or MP3 streaming at up to 64, 128, 192 or 320 kbps, selected in Settings.
+  Server capabilities determine whether converted audio supports seeking.
 - Basic native media controls.
 
-This is an early playback build. Transcoding preferences,
-and tray behavior are not available in the current Navidrome interface.
+This is an early playback build. Tray behavior is not available in the current
+Navidrome interface.
 The existing interface keeps its translations; the server sign-in form
 currently uses English.
 
@@ -99,8 +101,13 @@ FLAC and MP3 files carrying LAME delay/padding metadata, including conversion to
 48 kHz stereo output. Other source rates, codec/container combinations and physical
 device loopback are not certified. See the [validation fixtures](tests/fixtures/gapless/README.md).
 Multichannel conversion and bit-perfect output are not claimed. Original streaming requires a server/proxy that honors HTTP byte
-ranges. There is no whole-file download fallback or offline cache.
-Streaming downloads up to 4 MiB ahead per occurrence, with at most the playing
+ranges. Converted MP3 streams accept unknown lengths without byte ranges.
+An unsupported encoder or wrong returned codec reports an error; it never silently
+falls back to a larger original file. Quality changes retain position and pause.
+Servers without converted-audio seeking apply changes on the next song instead.
+Opus is not offered because the current decoder does not support it. There is no
+whole-file download fallback or offline cache.
+Original streaming downloads up to 4 MiB ahead per occurrence, with at most the playing
 and next occurrence active, and prepares a 200 ms audio
 reserve before starting or recovering from an interruption. This cushions brief
 network delays, including with high-resolution originals. Prolonged stalls or

@@ -175,6 +175,9 @@ impl State {
         }
         self.stats_song = None;
     }
+    pub(crate) fn set_streaming_quality(&mut self, quality: crate::navidrome::quality::Quality) {
+        self.app.set_streaming_quality(quality);
+    }
     pub(crate) fn set_scrobbling(&mut self, enabled: bool) {
         self.app
             .scrobble_action(super::scrobble::Action::Enabled(enabled));
@@ -325,7 +328,9 @@ impl State {
             .unwrap_or("")
             .split(',')
             .collect::<Vec<_>>();
-        let filter = if flags.contains(&"appearance") {
+        let filter = if flags.contains(&"quality") {
+            "Streaming quality"
+        } else if flags.contains(&"appearance") {
             "Appearance"
         } else if flags.contains(&"about") {
             "About"
@@ -487,6 +492,27 @@ impl State {
         }
         #[cfg(feature = "navidrome-demo")]
         if launch.demo {
+            use crate::navidrome::quality::{Capabilities, Quality};
+            if flags.contains(&"quality-mp3") || flags.contains(&"quality-no-seek") {
+                state.app.preferences.streaming_quality = Quality::Mp3Standard;
+                state.app.quality.active = Quality::Mp3Standard;
+                state.app.transport.seekable = true;
+            }
+            if flags.contains(&"quality-no-seek") {
+                state.app.quality.capabilities = Some(Ok(Capabilities::default()));
+                state.app.transport.seekable = false;
+            }
+            if flags.contains(&"quality-loading") {
+                state.app.quality.capabilities = None;
+            }
+            if flags.contains(&"quality-error") {
+                state.app.quality.capabilities = Some(Err(
+                    "The server did not respond. Original playback is still available.".into(),
+                ));
+            }
+            if flags.contains(&"quality-menu") {
+                state.menu = Some("streaming-quality");
+            }
             if flags.contains(&"scrobbling-off") {
                 state.set_scrobbling(false);
             }

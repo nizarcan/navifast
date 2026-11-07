@@ -255,7 +255,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             }
             Some(menu)
         }
-        Some(key @ ("themes" | "languages")) => Some(preferences::choice_menu(v, key)),
+        Some(key @ ("themes" | "languages" | "streaming-quality")) => {
+            Some(preferences::choice_menu(v, key))
+        }
         _ => None,
     } {
         shell = shell.child(menu);

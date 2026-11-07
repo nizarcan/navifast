@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.23" date="2026-11-07" type="development">
+      <description><p>Choose Original or reduced-bandwidth MP3 streaming with capability-aware seeking.</p></description>
+    </release>
     <release version="0.1.0-rc.22" date="2026-11-07" type="development">
       <description><p>Prepare queued tracks for continuous playback with precise track boundaries.</p></description>
     </release>

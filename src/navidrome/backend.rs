@@ -9,6 +9,17 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    StreamingCapabilities {
+        session: u64,
+        client: Client,
+    },
+    StreamingPlan {
+        client: Client,
+        id: String,
+        quality: super::quality::Quality,
+        position: f64,
+        reply: tokio::sync::oneshot::Sender<Result<super::quality::Plan, String>>,
+    },
     Autoplay {
         session: u64,
         request: u64,
@@ -181,6 +192,10 @@ pub enum Request {
 }
 
 pub enum Event {
+    StreamingCapabilities {
+        session: u64,
+        result: Result<super::quality::Capabilities, String>,
+    },
     Autoplay {
         session: u64,
         request: u64,
@@ -377,6 +392,19 @@ impl Backend {
                             let Some(request) = request else { break; };
                             match request {
                                 Request::Shutdown => break,
+                                Request::StreamingPlan { client, id, quality, position, mut reply } => {
+                                    let permits = permits.clone();
+                                    tasks.spawn(async move {
+                                        let resolve = async {
+                                            let _permit = permits.acquire().await.map_err(|_| "Streaming preparation stopped.".to_owned())?;
+                                            client.streaming_plan(&id, quality, position).await
+                                        };
+                                        tokio::select! {
+                                            result = resolve => { let _ = reply.send(result); }
+                                            _ = reply.closed() => {}
+                                        }
+                                    });
+                                }
                                 Request::Cancel => {
                                     credentials.invalidate(Slot::Navidrome);
                                     scrobbles.abort_all();
@@ -574,8 +602,35 @@ impl Backend {
         }
     }
 
+    pub(crate) fn stream_resolver(&self) -> StreamResolver {
+        StreamResolver(self.send.clone())
+    }
+
     pub fn send(&self, request: Request) {
         let _ = self.send.send(request);
+    }
+}
+
+/// Playback asks the library runtime for API decisions without blocking the UI.
+#[derive(Clone)]
+pub(crate) struct StreamResolver(tokio::sync::mpsc::UnboundedSender<Request>);
+impl StreamResolver {
+    pub fn request(
+        &self,
+        client: Client,
+        id: String,
+        quality: super::quality::Quality,
+        position: f64,
+    ) -> tokio::sync::oneshot::Receiver<Result<super::quality::Plan, String>> {
+        let (reply, receive) = tokio::sync::oneshot::channel();
+        let _ = self.0.send(Request::StreamingPlan {
+            client,
+            id,
+            quality,
+            position,
+            reply,
+        });
+        receive
     }
 }
 
@@ -594,6 +649,10 @@ async fn execute(
     provider: &super::lyrics::lrclib::Lookup,
 ) -> Option<Event> {
     Some(match request {
+        Request::StreamingCapabilities { session, client } => Event::StreamingCapabilities {
+            session,
+            result: client.streaming_capabilities().await,
+        },
         Request::Autoplay {
             session,
             request,
@@ -851,7 +910,8 @@ async fn execute(
                 result,
             }
         }
-        Request::CancelLyrics
+        Request::StreamingPlan { .. }
+        | Request::CancelLyrics
         | Request::RestoreSession { .. }
         | Request::CancelSessionRestore
         | Request::SaveSession { .. }

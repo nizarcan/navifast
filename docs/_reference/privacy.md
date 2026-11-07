@@ -37,7 +37,15 @@ when the queue is about to end. It makes no request to an external music service
 Clear, disabling it, replacing playback or changing accounts cancels the refill.
 The preference is saved in `navidrome.json`; suggested queue entries retain their
 origin in the same local checkpoint described above.
-Opening Lyrics checks `getOpenSubsonicExtensions` once for the authenticated client.
+Sign-in checks `getOpenSubsonicExtensions` using a shared client cache. Streaming
+quality choices are saved with the current account in `navidrome.json`. Choosing
+MP3 may send a decoder profile, requested bitrate and song ID to
+`getTranscodeDecision`, then its opaque token and playback offset to
+`getTranscodeStream`. Legacy servers receive `format`, `maxBitRate` and supported
+`timeOffset` parameters on `stream`. These requests go only to your server; tokens
+and authenticated URLs are never persisted. Converted audio uses bounded forward
+reading instead of byte ranges. No third-party transcoding service is contacted.
+Opening Lyrics reuses `getOpenSubsonicExtensions` for the authenticated client.
 When `songLyrics` version 1 is supported, `getLyricsBySongId` receives the opaque
 song ID. Version 2 adds `enhanced=true` for word timestamps. Legacy servers use
 `getLyrics` with the artist and title instead. These requests go to the configured
@@ -99,7 +107,7 @@ Upstream Spotify profiles and credentials are not migrated.
 
 Artwork is bounded in memory. Recently viewed covers retain downloaded bytes
 and small previews for local restoration when scrolling back; they are cleared
-on sign-out and are not written to disk. Stream input downloads up to 4 MiB ahead in
+on sign-out and are not written to disk. Original stream input downloads up to 4 MiB ahead in
 256 KiB byte ranges per occurrence, plus the current block and one in-flight
 request. At most the playing occurrence and one queued successor are downloaded.
 Pausing cancels the prepared successor while allowing the playing track's bounded

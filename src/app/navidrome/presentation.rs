@@ -354,6 +354,9 @@ mod tests {
                     let body = if !accepted {
                         br#"{"subsonic-response":{"status":"failed","error":{"code":40}}}"#
                             .as_slice()
+                    } else if request.starts_with("GET /rest/getOpenSubsonicExtensions.view?") {
+                        br#"{"subsonic-response":{"status":"ok","openSubsonicExtensions":[]}}"#
+                            .as_slice()
                     } else if request.starts_with("GET /rest/ping.view?") {
                         br#"{"subsonic-response":{"status":"ok"}}"#.as_slice()
                     } else if request.starts_with("GET /rest/getStarred2.view?") {

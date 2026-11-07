@@ -165,6 +165,16 @@ technology. Repeat One adds a small centered 1 inside the existing repeat glyph;
 its accessible name distinguishes Off, All and One. Collection Shuffle controls
 share the player control's state and behavior.
 
+## Streaming quality
+
+Use the existing Settings section, row and 200 × 30 dropdown for **Playback →
+Streaming quality**. Original is the default; MP3 choices state the bitrate.
+Keep capability loading, Retry, unavailable seeking and deferred changes as muted,
+wrapping text below the row. The existing responsive Settings layout stacks the
+control when needed. Selected menu choices expose their checked state. Disable the
+player seek slider and timed lyric seek actions together when seeking is unavailable;
+do not change the player shell or lyric typography.
+
 ## Type, color and controls
 
 - Use Inter and its real font weights through Rune's text layout. Keep logical

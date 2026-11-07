@@ -857,7 +857,9 @@ mod tests {
         with_app(|app, host| {
             let mut transient = true;
             let server = Server::spawn(move |request| {
-                let body = if request.starts_with("GET /rest/getPlaylists.view?") {
+                let body = if request.starts_with("GET /rest/getOpenSubsonicExtensions.view?") {
+                    r#"{"status":"ok","openSubsonicExtensions":[]}"#
+                } else if request.starts_with("GET /rest/getPlaylists.view?") {
                     r#"{"status":"ok","playlists":{"playlist":[{"id":"shared:/1","name":"Mix","owner":"other","public":true},{"id":"smart:/2","name":"Mix","smart":true}]}}"#
                 } else if request.contains("id=shared%3A%2F1") {
                     r#"{"status":"ok","playlist":{"name":"Mix","entry":[{"id":"a","title":"First"},{"id":"b","title":"Middle"},{"id":"a","title":"First"},{"id":"c","title":"Successor"}]}}"#
@@ -882,17 +884,22 @@ mod tests {
             app.set_client(
                 Client::new(&server.url, "listener", "dummy".into(), &ProxyConfig::Off).unwrap(),
             );
-            let receive = |app: &mut App| {
+            let receive = |app: &mut App| loop {
                 let event = app
                     .backend
                     .events
                     .recv_timeout(std::time::Duration::from_secs(5))
                     .unwrap();
+                if let Event::StreamingCapabilities { result, .. } = &event {
+                    assert!(result.is_ok());
+                    continue;
+                }
                 if matches!(event, Event::PlaylistLibrary { .. }) {
                     app.playlists_event(event);
                 } else {
                     app.search_event(event);
                 }
+                break;
             };
             app.ui_action(UiAction::Open(Page::Playlists), host);
             receive(app);

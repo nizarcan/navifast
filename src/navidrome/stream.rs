@@ -10,7 +10,9 @@ use std::time::Duration;
 
 use symphonia::core::io::MediaSource;
 
+#[cfg(test)]
 use super::api::Client;
+pub(crate) mod forward;
 
 const BLOCK: u64 = 256 * 1024;
 // 4 MiB queued ahead, plus the block being read and one in-flight request.
@@ -57,6 +59,7 @@ impl HttpSource {
     }
 
     /// A prepared occurrence can be invalidated without stopping the current one.
+    #[cfg(test)]
     pub(crate) fn open_guarded(
         client: Client,
         http: reqwest::blocking::Client,
@@ -65,10 +68,19 @@ impl HttpSource {
         generation: u64,
         guard: Option<Arc<AtomicU8>>,
     ) -> io::Result<Self> {
+        Self::open_url(http, client.stream_url(&id), current, generation, guard)
+    }
+
+    pub(crate) fn open_url(
+        http: reqwest::blocking::Client,
+        url: reqwest::Url,
+        current: Arc<AtomicU64>,
+        generation: u64,
+        guard: Option<Arc<AtomicU8>>,
+    ) -> io::Result<Self> {
         let mut download = Download {
-            client,
+            url,
             http,
-            id,
             length: u64::MAX,
             current: current.clone(),
             generation,
@@ -168,9 +180,8 @@ fn check_generation(
 }
 
 struct Download {
-    client: Client,
+    url: reqwest::Url,
     http: reqwest::blocking::Client,
-    id: String,
     length: u64,
     current: Arc<AtomicU64>,
     generation: u64,
@@ -228,7 +239,7 @@ impl Download {
             .min(self.length.saturating_sub(1));
         let response = self
             .http
-            .get(self.client.stream_url(&self.id))
+            .get(self.url.clone())
             .header(reqwest::header::RANGE, format!("bytes={position}-{end}"))
             .send()
             .map_err(|e| io::Error::other(super::api::network_error(e)))?;

@@ -15,6 +15,7 @@ pub mod home;
 mod host;
 pub mod lyrics;
 pub mod playlists;
+pub mod quality;
 pub mod queue;
 pub mod ratings;
 pub mod scrobble;
@@ -51,6 +52,7 @@ pub struct Preferences {
     pub light: bool,
     pub volume: f32,
     pub autoplay: bool,
+    pub streaming_quality: crate::navidrome::quality::Quality,
     pub eq_on: bool,
     pub bands: [f32; 10],
     pub preamp: f32,
@@ -67,6 +69,7 @@ impl Default for Preferences {
             light: false,
             volume: 0.7,
             autoplay: false,
+            streaming_quality: Default::default(),
             eq_on: false,
             bands: [0.0; 10],
             preamp: 0.0,
@@ -113,6 +116,7 @@ pub struct Transport {
     pub position: f64,
     pub paused: bool,
     pub loading: bool,
+    pub seekable: bool,
     pub generation: u64,
     pub error: Option<String>,
 }
@@ -139,6 +143,15 @@ impl Transport {
     }
     fn event(&mut self, event: player::Event) -> bool {
         match event {
+            player::Event::Ready {
+                generation,
+                seekable,
+            } if generation == self.generation => {
+                self.seekable = seekable;
+                if self.paused {
+                    self.loading = false;
+                }
+            }
             player::Event::Position {
                 generation,
                 seconds,
@@ -204,6 +217,7 @@ pub struct App {
     pub ratings: ratings::State,
     pub scrobbles: scrobble::State,
     gapless: gapless::State,
+    pub quality: quality::State,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
@@ -292,6 +306,7 @@ impl App {
         let wake_player = wake.clone();
         let player = Player::spawn(
             proxy.clone(),
+            backend.stream_resolver(),
             eq.clone(),
             tap.clone(),
             Arc::new(move |event| {
@@ -306,7 +321,16 @@ impl App {
             .library_sort
             .get(&crate::settings::LibraryShelf::Albums)
             != Some(&crate::settings::LibrarySort::Name);
+        let quality = quality::State {
+            active: preferences.streaming_quality,
+            capabilities: demo.then_some(Ok(crate::navidrome::quality::Capabilities {
+                transcoding: true,
+                offset: true,
+            })),
+            ..Default::default()
+        };
         Self {
+            quality,
             presentation,
             pending_play: None,
             listening_session: Default::default(),
@@ -363,6 +387,9 @@ impl App {
     }
 
     pub fn apply(&mut self, action: Action) {
+        if matches!(action, Action::Seek(_)) && !self.can_seek() {
+            return;
+        }
         if matches!(
             &action,
             Action::Play(_)
@@ -652,6 +679,7 @@ impl App {
             self.preferences.recent_contexts.clear();
             self.presentation.recent_contexts.clear();
             self.preferences.home_history = Default::default();
+            self.preferences.streaming_quality = Default::default();
         }
         self.preferences.server = server.into();
         self.preferences.username = username.into();
@@ -689,6 +717,9 @@ impl App {
             .cloned()
             .unwrap_or_default();
         self.client = Some(client);
+        self.quality.active = self.preferences.streaming_quality;
+        self.quality.deferred = false;
+        self.refresh_streaming_capabilities();
         self.presentation.navidrome_playlists = Default::default();
         self.presentation.navidrome_favorites = Default::default();
     }
@@ -740,6 +771,18 @@ impl App {
 
     fn load(&mut self, position: f64, paused: bool) {
         self.cancel_preparation();
+        if position == 0.0 {
+            self.quality.active = self.preferences.streaming_quality;
+            self.quality.deferred = false;
+        }
+        self.transport.seekable = self
+            .quality
+            .capabilities
+            .as_ref()
+            .and_then(|c| c.as_ref().ok())
+            .copied()
+            .unwrap_or_default()
+            .can_seek(self.quality.active);
         self.autoplay.waiting = false;
         if !paused {
             self.remember_home_artists();
@@ -759,6 +802,7 @@ impl App {
         );
         if let Some(client) = &self.client {
             self.player.send(player::Command::Load {
+                quality: self.quality.active,
                 generation: self.transport.generation,
                 listening,
                 client: client.clone(),
@@ -919,6 +963,11 @@ impl App {
                         self.requested_covers.remove(&key);
                     }
                 }
+                Event::StreamingCapabilities { session, result } if session == self.session => {
+                    if let Ok(capabilities) = &result { self.transport.seekable = capabilities.can_seek(self.quality.active); }
+                    self.quality.capabilities = Some(result);
+                    changed = true;
+                }
                 Event::SaveFailed => self.error = Some(
                     "Your preferences could not be saved. Check the config directory permissions."
                         .into(),
@@ -932,9 +981,16 @@ impl App {
                 generation,
                 occurrence,
                 listening,
+                quality,
+                seekable,
             } = event
             {
-                changed |= self.gapless_transition(from, generation, occurrence, listening);
+                if self.gapless_transition(from, generation, occurrence, listening) {
+                    self.quality.active = quality;
+                    self.quality.deferred = false;
+                    self.transport.seekable = seekable;
+                    changed = true;
+                }
                 continue;
             }
             if let player::Event::Scrobble { context, report } = event {

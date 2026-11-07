@@ -1375,3 +1375,55 @@ fn discover_groups_navigation_without_interrupting_playback_or_back_history() {
         }
     }
 }
+
+#[test]
+fn streaming_quality_menu_preserves_pause_and_fits_both_settings_layouts() {
+    use crate::navidrome::quality::Quality;
+    for flags in ["quality,restored", "quality,restored,light"] {
+        for width in [760., 1280.] {
+            let mut rt = runtime("settings", flags);
+            rt.set_viewport((width, 800.), 1.);
+            rt.frame(0.);
+            rt.settle_all();
+            let position = rt.state.app.transport.position;
+            assert!(rt.state.app.transport.paused);
+            assert!(rt.accessibility_action(
+                "streaming-quality",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            click_label(&mut rt, "MP3 · 128 kbps", 0);
+            assert_eq!(
+                rt.state.app.preferences.streaming_quality,
+                Quality::Mp3Standard
+            );
+            assert!(rt.state.app.transport.paused);
+            assert_eq!(rt.state.app.transport.position, position);
+            assert_eq!(rt.state.menu, None);
+            let picker = rt
+                .elements()
+                .into_iter()
+                .find(|e| e.key.as_deref() == Some("streaming-quality"))
+                .unwrap();
+            assert!(picker.rect[0] >= 0. && picker.rect[0] + picker.rect[2] <= width);
+        }
+    }
+}
+
+#[test]
+fn converted_stream_without_offsets_explains_disabled_seek_and_keeps_lyrics_readable() {
+    let mut rt = runtime("settings", "quality,quality-no-seek,restored");
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(!rt.state.app.can_seek());
+    assert!(rt.elements().iter().any(|e| {
+        e.text
+            .as_deref()
+            .is_some_and(|t| t.contains("Seeking is unavailable"))
+    }));
+    let position = rt.state.app.transport.position;
+    rt.update(|s, _| s.app.apply(super::super::Action::Seek(30.0)));
+    assert_eq!(rt.state.app.transport.position, position);
+    rt.update(|s, _| s.set_streaming_quality(crate::navidrome::quality::Quality::Original));
+    assert!(rt.state.app.can_seek());
+}
