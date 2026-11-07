@@ -115,11 +115,29 @@ beside its loading label. Empty or failed reads end playback normally and show
 an inline explanation, with no automatic retry loop. Toggle Autoplay to retry.
 
 One random sample of at most 20 songs prefers a playable candidate different from
-the current song. A one-song library may repeat it. Obvious unsupported formats,
+the current song. A one-song library may repeat it unless excluded. Obvious unsupported formats,
 video and zero-duration entries are skipped; the audio decoder validates the
 actual stream. Autoplay requires a server connection; explicit downloads do not form an offline discovery catalogue. Automatic occurrences are
 stored with their origin in the local checkpoint, share song data, and use the
 same bounded 128-occurrence history. They never grow the original collection.
+
+Right-click a song, album or artist and choose **Exclude from autoplay**. A direct
+rule changes that menu action to **Include in autoplay**. **Excluded from autoplay**
+in Settings lists these rules with Include controls and bounded eight-item pages.
+Rules are additive: removing a song rule leaves any album or artist rule in effect.
+Artist matching uses modern track and album artist IDs, falling back to legacy
+`artistId` for tracks without modern IDs. Names alone never identify an artist.
+When a server omits an album or artist ID, only available IDs can be checked.
+
+Rules stay on this device separately for each server/account, survive restart and
+sign-out, and work while offline. They do not change Favorites or server metadata.
+The currently playing song and explicit queue entries keep their order. A newly
+excluded automatic suggestion disappears immediately and its prepared audio is
+cancelled. Pending requests use a new generation with current rules; late replies
+cannot restore an excluded suggestion. Restored upcoming automatic entries are
+checked too. If all 20 sampled songs are excluded or unplayable, playback ends
+normally with an explanation. There is no retry loop or claim that the full library
+has no eligible songs. Toggle Autoplay to try another sample.
 
 ## Listening history
 

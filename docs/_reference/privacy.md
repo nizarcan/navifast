@@ -38,7 +38,12 @@ your configured server through `getRandomSongs`, choosing at most one suggestion
 when the queue is about to end. It makes no request to an external music service.
 Clear, disabling it, replacing playback or changing accounts cancels the refill.
 The preference is saved in `navidrome.json`; suggested queue entries retain their
-origin in the same local checkpoint described above.
+origin in the same local checkpoint described above. Song, album and artist
+exclusions are local rules in `navidrome.json`, keyed by a hash of the server and
+username. They contain opaque IDs and short names, persist across sign-out and
+are never sent to the server. Settings lists and removes rules for the current
+account. Exclusions filter the existing random sample; they cause no additional
+metadata lookup or external request.
 Sign-in checks `getOpenSubsonicExtensions` using a shared client cache. Streaming
 quality choices are saved with the current account in `navidrome.json`. Choosing
 MP3 may send a decoder profile, requested bitrate and song ID to

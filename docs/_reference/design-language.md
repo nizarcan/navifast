@@ -345,3 +345,13 @@ Keep Audio cache in Settings after Playback, with the existing outlined section,
 switch, size dropdown and ordinary Clear/Retry pills. Show usage in muted 13-pixel
 text. Explain retained active files and failures inline with wrapping text. Use the
 same controls and spacing at narrow widths; do not add a navigation destination.
+
+## Autoplay exclusions
+
+Use **Exclude from autoplay** and **Include in autoplay** in the shared item menu,
+album More menu and queue song menu. The artist header supports the same right-click
+menu as artist cards, without another permanent header control. Keep exclusions in
+Settings with the existing section, muted explanatory copy, compact title/kind rows
+and Include pills. Render eight entries per page with ordinary Previous/Next controls.
+Explain that account-local rules are additive and leave direct playback available.
+Keep the four sidebar destinations, collection grids and existing typography.

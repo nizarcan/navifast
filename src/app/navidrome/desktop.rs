@@ -123,6 +123,7 @@ pub(crate) struct State {
     pub(crate) portrait_fade: RefCell<views::artist::PortraitFade>,
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
+    pub(crate) exclusions_page: usize,
     pub(crate) inspector: Option<inspector::Inspector>,
     pub(crate) artwork_viewer: artwork_viewer::Viewer,
     pub(crate) menu: Option<&'static str>,
@@ -190,6 +191,19 @@ impl State {
     pub(crate) fn open_item_menu(&mut self, menu: ItemMenu) {
         self.app.prepare_rating(&menu.uri);
         self.favorite_menu = Some(menu);
+    }
+    pub(crate) fn toggle_autoplay_exclusion(&mut self, uri: &str) {
+        self.app.toggle_autoplay_exclusion(uri);
+        self.favorite_menu = None;
+        self.menu = None;
+        self.queue_menu = None;
+    }
+    pub(crate) fn include_in_autoplay(
+        &mut self,
+        kind: crate::navidrome::api::FavoriteKind,
+        id: &str,
+    ) {
+        self.app.set_autoplay_exclusion(kind, id, "", false);
     }
     pub(crate) fn open_queue_menu(&mut self, id: u64) {
         if let Some(song) = self
@@ -333,7 +347,9 @@ impl State {
             .unwrap_or("")
             .split(',')
             .collect::<Vec<_>>();
-        let filter = if flags.contains(&"cache") {
+        let filter = if flags.contains(&"exclusions") {
+            "Excluded from autoplay"
+        } else if flags.contains(&"cache") {
             "Audio cache"
         } else if flags.contains(&"sync") {
             "Sync"
@@ -402,6 +418,7 @@ impl State {
             portrait_fade: Default::default(),
             artist_views: Default::default(),
             favorite_menu: None,
+            exclusions_page: 0,
             inspector: None,
             artwork_viewer: Default::default(),
             menu: None,
@@ -454,8 +471,22 @@ impl State {
         #[cfg(feature = "navidrome-demo")]
         if launch.demo {
             state.app.demo_downloads(launch.page.as_deref(), &flags);
+            state.app.configure_demo_exclusions(&flags);
         }
         state.sync_tracks();
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo
+            && flags.contains(&"exclusions-artist-menu")
+            && let Page::Artist(id) = state.app.presentation.page()
+            && let Some(id) = crate::app::navidrome::decode(id)
+        {
+            state.open_item_menu(ItemMenu {
+                uri: crate::navidrome::api::FavoriteKind::Artist.uri(&id),
+                row: None,
+                anchor: None,
+                at: Some([500., 300.]),
+            });
+        }
         #[cfg(feature = "navidrome-demo")]
         if launch.demo && flags.contains(&"artwork") {
             state.demo_artwork(&flags);

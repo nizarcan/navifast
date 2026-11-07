@@ -384,6 +384,10 @@ pub(super) fn menu(v: &Paint<'_>) -> Option<El> {
             v,
             &crate::navidrome::ratings::Kind::Song.uri(&song.id),
         ));
+        menu = menu.child(autoplay::menu_item(
+            v,
+            &crate::navidrome::api::FavoriteKind::Song.uri(&song.id),
+        ));
     }
     for (delta, name, icon) in [
         (-1, mark("Move up"), Icon::ChevronUp),

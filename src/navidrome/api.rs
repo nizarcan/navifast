@@ -47,6 +47,14 @@ impl ArtistCredits {
             .filter(|id| !id.trim().is_empty())
     }
 
+    pub fn ids(&self) -> impl Iterator<Item = &str> {
+        self.artist_ids().chain(
+            self.artist_id
+                .as_deref()
+                .filter(|id| !id.trim().is_empty() && self.artist_ids().next().is_none()),
+        )
+    }
+
     pub fn contains_id(&self, id: &str) -> bool {
         if self.artist_ids().next().is_some() {
             self.artist_ids().any(|credit| credit == id)
@@ -87,6 +95,8 @@ pub struct Song {
     pub artist: String,
     #[serde(flatten)]
     pub credits: ArtistCredits,
+    #[serde(default)]
+    pub album_artists: Vec<ArtistCredit>,
     #[serde(default)]
     pub album: String,
     #[serde(default)]

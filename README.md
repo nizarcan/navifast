@@ -81,6 +81,10 @@ The current build supports:
 - Optional **Autoplay** in Queue continues with random songs from your own library.
   It is off by default, adds one visible suggestion after the selected queue,
   and keeps manual additions first. Clear or disable it to cancel a refill.
+  Right-click a song, album or artist to **Exclude from autoplay** or **Include
+  in autoplay**. Settings lists exclusions for this account on this device.
+  Exclusions affect suggestions only; direct playback and manual queue additions
+  keep working. Artist rules include track and album artist IDs supplied by the server.
 - Shuffle keeps one visible order for remaining collection tracks, after manual
   additions. Repeat cycles through Off, All and One without changing playback position.
 - The queue, position, shuffle order and repeat mode survive restart for the same

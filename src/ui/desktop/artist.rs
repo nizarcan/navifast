@@ -270,7 +270,7 @@ fn hero(
     {
         meta = meta.child(library::star(v, FavoriteKind::Artist, &id, 18.));
     }
-    hero.child(
+    let hero = hero.child(
         col()
             .absolute(gutter, (height - title_height - 73.).max(8.))
             .w(text_width)
@@ -284,7 +284,14 @@ fn hero(
                     .max_lines(2),
             )
             .child(meta),
-    )
+    );
+    if let Page::Artist(id) = v.s.app.presentation.page()
+        && let Some(id) = navidrome::decode(id)
+    {
+        library::favorite_context(hero, FavoriteKind::Artist, &id).key("artist-header")
+    } else {
+        hero
+    }
 }
 
 pub(super) fn show(v: &Paint<'_>, name: &str, albums: &[Album], portrait: Option<&str>) -> El {

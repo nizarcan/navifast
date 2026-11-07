@@ -6,6 +6,7 @@ src/theme.rs
 src/theme/custom.rs
 src/ui/collection.rs
 src/ui/desktop/artist.rs
+src/ui/desktop/autoplay.rs
 src/ui/desktop/backdrop.rs
 src/ui/desktop/library.rs
 src/ui/desktop/home.rs

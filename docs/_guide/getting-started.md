@@ -170,3 +170,10 @@ Clearing and lowering the limit keep files needed by active playback until the
 player releases them. Cached streams expire after seven days when next accessed
 or on startup. This setting is off by default. For dependable offline listening,
 use explicit downloads, which have separate storage and remain until removed.
+
+Right-click a song, album or artist and choose **Exclude from autoplay** to keep
+it out of automatic suggestions. Use **Include in autoplay** in its menu or in
+**Settings → Excluded from autoplay** to remove that rule. Rules apply only to
+this account on this device and survive restart. A song covered by an album or
+artist rule remains excluded until that rule is removed. You can always play or
+queue these items yourself; an exclusion never stops the current song.

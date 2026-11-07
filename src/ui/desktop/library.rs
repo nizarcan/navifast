@@ -234,6 +234,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             collection_queue_items(v, v.menu("album-more"), None)
                 .child(rating)
                 .child(downloads::menu_item(v, &uri))
+                .child(autoplay::menu_item(v, &uri))
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
                 }))
@@ -290,7 +291,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             .border(1., color(v.p.outline))
             .role("menu")
             .modal(true, |s: &mut State| s.favorite_menu = None);
-        popup = popup.child(downloads::menu_item(v, &uri));
+        popup = popup
+            .child(downloads::menu_item(v, &uri))
+            .child(autoplay::menu_item(v, &uri));
         if let Some(saved) = s.app.presentation.navidrome_favorites.contains(&uri) {
             let name = v.tr(if saved {
                 mark("Remove from Favorites")
@@ -1015,11 +1018,12 @@ fn heading(v: &Paint<'_>, text: &str) -> El {
 pub(super) fn favorite_context(tile: El, kind: FavoriteKind, id: &str) -> El {
     let uri = kind.uri(id);
     tile.on_secondary_press(move |s: &mut State, p, _| {
-        if s.app
-            .presentation
-            .navidrome_favorites
-            .contains(&uri)
-            .is_some()
+        if s.app.autoplay_excluded(&uri).is_some()
+            || s.app
+                .presentation
+                .navidrome_favorites
+                .contains(&uri)
+                .is_some()
             || s.app.queue_item(&uri, false).is_some()
         {
             let zoom = s.app.presentation.settings.zoom;

@@ -1631,3 +1631,124 @@ fn offline_home_and_empty_downloads_offer_manage_and_reconnect() {
             .any(|e| e.key.as_deref() == Some("downloads-reconnect"))
     );
 }
+
+#[test]
+fn exclusion_menus_and_settings_work_for_songs_albums_and_artists_in_both_themes() {
+    use crate::navidrome::api::FavoriteKind;
+    for theme in ["restored", "restored,light"] {
+        for width in [760., 1280.] {
+            for (page, flags, kind, id, name) in [
+                (
+                    "album:0",
+                    "rating-song",
+                    FavoriteKind::Song,
+                    "trk0",
+                    "Rosewood",
+                ),
+                (
+                    "album:0",
+                    "rating-album",
+                    FavoriteKind::Album,
+                    "alb0",
+                    "Fragments",
+                ),
+                (
+                    "artist:art2",
+                    "exclusions-artist-menu",
+                    FavoriteKind::Artist,
+                    "art2",
+                    "Nils Frahm",
+                ),
+            ] {
+                let mut rt = runtime(page, &format!("{theme},{flags}"));
+                rt.set_viewport((width, 800.), 1.);
+                rt.frame(0.);
+                rt.settle_all();
+                let position = rt.state.app.transport.position;
+                let uri = kind.uri(id);
+                assert_eq!(rt.state.app.autoplay_excluded(&uri), Some(false));
+                click_label(&mut rt, "Exclude from autoplay", 0);
+                assert_eq!(rt.state.app.autoplay_excluded(&uri), Some(true));
+                assert!(rt.state.favorite_menu.is_none() && rt.state.menu.is_none());
+                rt.update(|s, _| {
+                    s.open_item_menu(ItemMenu {
+                        uri: uri.clone(),
+                        row: None,
+                        anchor: None,
+                        at: Some([300., 200.]),
+                    })
+                });
+                rt.frame(0.);
+                rt.settle_all();
+                assert!(
+                    rt.elements()
+                        .iter()
+                        .any(|e| e.label.as_deref() == Some("Include in autoplay"))
+                );
+                rt.update(|s, tx| {
+                    s.dispatch(Action::Open(Page::Settings), tx);
+                    s.filter = TextEdit::new("Excluded from autoplay");
+                });
+                rt.frame(0.);
+                rt.settle_all();
+                assert!(rt.state.app.autoplay_exclusions().unwrap().entries().any(
+                    |(k, saved_id, saved_name)| k == kind && saved_id == id && saved_name == name
+                ));
+                assert!(
+                    rt.elements()
+                        .iter()
+                        .any(|e| e.key.as_deref() == Some(&format!("exclusion-{uri}")))
+                );
+                click_label(&mut rt, "Include in autoplay", 0);
+                assert_eq!(rt.state.app.autoplay_excluded(&uri), Some(false));
+                assert_eq!(rt.state.app.transport.position, position);
+                assert!(rt.state.app.transport.paused);
+            }
+        }
+    }
+}
+#[test]
+fn exclusion_settings_keep_the_rendered_list_bounded_and_reveal_later_rows() {
+    let mut rt = runtime("settings", "restored,exclusions,exclusions-many");
+    let rows = |rt: &Runtime<State>| {
+        rt.elements()
+            .iter()
+            .filter(|e| {
+                e.key
+                    .as_deref()
+                    .is_some_and(|k| k.starts_with("exclusion-navidrome:"))
+            })
+            .count()
+    };
+    assert_eq!(rows(&rt), 8);
+    assert!(rt.accessibility_action("exclusions-next", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert_eq!(rows(&rt), 8);
+    assert_eq!(rt.state.exclusions_page, 1);
+    click_label(&mut rt, "Include in autoplay", 0);
+    assert_eq!(rows(&rt), 8);
+}
+
+#[test]
+fn artist_header_right_click_opens_the_shared_exclusion_menu() {
+    let mut rt = runtime("artist:art2", "restored");
+    let [x, y, w, h] = rt
+        .elements()
+        .iter()
+        .find(|e| e.key.as_deref() == Some("artist-header"))
+        .unwrap()
+        .rect;
+    rt.secondary_down(x + w / 2., y + h / 2.);
+    rt.secondary_up(x + w / 2., y + h / 2.);
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.state.favorite_menu.is_some());
+    click_label(&mut rt, "Exclude from autoplay", 0);
+    assert_eq!(
+        rt.state
+            .app
+            .autoplay_excluded(&crate::navidrome::api::FavoriteKind::Artist.uri("art2")),
+        Some(true)
+    );
+}

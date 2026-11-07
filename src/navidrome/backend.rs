@@ -32,6 +32,7 @@ pub enum Request {
         request: u64,
         client: Client,
         current: String,
+        exclusions: super::autoplay::exclusions::Exclusions,
     },
     CancelAutoplay,
     Stats {
@@ -740,10 +741,11 @@ async fn execute(
             request,
             client,
             current,
+            exclusions,
         } => Event::Autoplay {
             session,
             request,
-            result: client.autoplay_song(&current).await,
+            result: client.autoplay_song(&current, &exclusions).await,
         },
         Request::Stats {
             session,
@@ -1120,6 +1122,7 @@ mod tests {
                 request,
                 client: client.clone(),
                 current: "playing".into(),
+                exclusions: Default::default(),
             })
         };
         let started = || {

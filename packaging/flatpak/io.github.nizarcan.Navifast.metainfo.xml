@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.29" date="2026-11-08" type="development">
+      <description><p>Exclude songs, albums and artists from Autoplay, with account-specific rules and controls in Settings.</p></description>
+    </release>
     <release version="0.1.0-rc.28" date="2026-11-08" type="development">
       <description><p>Optionally replay streamed audio from a bounded local cache, with usage, size and safe clearing controls.</p></description>
     </release>

@@ -95,6 +95,7 @@ impl App {
                     generation,
                     ..Default::default()
                 };
+                self.prune_autoplay_exclusions();
                 self.playing_album = saved.album;
                 self.playing_playlist = saved.playlist;
                 self.listening_session.writable = true;
@@ -283,6 +284,30 @@ mod tests {
             assert!(!app.listening_session.writable);
             app.apply(Action::Shuffle(true));
             assert!(app.listening_session.writable);
+        });
+    }
+    #[test]
+    fn restoring_a_queue_applies_exclusions_only_to_automatic_upcoming_entries() {
+        with_app(|app, _| {
+            app.set_autoplay_exclusion(
+                crate::navidrome::api::FavoriteKind::Song,
+                "saved",
+                "Saved",
+                true,
+            );
+            let mut saved = restored();
+            let duplicate = saved
+                .queue
+                .song(saved.queue.current().unwrap())
+                .unwrap()
+                .clone();
+            saved.queue.add_automatic(duplicate);
+            app.listening_session.restoring = true;
+            app.session_restored(app.session, app.listening_session.token, Ok(Some(saved)));
+            assert_eq!(app.transport.song().unwrap().id, "saved");
+            assert_eq!(app.transport.position, 23.5);
+            assert!(app.transport.paused);
+            assert_eq!(app.transport.queue.automatic_len(), 0);
         });
     }
 }

@@ -54,6 +54,7 @@ pub struct Preferences {
     pub light: bool,
     pub volume: f32,
     pub autoplay: bool,
+    pub autoplay_exclusions: crate::navidrome::autoplay::exclusions::Store,
     pub streaming_quality: crate::navidrome::quality::Quality,
     pub audio_cache: crate::navidrome::cache::Config,
     pub eq_on: bool,
@@ -72,6 +73,7 @@ impl Default for Preferences {
             light: false,
             volume: 0.7,
             autoplay: false,
+            autoplay_exclusions: Default::default(),
             streaming_quality: Default::default(),
             audio_cache: Default::default(),
             eq_on: false,
@@ -281,6 +283,7 @@ impl App {
         preferences.volume = preferences.volume.clamp(0.0, 1.0);
         preferences.audio_cache = preferences.audio_cache.normalized();
         preferences.home_history.sanitize();
+        preferences.autoplay_exclusions.sanitize();
         let mut settings = crate::settings::Settings::load(&dirs.settings_file());
         if !dirs.settings_file().exists() {
             settings.volume = (preferences.volume * f32::from(u16::MAX)).round() as u16;

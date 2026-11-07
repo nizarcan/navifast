@@ -134,7 +134,21 @@ under the same four-request worker limit, with its own cancellation group. No
 external catalogue is contacted. Navigation keeps the request; Clear, disabling
 Autoplay, replacing playback or changing accounts cancels it. Session and request
 generations reject late results. Empty, invalid or failed samples do not retry.
-See [The queue's rules](/reference/queue/) for priority and playback behavior.
+Before selection, the sample is filtered against local song, album and artist
+exclusions. Modern `artists` and `albumArtists` IDs from
+[OpenSubsonic Child](https://opensubsonic.netlify.app/docs/responses/child/) are
+checked without extra lookups; legacy `artistId` applies when modern track IDs
+are absent. Missing IDs do not trigger name matching. The controller checks the
+result again and invalidates old requests when rules change.
+
+`autoplay_exclusions` in `navidrome.json` stores IDs and short display labels by
+the existing server/username hash. The ordinary atomic preferences writer saves
+changes. There are at most 2,000 rules across 32 accounts, with 1 KiB IDs and
+256-byte UTF-8 labels. Reaching the limit reports an error and keeps existing
+rules. Old preferences default to no exclusions. Settings renders eight entries
+per page. Rules persist across sign-out, remain separate for another account and
+send no server mutation. See [The queue's rules](/reference/queue/) for priority
+and playback behavior.
 
 Artist links use the IDs from OpenSubsonic's individual credits or the older
 `artistId` field. The artist page uses album-artist IDs from `getArtist` to separate

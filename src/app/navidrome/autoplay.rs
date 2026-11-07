@@ -17,6 +17,121 @@ impl State {
 }
 
 impl App {
+    fn autoplay_scope(&self) -> Option<&str> {
+        self.client
+            .as_ref()
+            .map(|client| client.scope.as_str())
+            .or_else(|| {
+                self.demo
+                    .then_some("0000000000000000000000000000000000000000000000000000000000000000")
+            })
+    }
+    pub(crate) fn autoplay_exclusions(
+        &self,
+    ) -> Option<&crate::navidrome::autoplay::exclusions::Exclusions> {
+        self.preferences
+            .autoplay_exclusions
+            .get(self.autoplay_scope()?)
+    }
+
+    pub(crate) fn autoplay_excluded(&self, uri: &str) -> Option<bool> {
+        self.autoplay_scope()?;
+        let (kind, id) = exclusion_target(uri)?;
+        Some(
+            self.autoplay_exclusions()
+                .is_some_and(|rules| rules.contains(kind, &id)),
+        )
+    }
+
+    pub(crate) fn toggle_autoplay_exclusion(&mut self, uri: &str) {
+        let Some((kind, id)) = exclusion_target(uri) else {
+            return;
+        };
+        let Some(excluded) = self.autoplay_excluded(uri) else {
+            return;
+        };
+        let name = self
+            .favorite_item(uri)
+            .map(|item| item.name().to_owned())
+            .or_else(|| {
+                use crate::navidrome::api::FavoriteKind;
+                let history = &self.preferences.home_history;
+                match kind {
+                    FavoriteKind::Artist => history.artists.iter().find(|entry| entry.id == id),
+                    FavoriteKind::Album => history
+                        .collections
+                        .iter()
+                        .find(|entry| entry.id == id && entry.kind == super::home::Kind::Album),
+                    FavoriteKind::Song => None,
+                }
+                .map(|entry| entry.name.clone())
+            })
+            .unwrap_or_else(|| id.clone());
+        self.set_autoplay_exclusion(kind, &id, &name, !excluded);
+    }
+
+    pub(crate) fn set_autoplay_exclusion(
+        &mut self,
+        kind: crate::navidrome::api::FavoriteKind,
+        id: &str,
+        name: &str,
+        excluded: bool,
+    ) {
+        let Some(scope) = self.autoplay_scope().map(str::to_owned) else {
+            return;
+        };
+        if self
+            .autoplay_exclusions()
+            .is_some_and(|rules| rules.contains(kind, id))
+            == excluded
+        {
+            return;
+        }
+        if let Err(error) = self
+            .preferences
+            .autoplay_exclusions
+            .set(&scope, kind, id, name, excluded)
+        {
+            self.presentation.toast_error(error);
+            return;
+        }
+        self.mark_dirty();
+        // Invalidate reads made with old rules without touching explicit playback.
+        let waiting = self.autoplay.waiting;
+        let paused = self.transport.paused;
+        self.cancel_autoplay(false);
+        self.transport.paused = paused;
+        self.prune_autoplay_exclusions();
+        self.autoplay.attempted = None;
+        self.poll_autoplay();
+        if waiting && !self.wait_for_autoplay(paused) {
+            self.transport.loading = false;
+            self.transport.paused = true;
+        }
+        self.prepare_next();
+    }
+
+    pub(super) fn prune_autoplay_exclusions(&mut self) {
+        let blocked = self.autoplay_exclusions().is_some_and(|rules| {
+            self.transport
+                .queue
+                .upcoming()
+                .iter()
+                .filter(|entry| entry.automatic())
+                .any(|entry| {
+                    self.transport
+                        .queue
+                        .song(entry)
+                        .is_some_and(|song| rules.blocks(song))
+                })
+        });
+        if blocked {
+            self.cancel_preparation();
+            self.transport.queue.clear_automatic();
+            self.dirty_session();
+        }
+    }
+
     pub(crate) fn set_autoplay(&mut self, enabled: bool) {
         if self.preferences.autoplay != enabled {
             self.preferences.autoplay = enabled;
@@ -89,6 +204,7 @@ impl App {
                 request: self.autoplay.serial,
                 client: client.clone(),
                 current: song.id.clone(),
+                exclusions: self.autoplay_exclusions().cloned().unwrap_or_default(),
             });
         }
         true
@@ -120,9 +236,15 @@ impl App {
             return;
         }
         let added = match result {
-            Ok(Some(song)) => self.transport.queue.add_automatic(song),
-            Ok(None) => {
-                self.autoplay.error = Some("No playable library songs were found.".into());
+            Ok(Some(song))
+                if !self
+                    .autoplay_exclusions()
+                    .is_some_and(|rules| rules.blocks(&song)) =>
+            {
+                self.transport.queue.add_automatic(song)
+            }
+            Ok(_) => {
+                self.autoplay.error = Some("No eligible songs were found in this Autoplay sample. Check exclusions in Settings or toggle Autoplay to try again.".into());
                 false
             }
             Err(error) => {
@@ -141,6 +263,39 @@ impl App {
                 self.advance_queue(advance, self.transport.paused);
             } else {
                 self.transport.paused = true;
+            }
+        }
+    }
+
+    #[cfg(feature = "navidrome-demo")]
+    pub(super) fn configure_demo_exclusions(&mut self, flags: &[&str]) {
+        use crate::navidrome::api::FavoriteKind;
+        if !flags.contains(&"exclusions-filled") && !flags.contains(&"exclusions-many") {
+            return;
+        }
+        let scope = self.autoplay_scope().unwrap().to_owned();
+        for (kind, id, name) in [
+            (FavoriteKind::Song, "trk0", "Rosewood"),
+            (FavoriteKind::Album, "alb1", "Mordechai"),
+            (FavoriteKind::Artist, "art2", "Nils Frahm"),
+        ] {
+            self.preferences
+                .autoplay_exclusions
+                .set(&scope, kind, id, name, true)
+                .unwrap();
+        }
+        if flags.contains(&"exclusions-many") {
+            for i in 0..24 {
+                self.preferences
+                    .autoplay_exclusions
+                    .set(
+                        &scope,
+                        FavoriteKind::Song,
+                        &format!("extra{i:02}"),
+                        &format!("Saved song {}", i + 1),
+                        true,
+                    )
+                    .unwrap();
             }
         }
     }
@@ -168,6 +323,18 @@ impl App {
             self.transport.queue.add_automatic(song.clone());
         }
     }
+}
+
+fn exclusion_target(uri: &str) -> Option<(crate::navidrome::api::FavoriteKind, String)> {
+    use crate::navidrome::api::FavoriteKind;
+    let (kind, id) = uri.strip_prefix("navidrome:")?.split_once(':')?;
+    let kind = match kind {
+        "track" => FavoriteKind::Song,
+        "album" => FavoriteKind::Album,
+        "artist" => FavoriteKind::Artist,
+        _ => return None,
+    };
+    Some((kind, super::decode(id).filter(|id| !id.is_empty())?))
 }
 
 #[cfg(test)]
@@ -373,6 +540,70 @@ mod tests {
             assert!(app.transport.paused);
             assert!(!app.transport.loading);
             assert!(ids(app).is_empty());
+        });
+    }
+    #[test]
+    fn exclusions_remove_only_automatic_suggestions_and_reject_old_reads() {
+        use crate::navidrome::api::FavoriteKind;
+        with_app(|app, _| {
+            let request = start(app);
+            app.queue_action(queue::Action::Songs {
+                songs: vec![song("blocked")],
+                next: false,
+            });
+            app.autoplay_result(app.session, request, Ok(Some(song("blocked"))));
+            let generation = app.transport.generation;
+            let position = app.transport.position;
+            app.set_autoplay_exclusion(FavoriteKind::Song, "blocked", "Blocked", true);
+            assert_eq!(ids(app), ["blocked"]); // The explicit occurrence stays.
+            assert_eq!(app.transport.generation, generation);
+            assert_eq!(app.transport.position, position);
+            assert!(!app.transport.paused);
+            app.apply(Action::Next);
+            assert_eq!(app.transport.song().unwrap().id, "blocked");
+        });
+        with_app(|app, _| {
+            let old = start(app);
+            finish(app);
+            assert!(app.autoplay.waiting);
+            app.set_autoplay_exclusion(FavoriteKind::Song, "blocked", "Blocked", true);
+            assert!(app.autoplay.waiting);
+            let new = app.autoplay.request.unwrap();
+            assert_ne!(old, new);
+            app.autoplay_result(app.session, old, Ok(Some(song("stale"))));
+            assert!(ids(app).is_empty());
+            app.autoplay_result(app.session, new, Ok(Some(song("blocked"))));
+            assert!(ids(app).is_empty());
+            assert!(app.transport.paused);
+            assert!(app.autoplay.error.is_some());
+            assert!(!app.poll_autoplay());
+        });
+    }
+    #[test]
+    fn exclusions_survive_restart_and_switching_accounts_without_touching_playback() {
+        use crate::navidrome::api::{Client, FavoriteKind};
+        with_app(|app, _| {
+            let client = |user| {
+                Client::new(
+                    "http://127.0.0.1:9",
+                    user,
+                    "dummy".into(),
+                    &crate::settings::ProxyConfig::Off,
+                )
+                .unwrap()
+            };
+            app.client = Some(client("one"));
+            app.set_autoplay_exclusion(FavoriteKind::Song, "shared", "Shared", true);
+            let uri = FavoriteKind::Song.uri("shared");
+            app.preferences =
+                serde_json::from_str(&serde_json::to_string(&app.preferences).unwrap()).unwrap();
+            assert_eq!(app.autoplay_excluded(&uri), Some(true));
+            app.client = Some(client("two"));
+            assert_eq!(app.autoplay_excluded(&uri), Some(false));
+            app.client = Some(client("one"));
+            assert_eq!(app.autoplay_excluded(&uri), Some(true));
+            app.toggle_autoplay_exclusion(&uri);
+            assert_eq!(app.autoplay_excluded(&uri), Some(false));
         });
     }
 }

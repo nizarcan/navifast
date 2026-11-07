@@ -328,6 +328,11 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         }
         page = page.child(section(v, &playback, rows));
     }
+    let exclusions = v.tr(mark("Excluded from autoplay"));
+    if matches(&[&exclusions, "autoplay", "exclusions"]) {
+        visible = true;
+        page = page.child(section(v, &exclusions, autoplay::rows(v)));
+    }
     let cache = v.tr(mark("Audio cache"));
     let cache_detail = v.tr(mark(
         "Keep recently streamed audio on this device for replay. Downloads have their own storage.",
