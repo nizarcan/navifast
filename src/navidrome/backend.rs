@@ -55,6 +55,12 @@ pub enum Request {
         part: SearchPart,
     },
     CancelSearch,
+    PlaylistLibrary {
+        session: u64,
+        request: u64,
+        client: Client,
+    },
+    CancelPlaylistLibrary,
     Collection {
         session: u64,
         request: u64,
@@ -94,6 +100,11 @@ pub enum Request {
 }
 
 pub enum Event {
+    PlaylistLibrary {
+        session: u64,
+        request: u64,
+        result: Result<Vec<NamedItem>, String>,
+    },
     Restored {
         session: u64,
         result: Result<Option<NavidromePassword>, String>,
@@ -202,6 +213,7 @@ impl Backend {
                 let mut tasks = tokio::task::JoinSet::new();
                 let mut collections = tokio::task::JoinSet::new();
                 let mut searches = tokio::task::JoinSet::new();
+                let mut playlists = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
                 loop {
                     tokio::select! {
@@ -214,9 +226,11 @@ impl Backend {
                                     collections.abort_all();
                                     tasks.abort_all();
                                     searches.abort_all();
+                                    playlists.abort_all();
                                 }
                                 Request::CancelCollection => collections.abort_all(),
                                 Request::CancelSearch => searches.abort_all(),
+                                Request::CancelPlaylistLibrary => playlists.abort_all(),
                                 Request::Forget { session } => {
                                     // Persist revocation off the UI thread before queuing deletion.
                                     // A locked keyring must not restore a signed-out account.
@@ -262,6 +276,7 @@ impl Backend {
                                     let lease = credentials.lease(Slot::Navidrome);
                                     let group = match request {
                                         Request::Search { .. } => &mut searches,
+                                        Request::PlaylistLibrary { .. } => &mut playlists,
                                         Request::Collection { .. } | Request::ArtistInfo { .. } | Request::Appearances { .. } => &mut collections,
                                         _ => &mut tasks,
                                     };
@@ -290,6 +305,7 @@ impl Backend {
                         }
                         _ = collections.join_next(), if !collections.is_empty() => {}
                         _ = searches.join_next(), if !searches.is_empty() => {}
+                        _ = playlists.join_next(), if !playlists.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
                     }
@@ -392,6 +408,15 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
             id,
             starred,
         },
+        Request::PlaylistLibrary {
+            session,
+            request,
+            client,
+        } => Event::PlaylistLibrary {
+            session,
+            request,
+            result: client.playlists().await,
+        },
         Request::Search {
             session,
             request,
@@ -472,6 +497,7 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
         | Request::OpenThemesFolder(_)
         | Request::CancelCollection
         | Request::CancelSearch
+        | Request::CancelPlaylistLibrary
         | Request::Cancel
         | Request::Shutdown => return None,
     })

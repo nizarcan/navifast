@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.2" date="2026-11-07" type="development">
+      <description><p>Browse and play the playlists available on your Navidrome account.</p></description>
+    </release>
     <release version="0.1.0-rc.1" date="2026-11-05" type="development">
       <description>
         <p>First Navifast release candidate, with Navidrome sign-in, album browsing,

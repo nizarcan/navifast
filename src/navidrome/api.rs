@@ -188,6 +188,8 @@ pub enum Collection {
     Playlist {
         name: String,
         songs: Vec<Song>,
+        cover_art: Option<String>,
+        owner: Option<String>,
     },
 }
 
@@ -414,6 +416,16 @@ impl Client {
     }
 
     pub async fn matching_playlists(&self, query: &str) -> Result<Vec<NamedItem>, String> {
+        let needle = query.to_lowercase();
+        Ok(self
+            .playlists()
+            .await?
+            .into_iter()
+            .filter(|item| item.name.to_lowercase().contains(&needle))
+            .collect())
+    }
+
+    pub async fn playlists(&self) -> Result<Vec<NamedItem>, String> {
         #[derive(Deserialize)]
         struct Playlists {
             #[serde(default)]
@@ -425,12 +437,7 @@ impl Client {
                 .cloned()
                 .ok_or("The server returned no playlist list.")?,
         )?;
-        let needle = query.to_lowercase();
-        Ok(playlists
-            .playlist
-            .into_iter()
-            .filter(|item| item.name.to_lowercase().contains(&needle))
-            .collect())
+        Ok(playlists.playlist)
     }
 
     pub async fn collection(&self, kind: CollectionKind, id: &str) -> Result<Collection, String> {
@@ -443,8 +450,11 @@ impl Client {
             album: Vec<Album>,
         }
         #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
         struct Playlist {
             name: String,
+            cover_art: Option<String>,
+            owner: Option<String>,
             #[serde(default)]
             entry: Vec<Song>,
         }
@@ -471,8 +481,18 @@ impl Client {
                 }
             }
             CollectionKind::Playlist => {
-                let Playlist { name, entry } = decode(value)?;
-                Collection::Playlist { name, songs: entry }
+                let Playlist {
+                    name,
+                    entry,
+                    cover_art,
+                    owner,
+                } = decode(value)?;
+                Collection::Playlist {
+                    name,
+                    songs: entry,
+                    cover_art,
+                    owner,
+                }
             }
         })
     }

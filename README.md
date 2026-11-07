@@ -16,6 +16,11 @@ The current build supports:
 - Searching songs, albums, artists and playlists from the top bar. Select a
   result with the arrow keys and press Enter to play the song or open the
   album, artist or playlist.
+- Browsing **Playlists** from the sidebar, including shared and smart playlists
+  available to your account. The browser uses the album artwork card grid.
+  Playlist details share the album header, playback controls
+  and sortable track table. Double-click a song occurrence or use its play
+  control; repeated songs keep their positions in the selected play order.
 - Opening credited artists from search results, album tracks, playlists, and the
   player bar. Artist pages show Discography, About, Similar artists from your
   library, and Appears on for guest releases. The header shows the artist portrait

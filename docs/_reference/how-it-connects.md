@@ -37,6 +37,9 @@ Search waits for a 300 ms pause in typing or an explicit submission. It sends
 Editing or clearing the term cancels both requests. Responses must match both
 the session and the current query generation. Retry repeats only the failed
 request. Opening a playlist loads its ordered songs with `getPlaylist`.
+The Playlists page requests the full accessible list using `getPlaylists`,
+independently of search. Refresh keeps existing rows available if it fails.
+Leaving the page cancels its pending list request and ignores late results.
 Artist links use the IDs from OpenSubsonic's individual credits or the older
 `artistId` field. The artist page uses album-artist IDs from `getArtist` to separate
 the discography from guest appearances. When the server returns only the

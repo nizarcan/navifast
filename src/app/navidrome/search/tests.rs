@@ -8,6 +8,76 @@ use crate::navidrome::{
 use crate::settings::ProxyConfig;
 
 #[test]
+fn playlist_card_plays_after_loading_and_navigation_cancels_its_intent() {
+    with_app(|app, host| {
+        app.demo = false;
+        let session = app.session;
+        let result = |request| Event::Collection {
+            session,
+            request,
+            result: Ok(Collection::Playlist {
+                name: "Mix".into(),
+                songs: vec![Song {
+                    id: "first".into(),
+                    ..Default::default()
+                }],
+                cover_art: None,
+                owner: None,
+            }),
+        };
+        app.ui_action(
+            UiAction::NavidromeSearch(Action::PlayPlaylist("first-list".into())),
+            host,
+        );
+        let first = app.presentation.navidrome_search.collection_request;
+        app.ui_action(UiAction::Open(Page::Albums), host);
+        let generation = app.transport.generation;
+        app.search_event(result(first));
+        assert_eq!(app.transport.generation, generation);
+        app.ui_action(
+            UiAction::NavidromeSearch(Action::PlayPlaylist("second-list".into())),
+            host,
+        );
+        app.search_event(result(app.presentation.navidrome_search.collection_request));
+        assert_eq!(app.playing_playlist, Some(navidrome::encode("second-list")));
+        assert_eq!(app.transport.song().unwrap().id, "first");
+    });
+}
+
+#[test]
+fn playlist_response_after_navigation_or_signout_cannot_replace_the_current_collection() {
+    with_app(|app, host| {
+        let page = |id| Page::Playlist(navidrome::encode(id));
+        app.ui_action(UiAction::Open(page("first")), host);
+        let first = app.presentation.navidrome_search.collection_request;
+        let session = app.session;
+        let event = |request, name: &str| Event::Collection {
+            session,
+            request,
+            result: Ok(Collection::Playlist {
+                name: name.into(),
+                songs: Vec::new(),
+                cover_art: None,
+                owner: None,
+            }),
+        };
+        app.ui_action(UiAction::Open(page("second")), host);
+        let second = app.presentation.navidrome_search.collection_request;
+        app.search_event(event(second, "Current"));
+        app.search_event(event(first, "Stale"));
+        assert!(
+            matches!(app.presentation.navidrome_search.collection.get(), Some(Collection::Playlist { name, .. }) if name == "Current")
+        );
+        app.ui_action(UiAction::Open(Page::Albums), host);
+        app.search_event(event(second, "Left behind"));
+        assert!(app.presentation.navidrome_search.collection.get().is_none());
+        app.apply(navidrome::Action::SignOut);
+        app.search_event(event(0, "Other account"));
+        assert!(app.presentation.navidrome_search.collection.get().is_none());
+    });
+}
+
+#[test]
 fn overlapping_searches_ignore_both_old_responses_even_during_debounce() {
     with_app(|app, ctx| {
         let session = app.session;

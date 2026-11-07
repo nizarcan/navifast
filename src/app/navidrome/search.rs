@@ -26,6 +26,7 @@ pub enum Action {
     Activate(Hit),
     Retry(SearchPart),
     PlayEntry(usize),
+    PlayPlaylist(String),
 }
 
 #[derive(Default)]
@@ -41,6 +42,7 @@ pub struct State {
     pub(super) session: u64,
     pub(super) collection_page: Option<Page>,
     collection_request: u64,
+    play_on_load: Option<Page>,
 }
 
 impl State {
@@ -195,6 +197,7 @@ impl App {
             } if session == self.session && request == state.collection_request => {
                 state.collection = Loadable::from_result(result);
                 self.load_artist_details();
+                self.play_requested_playlist();
             }
             Event::ArtistInfo {
                 session,
@@ -256,6 +259,12 @@ impl App {
                     self.ui_action(crate::model::Action::Open(page), host);
                 }
             }
+            Action::PlayPlaylist(id) => {
+                let page = Page::Playlist(super::encode(&id));
+                self.presentation.navidrome_search.play_on_load = Some(page.clone());
+                self.ui_action(crate::model::Action::Open(page), host);
+                self.play_requested_playlist();
+            }
             Action::PlayEntry(index) => {
                 let state = &self.presentation.navidrome_search;
                 if let Some(Collection::Playlist { songs, .. }) = state.collection.get()
@@ -270,6 +279,27 @@ impl App {
         }
     }
 
+    fn play_requested_playlist(&mut self) {
+        let current = self.presentation.page().clone();
+        let state = &mut self.presentation.navidrome_search;
+        if matches!(state.collection, Loadable::Loading | Loadable::NotLoaded) {
+            return;
+        }
+        let Some(Page::Playlist(id)) = state.play_on_load.take() else {
+            return;
+        };
+        if current != Page::Playlist(id.clone()) {
+            return;
+        }
+        if let Some(Collection::Playlist { songs, .. }) = state.collection.get()
+            && !songs.is_empty()
+        {
+            let songs = songs.clone();
+            self.play_search_songs(songs, 0);
+            self.playing_playlist = Some(id);
+        }
+    }
+
     pub(super) fn play_search_songs(
         &mut self,
         songs: Vec<crate::navidrome::api::Song>,
@@ -277,7 +307,7 @@ impl App {
     ) {
         self.playing_album = None;
         self.playing_playlist = None;
-        self.transport.album_rows.clear();
+        self.transport.collection_rows.clear();
         self.transport.songs = songs;
         self.load(index, 0.0, false);
     }
@@ -310,6 +340,9 @@ impl App {
 
     pub(super) fn fetch_collection(&mut self, page: &Page) {
         let state = &mut self.presentation.navidrome_search;
+        if state.play_on_load.as_ref() != Some(page) {
+            state.play_on_load = None;
+        }
         self.backend.send(Request::CancelCollection);
         state.collection_request = state.collection_request.wrapping_add(1);
         state.collection_page = None;
@@ -470,6 +503,8 @@ impl App {
             },
             CollectionKind::Playlist => Collection::Playlist {
                 name: "Bonobo favorites".into(),
+                cover_art: self.albums.first().and_then(|a| a.cover_art.clone()),
+                owner: Some("Demo".into()),
                 songs: self
                     .albums
                     .first()

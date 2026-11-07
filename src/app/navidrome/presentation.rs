@@ -68,6 +68,7 @@ impl App {
     }
     pub(super) fn ui_action(&mut self, action: UiAction, host: &impl Host) {
         let was_favorites = self.presentation.page().is_favorites();
+        let was_playlists = self.presentation.page() == &Page::Playlists;
         match action {
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
             UiAction::RetryFavorite(uri) if self.connected => self.retry_favorite(&uri),
@@ -83,6 +84,10 @@ impl App {
             UiAction::Reload(page) if self.connected && page.is_favorites() => {
                 self.refresh_favorites()
             }
+            UiAction::Open(Page::Playlists) if self.connected => {
+                self.presentation.open(Page::Playlists);
+            }
+            UiAction::Reload(Page::Playlists) if self.connected => self.fetch_playlists(),
             UiAction::NavidromeSearch(action) if self.connected => self.search_action(action, host),
             UiAction::Search(query) if self.connected => {
                 self.presentation.search.focus_requested = true;
@@ -267,6 +272,12 @@ impl App {
         }
         if !was_favorites && self.presentation.page().is_favorites() {
             self.refresh_favorites();
+        }
+        let is_playlists = self.presentation.page() == &Page::Playlists;
+        if !was_playlists && is_playlists {
+            self.fetch_playlists();
+        } else if was_playlists && !is_playlists {
+            self.cancel_playlists();
         }
         let collection = match self.presentation.page() {
             page @ (Page::Artist(_) | Page::Playlist(_)) => Some(page),

@@ -8,6 +8,7 @@ pub enum Page {
     LikedSongs,
     FavoriteGroup(FavoriteKind),
     Albums,
+    Playlists,
     Playlist(String),
     Album(String),
     Artist(String),
@@ -28,6 +29,7 @@ impl Page {
             Page::FavoriteGroup(FavoriteKind::Album) => "favorite-albums".into(),
             Page::FavoriteGroup(FavoriteKind::Artist) => "favorite-artists".into(),
             Page::Albums => "albums".into(),
+            Page::Playlists => "playlists".into(),
             Page::Playlist(id) => format!("playlist:{id}"),
             Page::Album(id) => format!("album:{id}"),
             Page::Artist(id) => format!("artist:{id}"),
@@ -44,6 +46,7 @@ impl Page {
             "favorite-albums" => Page::FavoriteGroup(FavoriteKind::Album),
             "favorite-artists" => Page::FavoriteGroup(FavoriteKind::Artist),
             "albums" => Page::Albums,
+            "playlists" => Page::Playlists,
             "settings" => Page::Settings,
             other => {
                 let (kind, id) = other.split_once(':')?;

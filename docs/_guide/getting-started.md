@@ -50,6 +50,16 @@ and play from a chosen song. Clicking a result also opens or plays it. If one
 part of the search fails, **Retry** reloads that part while the other results
 stay available.
 
+Open **Playlists** in the sidebar to browse playlists available to your account,
+including shared and smart playlists. They use the same artwork card grid as
+albums. Open a card and choose **Play** to start at
+the top, or double-click a particular song to start at that occurrence.
+Playlists use the same artwork header, circular Play/Pause control, selection
+and sortable track table as albums. Playback follows the displayed order,
+including repeated songs. **Refresh** reloads the list; **Retry** recovers
+a failed request without interrupting playback. A removed playlist reports
+that it is unavailable, while an empty playlist shows an empty state.
+
 Select an artist credit in search, on an album or playlist, or in the player
 bar to explore that artist. Navifast links each artist your server identifies.
 Select a sleeve in Discography to open the full release. Use **See more**

@@ -24,6 +24,223 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn playlist_browser_opens_same_named_items_by_id_and_play_starts_at_the_top() {
+    for flags in ["", "light"] {
+        for width in [760., 1280.] {
+            let mut rt = runtime("playlists", flags);
+            rt.set_viewport((width, 800.), 2.);
+            let generation = rt.state.app.transport.generation;
+            click_label(&mut rt, "Evening drive", 1);
+            assert_eq!(
+                rt.state.app.presentation.page(),
+                &Page::Playlist(super::super::encode("list2"))
+            );
+            assert_eq!(rt.state.app.transport.generation, generation);
+            assert!(rt.accessibility_action("playlist-play", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            assert_eq!(rt.state.app.transport.index, Some(0));
+            assert!(!rt.state.app.transport.paused);
+        }
+    }
+}
+
+#[test]
+fn playlist_browser_reuses_album_card_geometry_and_virtualizes_large_grids() {
+    for theme in ["", "light"] {
+        for width in [760., 1280.] {
+            let mut albums = runtime("albums", theme);
+            let mut playlists = runtime("playlists", theme);
+            playlists.update(|s, _| {
+                let list = s
+                    .app
+                    .presentation
+                    .navidrome_playlists
+                    .list
+                    .get_mut()
+                    .unwrap();
+                list.extend((3..1000).map(|i| crate::navidrome::api::NamedItem {
+                    id: format!("list{i}"),
+                    name: format!("Playlist {i}"),
+                    cover_art: None,
+                }));
+            });
+            for rt in [&mut albums, &mut playlists] {
+                rt.set_viewport((width, 800.), 2.);
+                rt.frame(0.);
+                rt.settle_all();
+            }
+            let rect = |rt: &Runtime<State>, key: &str| {
+                rt.elements()
+                    .into_iter()
+                    .find(|e| e.key.as_deref() == Some(key))
+                    .unwrap()
+                    .rect
+            };
+            assert_eq!(
+                rect(&albums, "album-alb0"),
+                rect(&playlists, "playlist-list0")
+            );
+            assert_eq!(
+                rect(&albums, "album-alb1"),
+                rect(&playlists, "playlist-list1")
+            );
+            assert_eq!(
+                rect(&albums, "album-alb2"),
+                rect(&playlists, "playlist-list2")
+            );
+            assert!(
+                playlists
+                    .elements()
+                    .iter()
+                    .filter(|e| e
+                        .key
+                        .as_deref()
+                        .is_some_and(|key| key.starts_with("playlist-list")))
+                    .count()
+                    < 50
+            );
+            assert!(playlists.accessibility_action(
+                "playlist-card-play-list1",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            playlists.frame(0.);
+            assert_eq!(
+                playlists.state.app.playing_playlist,
+                Some(super::super::encode("list1"))
+            );
+            assert_eq!(playlists.state.app.transport.index, Some(0));
+        }
+    }
+}
+
+#[test]
+fn playlist_browser_distinguishes_loading_empty_and_failed_lists() {
+    for (state, expected) in [
+        ("loading", "Loading…"),
+        ("empty", "No playlists"),
+        ("error", "Retry"),
+    ] {
+        for theme in ["", ",light"] {
+            let mut rt = runtime("playlists", &format!("{state}{theme}"));
+            for width in [760., 1280.] {
+                rt.set_viewport((width, 800.), 2.);
+                rt.frame(0.);
+                rt.settle_all();
+                assert!(rt.accessibility_json().to_string().contains(expected));
+            }
+        }
+    }
+}
+
+#[test]
+fn playlist_uses_album_selection_sorting_and_pause_without_losing_duplicate_occurrences() {
+    let mut rt = runtime("playlist:list0", "");
+    rt.update(|s, _| {
+        if let Some(Collection::Playlist { songs, .. }) =
+            s.app.presentation.navidrome_search.collection.get_mut()
+        {
+            *songs = [
+                ("dup", "Beta"),
+                ("other", "Alpha"),
+                ("dup", "Beta"),
+                ("tail", "Zulu"),
+            ]
+            .into_iter()
+            .map(|(id, title)| Song {
+                id: id.into(),
+                title: title.into(),
+                duration: 60.,
+                ..Default::default()
+            })
+            .collect();
+        }
+        s.sync_tracks();
+        s.sort_collection(crate::model::SortColumn::Title);
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    let generation = rt.state.app.transport.generation;
+    let key = rt.state.table.key(2).to_owned();
+    let element = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(&key))
+        .unwrap();
+    let [x, y, _, h] = element.rect;
+    rt.pointer_down(x + 90., y + h / 3.);
+    rt.pointer_up(x + 90., y + h / 3.);
+    rt.frame(0.);
+    assert_eq!(rt.state.table.cursor, Some(2));
+    assert_eq!(
+        rt.state.app.transport.generation, generation,
+        "a single click only selects"
+    );
+    rt.pointer_down(x + 90., y + h / 3.);
+    rt.pointer_up(x + 90., y + h / 3.);
+    rt.frame(0.);
+    assert_eq!(rt.state.app.transport.index, Some(2));
+    assert_eq!(rt.state.playing_row().as_deref(), Some(key.as_str()));
+    assert_eq!(
+        rt.state
+            .app
+            .transport
+            .songs
+            .iter()
+            .map(|s| s.id.as_str())
+            .collect::<Vec<_>>(),
+        ["other", "dup", "dup", "tail"]
+    );
+    let generation = rt.state.app.transport.generation;
+    assert!(rt.accessibility_action("playlist-play", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert!(rt.state.app.transport.paused);
+    assert_eq!(rt.state.app.transport.generation, generation);
+    rt.update(|s, tx| s.dispatch(Action::Next, tx));
+    assert_eq!(rt.state.app.transport.song().unwrap().id, "tail");
+    assert!(rt.state.app.transport.paused);
+}
+
+#[test]
+fn album_and_playlist_share_header_table_and_play_control_geometry() {
+    for theme in ["", "light"] {
+        for width in [760., 1280.] {
+            let mut album = runtime("album:alb0", theme);
+            let mut playlist = runtime("playlist:list0", theme);
+            album.update(|s, _| s.app.album.as_mut().unwrap().name = "Collection".into());
+            playlist.update(|s, _| {
+                if let Some(Collection::Playlist { name, .. }) =
+                    s.app.presentation.navidrome_search.collection.get_mut()
+                {
+                    *name = "Collection".into();
+                }
+            });
+            for rt in [&mut album, &mut playlist] {
+                rt.set_viewport((width, 800.), 2.);
+                rt.frame(0.);
+                rt.settle_all();
+            }
+            let rect = |rt: &Runtime<State>, key: &str| {
+                rt.elements()
+                    .into_iter()
+                    .find(|e| e.key.as_deref() == Some(key))
+                    .unwrap()
+                    .rect
+            };
+            for key in [
+                "collection-art",
+                "collection-title",
+                "sort-Title",
+                "sort-Duration",
+            ] {
+                assert_eq!(rect(&album, key), rect(&playlist, key), "{key} at {width}");
+            }
+            assert_eq!(rect(&album, "album-play"), rect(&playlist, "playlist-play"));
+        }
+    }
+}
+
+#[test]
 fn login_fields_remain_vertical_at_both_window_sizes_and_themes() {
     for flags in ["signed-out", "signed-out,light"] {
         let mut rt = runtime("albums", flags);
@@ -110,6 +327,8 @@ fn playlist_scroll_and_selection_survive_back_navigation_and_reloading() {
     let page = rt.state.app.presentation.page().clone();
     let contents = || Collection::Playlist {
         name: "Long playlist".into(),
+        cover_art: None,
+        owner: None,
         songs: (0..90)
             .map(|i| Song {
                 id: i.to_string(),

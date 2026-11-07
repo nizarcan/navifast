@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub mod desktop;
 pub mod favorites;
 mod host;
+pub mod playlists;
 use host::Host;
 mod presentation;
 pub mod search;
@@ -88,8 +89,8 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Transport {
-    /// For a sorted album, the original occurrence key of each item in playback order.
-    album_rows: Vec<String>,
+    /// For a sorted collection, the original occurrence key of each item in playback order.
+    collection_rows: Vec<String>,
     pub songs: Vec<Song>,
     pub index: Option<usize>,
     pub position: f64,
@@ -380,6 +381,7 @@ impl App {
                 self.login.password.clear();
                 self.presentation.search = Default::default();
                 self.presentation.navidrome_search = Default::default();
+                self.presentation.navidrome_playlists = Default::default();
                 self.presentation.navidrome_favorites = Default::default();
                 self.presentation.history = vec![crate::model::Page::Albums];
                 self.presentation.history_index = 0;
@@ -590,6 +592,7 @@ impl App {
             .cloned()
             .unwrap_or_default();
         self.client = Some(client);
+        self.presentation.navidrome_playlists = Default::default();
         self.presentation.navidrome_favorites = Default::default();
     }
 
@@ -628,7 +631,7 @@ impl App {
             self.presentation.recent_contexts.truncate(100);
             self.mark_dirty();
         }
-        self.transport.album_rows.clear();
+        self.transport.collection_rows.clear();
         self.transport.songs = songs;
         self.load(index, 0.0, false);
     }
@@ -684,6 +687,7 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                event @ Event::PlaylistLibrary { .. } => self.playlists_event(event),
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
                     self.favorite_event(event)
                 }
@@ -1025,6 +1029,7 @@ impl App {
         self.populate_demo_favorites(favorite_page.is_some(), &flags);
         let library_state = favorite_page.is_none()
             && page != Some("search")
+            && page != Some("playlists")
             && !page.is_some_and(|p| p.starts_with("artist:") || p.starts_with("playlist:"));
         if library_state && flags.contains(&"empty") {
             self.albums.clear();
@@ -1050,6 +1055,9 @@ impl App {
             }
         } else if page == Some("search") {
             self.populate_demo_search(&flags, host);
+        } else if page == Some("playlists") {
+            self.presentation.history = vec![crate::model::Page::Playlists];
+            self.populate_demo_playlists(&flags);
         } else if let Some(id) = page.and_then(|p| p.strip_prefix("artist:")) {
             self.populate_demo_artist(id, &flags);
         } else if let Some(id) = page.and_then(|p| p.strip_prefix("playlist:")) {
@@ -1062,6 +1070,10 @@ impl App {
             } else {
                 crate::model::Loadable::Loaded(crate::navidrome::api::Collection::Playlist {
                     name: "Evening drive".into(),
+                    cover_art: (!flags.contains(&"no-art"))
+                        .then(|| self.albums[0].cover_art.clone())
+                        .flatten(),
+                    owner: Some("Demo".into()),
                     songs: if flags.contains(&"empty") {
                         Vec::new()
                     } else {

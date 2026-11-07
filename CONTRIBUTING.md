@@ -63,6 +63,10 @@ implementation and regression tests live in the Copilot Triage repository.
 
 ## Design principles
 
+Follow the existing [design language](docs/_reference/design-language.md) when
+extending the interface. Reuse the nearest established screen and its components;
+albums and playlists share the same collection layout and track interactions.
+
 1. **Native and fast.** Startup time, idle work, memory use, and binary size
    are product features. Keep the UI thread free of network and disk waits.
 2. **Focused.** Prefer a complete, coherent workflow over a collection of

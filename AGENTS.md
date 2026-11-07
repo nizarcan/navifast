@@ -81,6 +81,10 @@ picture. Zero volume still dances.
 
 ## Interface review
 
+- Read `docs/_reference/design-language.md` before changing or adding views.
+  Reuse the established components. Albums and playlists share their header,
+  playback controls, track table and interactions.
+
 - Distinguish an internal UI refactor from an interface redesign. Moving
   navigation or controls, regrouping menus, changing the application shell,
   window chrome, panel ownership or sizing, responsive breakpoints, spacing,

@@ -21,6 +21,7 @@ pub struct App {
     pub recent_contexts: Vec<String>,
     pub navidrome_favorites: navidrome::favorites::State,
     pub navidrome_search: navidrome::search::State,
+    pub navidrome_playlists: navidrome::playlists::State,
     pub search: SearchState,
     pub table_sorts: HashMap<Page, TableSort>,
     pub dialog: Option<Dialog>,
@@ -40,6 +41,7 @@ impl App {
             recent_contexts: Vec::new(),
             navidrome_favorites: Default::default(),
             navidrome_search: Default::default(),
+            navidrome_playlists: Default::default(),
             search: Default::default(),
             table_sorts: session
                 .sorts

@@ -56,8 +56,8 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     }
     let page = s.app.presentation.page();
     let content = match page {
-        Page::Album(_) => songs(v),
-        Page::Playlist(_) => playlist(v),
+        Page::Album(_) | Page::Playlist(_) => songs(v),
+        Page::Playlists => playlists(v),
         Page::Search => search(v),
         Page::Artist(_) => collection(v),
         Page::LikedSongs | Page::FavoriteGroup(_) => favorites(v),
@@ -267,6 +267,21 @@ fn page_tint(v: &Paint<'_>, page: &Page) -> Option<Srgba> {
         return None;
     }
     let tint = |id: &str| v.s.cover_tint(&app.cover_uri(id), v.p);
+    if matches!(page, Page::Playlist(_)) {
+        return app
+            .presentation
+            .navidrome_search
+            .collection
+            .get()
+            .and_then(|collection| {
+                if let Collection::Playlist { cover_art, .. } = collection {
+                    cover_art.as_deref().and_then(tint)
+                } else {
+                    None
+                }
+            })
+            .or_else(|| app.playing_cover().and_then(tint));
+    }
     let album = if let Page::Album(id) = page {
         let id = navidrome::decode(id)?;
         app.album
@@ -489,6 +504,7 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
     for (name, icon, page) in [
         (mark("Albums"), Icon::House, Page::Albums),
         (mark("Favorites"), Icon::Star, Page::LikedSongs),
+        (mark("Playlists"), Icon::ListMusic, Page::Playlists),
     ] {
         let ink = if &page == app.presentation.page() {
             v.p.text
@@ -821,7 +837,10 @@ fn card_play(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
             offset_uri: None,
         }
     };
-    el().key(format!("card-play-{}", kind.uri(id)))
+    card_play_action(v, format!("card-play-{}", kind.uri(id)), action)
+}
+fn card_play_action(v: &Paint<'_>, key: String, action: Action) -> El {
+    el().key(key)
         .size(44., 44.)
         .pin(None, None, Some(4.), Some(4.))
         .radius(22.)
@@ -835,10 +854,17 @@ fn card_play(v: &Paint<'_>, kind: FavoriteKind, id: &str) -> El {
         .group_opacity(0., 1.)
         .on_press_tx(move |s: &mut State, tx| s.dispatch(action.clone(), tx))
 }
-fn album_card(v: &Paint<'_>, a: &Album) -> El {
-    let page = Page::Album(navidrome::encode(&a.id));
-    let tile = col()
-        .key(format!("album-{}", a.id))
+fn collection_card(
+    v: &Paint<'_>,
+    key: String,
+    name: &str,
+    cover: Option<&str>,
+    byline: El,
+    play: El,
+    page: Page,
+) -> El {
+    col()
+        .key(key)
         .w(172.)
         .padding(12.)
         .gap(2.)
@@ -846,17 +872,44 @@ fn album_card(v: &Paint<'_>, a: &Album) -> El {
         .hover(color(v.p.surface_hover))
         .role("button")
         .focusable(true)
-        .label(format!("{}, {}", a.name, a.artist))
+        .label(name)
         .hover_group()
         .child(
             el().size(148., 148.)
-                .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, 148., 6.))
-                .child(card_play(v, FavoriteKind::Album, &a.id)),
+                .child(v.cover(cover, CoverSize::Sleeve, 148., 6.))
+                .child(play),
         )
-        .child(label(&a.name, 14., 600., v.p.text).mt(8.).truncate())
-        .child(label(&a.artist, 12.5, 400., v.p.secondary).wrap())
-        .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx));
+        .child(label(name, 14., 600., v.p.text).mt(8.).truncate())
+        .child(byline)
+        .on_press_tx(move |s: &mut State, tx| s.dispatch(Action::Open(page.clone()), tx))
+}
+fn album_card(v: &Paint<'_>, a: &Album) -> El {
+    let tile = collection_card(
+        v,
+        format!("album-{}", a.id),
+        &a.name,
+        a.cover_art.as_deref(),
+        label(&a.artist, 12.5, 400., v.p.secondary).wrap(),
+        card_play(v, FavoriteKind::Album, &a.id),
+        Page::Album(navidrome::encode(&a.id)),
+    )
+    .label(format!("{}, {}", a.name, a.artist));
     favorite_context(tile, FavoriteKind::Album, &a.id)
+}
+fn playlist_card(v: &Paint<'_>, p: &crate::navidrome::api::NamedItem) -> El {
+    collection_card(
+        v,
+        format!("playlist-{}", p.id),
+        &p.name,
+        p.cover_art.as_deref(),
+        label(v.tr(mark("Playlist")), 12.5, 400., v.p.secondary).wrap(),
+        card_play_action(
+            v,
+            format!("playlist-card-play-{}", p.id),
+            Action::NavidromeSearch(Search::PlayPlaylist(p.id.clone())),
+        ),
+        Page::Playlist(navidrome::encode(&p.id)),
+    )
 }
 fn albums(v: &Paint<'_>, width: f32) -> El {
     let a = &v.s.app;
@@ -946,6 +999,85 @@ fn album_status(v: &Paint<'_>) -> El {
     }
     page
 }
+/// The album page defines the common layout for playable collections.
+fn collection_header(
+    v: &Paint<'_>,
+    kind: &str,
+    name: &str,
+    cover: Option<&str>,
+    byline: El,
+    actions: El,
+) -> El {
+    let edge = if v.content_width() > 720. { 212. } else { 160. };
+    let release = col()
+        .gap(6.)
+        .grow(1.)
+        .min_w(0.)
+        .pt(edge * 0.08)
+        .child(label(kind, 12.5, 500., v.p.text))
+        .child(
+            label(name, if edge > 200. { 56. } else { 40. }, 700., v.p.text)
+                .wrap()
+                .key("collection-title"),
+        )
+        .child(byline);
+    col()
+        .w_full()
+        .gap(12.)
+        .child(
+            row()
+                .w_full()
+                .gap(24.)
+                .child(
+                    v.cover(cover, CoverSize::Sleeve, edge, 6.)
+                        .key("collection-art"),
+                )
+                .child(release),
+        )
+        .child(actions)
+}
+
+fn collection_actions(v: &Paint<'_>, key: &'static str, active: bool, empty: bool) -> El {
+    row()
+        .mt(14.)
+        .mb(20.)
+        .items_center()
+        .gap(18.)
+        .child(
+            el().size(56., 56.)
+                .key(key)
+                .center()
+                .radius(28.)
+                .fill(color(v.p.accent))
+                .hover(color(v.p.accent_hover))
+                .role("button")
+                .focusable(true)
+                .label(v.tr(if active { mark("Pause") } else { mark("Play") }))
+                .child(v.icon(
+                    if active {
+                        Icon::PauseFilled
+                    } else {
+                        Icon::PlayFilled
+                    },
+                    28.,
+                    v.p.on_accent,
+                ))
+                .disabled(!active && empty)
+                .on_press(move |s: &mut State| {
+                    if active {
+                        s.app.apply(Service::Toggle);
+                    } else {
+                        s.play_collection_row(0);
+                    }
+                }),
+        )
+        .child(
+            v.icon_button(&v.tr(mark("Shuffle")), Icon::Shuffle, 26., |_, _| {})
+                .size(38., 38.)
+                .disabled(true),
+        )
+}
+
 fn album(v: &Paint<'_>) -> El {
     let app = &v.s.app;
     let Some(a) = app.album.as_ref() else {
@@ -959,8 +1091,6 @@ fn album(v: &Paint<'_>) -> El {
             v.loading()
         };
     };
-    let width = v.content_width();
-    let edge = if width > 720. { 212. } else { 160. };
     let mut byline = row().items_center().flex_wrap().gap(4.).child(credit(
         v,
         &a.artist,
@@ -972,79 +1102,79 @@ fn album(v: &Paint<'_>) -> El {
     let length = a.song.iter().map(|t| (t.duration * 1000.) as u64).sum();
     let details =
         crate::ui::collection::songs_and_duration(app.presentation.locale, a.song_count, length);
-    let release = col()
-        .gap(6.)
-        .grow(1.)
-        .min_w(0.)
-        .pt(edge * 0.08)
-        .child(label(v.tr(mark("Album")), 12.5, 500., v.p.text))
-        .child(label(&a.name, if edge > 200. { 56. } else { 40. }, 700., v.p.text).wrap())
-        .child(byline.child(label(format!("• {details}"), 13.5, 400., v.p.secondary)));
     let active = app
         .playing_album
         .as_ref()
         .is_some_and(|playing| playing.id == a.id)
         && !app.transport.paused;
-    let mut page = col()
-        .w_full()
-        .gap(12.)
+    let actions = collection_actions(v, "album-play", active, a.song.is_empty())
+        .child(star(v, FavoriteKind::Album, &a.id, 26.))
         .child(
-            row()
-                .w_full()
-                .gap(24.)
-                .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, edge, 6.))
-                .child(release),
-        )
-        .child(
-            row()
-                .mt(14.)
-                .mb(20.)
-                .items_center()
-                .gap(18.)
-                .child(
-                    el().size(56., 56.)
-                        .key("album-play")
-                        .center()
-                        .radius(28.)
-                        .fill(color(v.p.accent))
-                        .hover(color(v.p.accent_hover))
-                        .role("button")
-                        .focusable(true)
-                        .label(v.tr(if active { mark("Pause") } else { mark("Play") }))
-                        .child(v.icon(
-                            if active {
-                                Icon::PauseFilled
-                            } else {
-                                Icon::PlayFilled
-                            },
-                            28.,
-                            v.p.on_accent,
-                        ))
-                        .disabled(!active && a.song.is_empty())
-                        .on_press(move |s: &mut State| {
-                            if active {
-                                s.app.apply(Service::Toggle);
-                            } else {
-                                s.play_album_row(0);
-                            }
-                        }),
-                )
-                .child(
-                    v.icon_button(&v.tr(mark("Shuffle")), Icon::Shuffle, 26., |_, _| {})
-                        .size(38., 38.)
-                        .disabled(true),
-                )
-                .child(star(v, FavoriteKind::Album, &a.id, 26.))
-                .child(
-                    v.icon_button(&v.tr(mark("More")), Icon::Ellipsis, 26., |s, _| {
-                        s.menu = Some("album")
-                    })
-                    .size(38., 38.)
-                    .key("album-more"),
-                ),
+            v.icon_button(&v.tr(mark("More")), Icon::Ellipsis, 26., |s, _| {
+                s.menu = Some("album")
+            })
+            .size(38., 38.)
+            .key("album-more"),
         );
+    let mut page = collection_header(
+        v,
+        &v.tr(mark("Album")),
+        &a.name,
+        a.cover_art.as_deref(),
+        byline.child(label(format!("• {details}"), 13.5, 400., v.p.secondary)),
+        actions,
+    );
     if a.song.is_empty() {
         page = page.child(label(v.tr("No tracks"), 14., 400., v.p.secondary));
+    }
+    page
+}
+
+fn playlist_header(v: &Paint<'_>) -> El {
+    let app = &v.s.app;
+    let Some(Collection::Playlist {
+        name,
+        songs,
+        cover_art,
+        owner,
+    }) = app.presentation.navidrome_search.collection.get()
+    else {
+        return collection(v);
+    };
+    let mut byline = row().items_center().flex_wrap().gap(4.);
+    if let Some(owner) = owner.as_deref().filter(|s| !s.is_empty()) {
+        byline = byline
+            .child(label(owner, 14., 500., v.p.secondary))
+            .child(label("•", 13.5, 400., v.p.secondary));
+    }
+    let duration = songs.iter().map(|s| (s.duration * 1000.) as u64).sum();
+    byline = byline.child(label(
+        crate::ui::collection::songs_and_duration(
+            app.presentation.locale,
+            songs.len() as u32,
+            duration,
+        ),
+        13.5,
+        400.,
+        v.p.secondary,
+    ));
+    let active = matches!(app.presentation.page(), Page::Playlist(id) if app.playing_playlist.as_ref() == Some(id))
+        && !app.transport.paused;
+    let mut page = collection_header(
+        v,
+        &v.tr(mark("Playlist")),
+        name,
+        cover_art.as_deref(),
+        byline,
+        collection_actions(v, "playlist-play", active, songs.is_empty()),
+    );
+    if songs.is_empty() {
+        page = page.child(label(
+            v.tr(mark("Nothing here yet.")),
+            14.,
+            400.,
+            v.p.secondary,
+        ));
     }
     page
 }
@@ -1090,15 +1220,12 @@ fn list_songs(s: &State) -> &[Song] {
     s.app.page_songs().unwrap_or_default()
 }
 fn open_song(s: &mut State, i: usize, tx: &mut Tx) {
-    if matches!(s.app.presentation.page(), Page::Playlist(_)) {
-        s.dispatch(Action::NavidromeSearch(Search::PlayEntry(i)), tx);
-    } else {
-        s.play_album_row(i);
-    }
+    s.play_collection_row(i);
+    tx.instant();
 }
-fn album_columns(v: &Paint<'_>) -> El {
+fn collection_columns(v: &Paint<'_>) -> El {
     use crate::model::SortColumn;
-    let sort = v.s.album_sort();
+    let sort = v.s.collection_sort();
     let title = crate::i18n::pgettext(v.s.app.presentation.locale, "column heading", "TITLE");
     let button = |column, name: String, width, text: &str| {
         let active = sort
@@ -1126,7 +1253,7 @@ fn album_columns(v: &Paint<'_>) -> El {
             .label(name)
             .child(content)
             .on_press_tx(move |s: &mut State, tx| {
-                s.sort_album(column);
+                s.sort_collection(column);
                 tx.instant();
             });
         if let Some(ascending) = active {
@@ -1226,7 +1353,17 @@ fn songs(v: &Paint<'_>) -> El {
                 height: bounds.1,
             };
             if r == 0 {
-                return col().w_full().child(album(&v)).child(album_columns(&v));
+                let header = if matches!(s.app.presentation.page(), Page::Playlist(_)) {
+                    playlist_header(&v)
+                } else {
+                    album(&v)
+                };
+                let head = col().w_full().child(header);
+                return if s.app.page_songs().is_some_and(|songs| !songs.is_empty()) {
+                    head.child(collection_columns(&v))
+                } else {
+                    head
+                };
             }
             let i = r - 1;
             let source = s.table.source(i);
@@ -1507,34 +1644,32 @@ fn catalogue_button(
     }
     hit_row
 }
-fn playlist(v: &Paint<'_>) -> El {
-    let Some(Collection::Playlist { name, songs }) =
-        v.s.app.presentation.navidrome_search.collection.get()
-    else {
-        return collection(v);
-    };
-    let title = name.clone();
-    let empty = songs.is_empty();
+fn playlists(v: &Paint<'_>) -> El {
+    let count =
+        v.s.app
+            .presentation
+            .navidrome_playlists
+            .list
+            .get()
+            .map_or(0, Vec::len);
+    let columns = crate::ui::widgets::card_columns(v.content_width());
+    let rows = count.div_ceil(columns);
     let (p, scale, zoom, width, height) = (v.p, v.scale, v.zoom, v.width, v.height);
     col()
         .w_full()
-        .key("tracks")
-        .role("list")
-        .label(v.tr(mark("Songs")))
-        .focusable(true)
-        .on_key(|s: &mut State, k, tx| track_key(s, k, tx))
+        .key("playlist-library-rows")
         .growth(rune::GrowthSpec::default())
         .virtual_rows(
-            1 + songs.len(),
-            36.,
-            |s: &State, r| {
-                if r == 0 {
-                    "playlist-heading".into()
+            rows + 1,
+            240.,
+            |_: &State, i| {
+                if i == 0 {
+                    "playlists-heading".into()
                 } else {
-                    Cow::Borrowed(s.table.key(r - 1))
+                    format!("playlists-{i}").into()
                 }
             },
-            move |s: &State, r| {
+            move |s: &State, i| {
                 let v = Paint {
                     s,
                     p,
@@ -1543,50 +1678,58 @@ fn playlist(v: &Paint<'_>) -> El {
                     width,
                     height,
                 };
-                if r == 0 {
-                    let mut head = col()
-                        .w_full()
-                        .gap(6.)
-                        .pb(4.)
-                        .child(heading(&v, &title))
-                        .child(label(v.tr(mark("Songs")), 14., 400., p.secondary));
-                    if empty {
-                        head = head.child(label(
-                            v.tr(mark("Nothing here yet.")),
-                            14.,
-                            400.,
-                            p.secondary,
-                        ));
-                    }
-                    return head;
+                if i == 0 {
+                    return playlists_header(&v);
                 }
-                let i = r - 1;
-                let song = &list_songs(s)[i];
-                let key = s.table.key(i).to_owned();
-                let button = catalogue_button(
-                    &v,
-                    &song.title,
-                    Icon::Music,
-                    Some((&song.artist, &song.credits)),
-                    s.table.cursor == Some(i),
-                )
-                .key(format!("play-{key}"))
-                .on_press_tx(move |s: &mut State, tx| {
-                    if let Some(i) = s.table.index(&key) {
-                        s.table.pick(i, crate::model::RowPick::Only);
-                        open_song(s, i, tx);
-                    }
-                });
-                row()
-                    .w_full()
-                    .h(36.)
-                    .items_center()
-                    .gap(6.)
-                    .child(button)
-                    .child(star(&v, FavoriteKind::Song, &song.id, 16.))
+                let mut band = row().h(240.).gap(7.);
+                for item in s
+                    .app
+                    .presentation
+                    .navidrome_playlists
+                    .list
+                    .get()
+                    .into_iter()
+                    .flatten()
+                    .skip((i - 1) * columns)
+                    .take(columns)
+                {
+                    band = band.child(playlist_card(&v, item));
+                }
+                band
             },
         )
 }
+
+fn playlists_header(v: &Paint<'_>) -> El {
+    let state = &v.s.app.presentation.navidrome_playlists;
+    let mut head = col().w_full().gap(12.).child(
+        row()
+            .items_center()
+            .gap(12.)
+            .child(heading(v, &v.tr(mark("Playlists"))).grow(1.))
+            .child(
+                v.button(&v.tr(mark("Refresh")), false, |s, tx| {
+                    s.dispatch(Action::Reload(Page::Playlists), tx)
+                })
+                .key("refresh-playlists"),
+            ),
+    );
+    if state.refreshing {
+        head = head.child(v.loading());
+    }
+    if let Some(error) = &state.error {
+        head = head.child(retry(v, error, Action::Reload(Page::Playlists)));
+    }
+    if state.list.get().is_some_and(Vec::is_empty) {
+        head = head.child(v.empty(
+            Icon::ListMusic,
+            &v.tr(mark("No playlists")),
+            &v.tr(mark("Playlists available on your server appear here.")),
+        ));
+    }
+    head
+}
+
 fn search(v: &Paint<'_>) -> El {
     let s = &v.s.app.presentation.navidrome_search;
     let mut list = col().w_full().gap(6.);
