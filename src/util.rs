@@ -135,6 +135,28 @@ pub(crate) fn replace_file(
     }
 }
 
+/// Atomically publish a user-selected image without damaging an existing file.
+pub(crate) fn save_image(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    // Use an exclusive sibling temporary file; a failed write preserves any existing image.
+    let temporary = path.with_extension(format!("image.{:016x}.tmp", rand::random::<u64>()));
+    // A collision is not our file to remove. Only clean up after exclusive creation succeeds.
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)?;
+    let result = (|| {
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        crate::util::replace_file(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(temporary);
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

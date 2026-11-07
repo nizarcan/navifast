@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 22:34+0300\n"
+"POT-Creation-Date: 2026-11-07 22:50+0300\n"
 "PO-Revision-Date: 2026-09-23 20:00+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Russian\n"
@@ -63,8 +63,8 @@ msgstr "{name}, папка, свёрнута"
 msgid "{name}, folder, expanded"
 msgstr "{name}, папка, развёрнута"
 
-#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:501
-#: src/ui/desktop/library.rs:709
+#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:504
+#: src/ui/desktop/library.rs:712
 msgid "Home"
 msgstr "Главная"
 
@@ -158,17 +158,17 @@ msgstr "Свернуть"
 msgid "See more"
 msgstr "Показать ещё"
 
-#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1305
-#: src/ui/desktop/library.rs:1838 src/ui/desktop/library.rs:2174
-#: src/ui/desktop/library.rs:2300 src/ui/desktop/library.rs:2329
+#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1314
+#: src/ui/desktop/library.rs:1849 src/ui/desktop/library.rs:2185
+#: src/ui/desktop/library.rs:2311 src/ui/desktop/library.rs:2340
 #: src/ui/desktop/playlists.rs:160 src/ui/desktop/playlists.rs:267
 #: src/ui/desktop/preferences.rs:288 src/ui/desktop/ratings.rs:106
-#: src/ui/desktop/scrobble.rs:36
+#: src/ui/desktop/scrobble.rs:36 src/ui/desktop/artwork.rs:39
 msgid "Retry"
 msgstr "Повторить"
 
-#: src/ui/desktop/artist.rs:82 src/ui/desktop/library.rs:907
-#: src/ui/desktop/library.rs:1344
+#: src/ui/desktop/artist.rs:82 src/ui/desktop/library.rs:910
+#: src/ui/desktop/library.rs:1353
 msgid "Album"
 msgstr "Альбом"
 
@@ -180,7 +180,7 @@ msgstr "Сингл"
 msgid "EP"
 msgstr "Мини-альбом"
 
-#: src/ui/desktop/artist.rs:278 src/ui/desktop/library.rs:2382
+#: src/ui/desktop/artist.rs:278 src/ui/desktop/library.rs:2393
 #: src/ui/desktop/home.rs:143
 msgid "Artist"
 msgstr "Исполнитель"
@@ -189,10 +189,10 @@ msgstr "Исполнитель"
 msgid "Discography"
 msgstr "Дискография"
 
-#: src/ui/desktop/artist.rs:323 src/ui/desktop/library.rs:682
-#: src/ui/desktop/library.rs:783 src/ui/desktop/library.rs:785
-#: src/ui/desktop/library.rs:2081 src/ui/desktop/library.rs:2096
-#: src/ui/desktop/library.rs:2200 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
+#: src/ui/desktop/artist.rs:323 src/ui/desktop/library.rs:685
+#: src/ui/desktop/library.rs:786 src/ui/desktop/library.rs:788
+#: src/ui/desktop/library.rs:2092 src/ui/desktop/library.rs:2107
+#: src/ui/desktop/library.rs:2211 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
 #: src/ui/desktop/albums.rs:40
 msgid "Albums"
 msgstr "Альбомы"
@@ -226,12 +226,12 @@ msgid "No featured releases in your library."
 msgstr "В вашей медиатеке нет релизов с гостевым участием."
 
 #: src/ui/desktop/library.rs:226 src/ui/desktop/library.rs:282
-#: src/ui/desktop/library.rs:1434
+#: src/ui/desktop/library.rs:1445
 msgid "Remove from Favorites"
 msgstr "Удалить из избранного"
 
 #: src/ui/desktop/library.rs:228 src/ui/desktop/library.rs:284
-#: src/ui/desktop/library.rs:1436
+#: src/ui/desktop/library.rs:1447
 msgid "Add to Favorites"
 msgstr "Добавить в избранное"
 
@@ -253,18 +253,18 @@ msgstr "Открыть альбом"
 msgid "Remove from playlist"
 msgstr "Убрать из плейлиста"
 
-#: src/ui/desktop/library.rs:331 src/ui/desktop/library.rs:1060
-#: src/ui/desktop/library.rs:1274 src/ui/desktop/library.rs:1643
+#: src/ui/desktop/library.rs:331 src/ui/desktop/library.rs:1063
+#: src/ui/desktop/library.rs:1283 src/ui/desktop/library.rs:1654
 #: src/ui/desktop/queue.rs:272 src/ui/desktop/queue.rs:360
 #: src/ui/desktop/transport.rs:273
 msgid "Play"
 msgstr "Воспроизвести"
 
-#: src/ui/desktop/library.rs:345 src/ui/desktop/library.rs:427
+#: src/ui/desktop/library.rs:345 src/ui/desktop/library.rs:430
 msgid "Play next"
 msgstr "Воспроизвести следующим"
 
-#: src/ui/desktop/library.rs:347 src/ui/desktop/library.rs:429
+#: src/ui/desktop/library.rs:347 src/ui/desktop/library.rs:432
 msgid "Add to queue"
 msgstr "Добавить в очередь"
 
@@ -273,212 +273,216 @@ msgstr "Добавить в очередь"
 msgid "Track details"
 msgstr "Сведения о треке"
 
-#: src/ui/desktop/library.rs:524
+#: src/ui/desktop/library.rs:527
 msgid "Back"
 msgstr "Назад"
 
-#: src/ui/desktop/library.rs:530
+#: src/ui/desktop/library.rs:533
 msgid "Forward"
 msgstr "Вперёд"
 
-#: src/ui/desktop/library.rs:535 src/ui/desktop/library.rs:2018
+#: src/ui/desktop/library.rs:538 src/ui/desktop/library.rs:2029
 msgid "What do you want to play?"
 msgstr "Что хочешь послушать?"
 
-#: src/ui/desktop/library.rs:576 src/ui/desktop/library.rs:623
+#: src/ui/desktop/library.rs:579 src/ui/desktop/library.rs:626
 #: src/ui/desktop/preferences.rs:214 src/ui/keys.rs:55
 msgid "Settings"
 msgstr "Настройки"
 
-#: src/ui/desktop/library.rs:588 src/ui/desktop/preferences.rs:217
+#: src/ui/desktop/library.rs:591 src/ui/desktop/preferences.rs:217
 msgid "Account"
 msgstr "Аккаунт"
 
-#: src/ui/desktop/library.rs:629 src/ui/desktop/preferences.rs:559
+#: src/ui/desktop/library.rs:632 src/ui/desktop/preferences.rs:559
 #: src/ui/desktop/preferences.rs:762 src/ui/desktop/preferences.rs:763
 msgid "Keyboard shortcuts"
 msgstr "Сочетания клавиш"
 
-#: src/ui/desktop/library.rs:637 src/ui/desktop/preferences.rs:218
+#: src/ui/desktop/library.rs:640 src/ui/desktop/preferences.rs:218
 msgid "Sign out"
 msgstr "Выйти из аккаунта"
 
-#: src/ui/desktop/library.rs:644 src/ui/desktop/library.rs:793
-#: src/ui/desktop/library.rs:1520
+#: src/ui/desktop/library.rs:647 src/ui/desktop/library.rs:796
+#: src/ui/desktop/library.rs:1531
 msgid "Library order"
 msgstr "Порядок медиатеки"
 
-#: src/ui/desktop/library.rs:647 src/ui/desktop/home.rs:250
+#: src/ui/desktop/library.rs:650 src/ui/desktop/home.rs:250
 msgid "Recently played"
 msgstr "Недавно прослушанные"
 
-#: src/ui/desktop/library.rs:649 src/ui/desktop/albums.rs:18
+#: src/ui/desktop/library.rs:652 src/ui/desktop/albums.rs:18
 msgid "Name"
 msgstr "Название"
 
-#: src/ui/desktop/library.rs:652 src/ui/desktop/albums.rs:17
+#: src/ui/desktop/library.rs:655 src/ui/desktop/albums.rs:17
 msgid "Recently added"
 msgstr "Недавно добавленные"
 
-#: src/ui/desktop/library.rs:683 src/ui/desktop/library.rs:2080
-#: src/ui/desktop/library.rs:2095 src/ui/desktop/library.rs:2194
+#: src/ui/desktop/library.rs:686 src/ui/desktop/library.rs:2091
+#: src/ui/desktop/library.rs:2106 src/ui/desktop/library.rs:2205
 #: src/ui/desktop/browse.rs:14 src/ui/desktop/browse.rs:32
 msgid "Songs"
 msgstr "Треки"
 
-#: src/ui/desktop/library.rs:684 src/ui/desktop/browse.rs:13
+#: src/ui/desktop/library.rs:687 src/ui/desktop/browse.rs:13
 msgid "Genres"
 msgstr "Жанры"
 
-#: src/ui/desktop/library.rs:685 src/ui/desktop/stats.rs:16
+#: src/ui/desktop/library.rs:688 src/ui/desktop/stats.rs:16
 msgid "Listening stats"
 msgstr "Статистика прослушивания"
 
-#: src/ui/desktop/library.rs:710 src/ui/desktop/library.rs:1972
-#: src/ui/desktop/library.rs:2098 src/ui/desktop/library.rs:2145
+#: src/ui/desktop/library.rs:713 src/ui/desktop/library.rs:1983
+#: src/ui/desktop/library.rs:2109 src/ui/desktop/library.rs:2156
 msgid "Playlists"
 msgstr "Плейлисты"
 
-#: src/ui/desktop/library.rs:711 src/ui/desktop/library.rs:2278
+#: src/ui/desktop/library.rs:714 src/ui/desktop/library.rs:2289
 #: src/ui/keys.rs:47
 msgid "Favorites"
 msgstr "Избранное"
 
-#: src/ui/desktop/library.rs:712
+#: src/ui/desktop/library.rs:715
 msgid "Discover"
 msgstr "Обзор"
 
-#: src/ui/desktop/library.rs:745
+#: src/ui/desktop/library.rs:748
 msgid "Library"
 msgstr "Медиатека"
 
-#: src/ui/desktop/library.rs:747 src/ui/desktop/library.rs:819
+#: src/ui/desktop/library.rs:750 src/ui/desktop/library.rs:822
 msgid "Search in Your Library"
 msgstr "Искать в медиатеке"
 
-#: src/ui/desktop/library.rs:768 src/ui/keys.rs:38
+#: src/ui/desktop/library.rs:771 src/ui/keys.rs:38
 msgid "Show or hide the sidebar"
 msgstr "Показать или скрыть боковую панель"
 
-#: src/ui/desktop/library.rs:1124 src/ui/desktop/library.rs:1389
+#: src/ui/desktop/library.rs:1127 src/ui/desktop/library.rs:1399
 #: src/ui/desktop/home.rs:258
 msgid "Playlist"
 msgstr "Плейлист"
 
-#: src/ui/desktop/library.rs:1215
+#: src/ui/desktop/library.rs:1218
 msgid "No albums"
 msgstr "Нет альбомов"
 
-#: src/ui/desktop/library.rs:1216 src/ui/desktop/home.rs:101
+#: src/ui/desktop/library.rs:1219 src/ui/desktop/home.rs:101
 msgid "Albums in your Navidrome library appear here."
 msgstr "Здесь отображаются альбомы из вашей библиотеки Navidrome."
 
-#: src/ui/desktop/library.rs:1274 src/ui/desktop/library.rs:1641
+#: src/ui/desktop/library.rs:1239
+msgid "View artwork"
+msgstr "Посмотреть обложку"
+
+#: src/ui/desktop/library.rs:1283 src/ui/desktop/library.rs:1652
 #: src/ui/desktop/transport.rs:273
 msgid "Pause"
 msgstr "Пауза"
 
-#: src/ui/desktop/library.rs:1332 src/ui/desktop/library.rs:1394
-#: src/ui/desktop/library.rs:1698 src/ui/desktop/library.rs:2130
+#: src/ui/desktop/library.rs:1341 src/ui/desktop/library.rs:1404
+#: src/ui/desktop/library.rs:1709 src/ui/desktop/library.rs:2141
 #: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:321
 msgid "More"
 msgstr "Ещё"
 
-#: src/ui/desktop/library.rs:1408 src/ui/desktop/queue.rs:104
+#: src/ui/desktop/library.rs:1419 src/ui/desktop/queue.rs:104
 msgid "Nothing here yet."
 msgstr "Здесь пока ничего нет."
 
-#: src/ui/desktop/library.rs:1464
+#: src/ui/desktop/library.rs:1475
 msgctxt "column heading"
 msgid "TITLE"
 msgstr "НАЗВАНИЕ"
 
-#: src/ui/desktop/library.rs:1522
+#: src/ui/desktop/library.rs:1533
 msgid "Sort by playlist order"
 msgstr "Сортировать в порядке плейлиста"
 
-#: src/ui/desktop/library.rs:1529
+#: src/ui/desktop/library.rs:1540
 #, rust-format
 msgid "Sort by {column}"
 msgstr "Сортировка: {column}"
 
-#: src/ui/desktop/library.rs:1536
+#: src/ui/desktop/library.rs:1547
 msgid "Sort by duration"
 msgstr "Сортировать по длительности"
 
-#: src/ui/desktop/library.rs:1974 src/ui/desktop/playlists.rs:20
+#: src/ui/desktop/library.rs:1985 src/ui/desktop/playlists.rs:20
 msgid "Create playlist"
 msgstr "Создать плейлист"
 
-#: src/ui/desktop/library.rs:1984 src/ui/desktop/library.rs:2289
+#: src/ui/desktop/library.rs:1995 src/ui/desktop/library.rs:2300
 #: src/ui/desktop/home.rs:184 src/ui/desktop/browse.rs:23
 #: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "Обновить"
 
-#: src/ui/desktop/library.rs:2002
+#: src/ui/desktop/library.rs:2013
 msgid "No playlists"
 msgstr "Нет плейлистов"
 
-#: src/ui/desktop/library.rs:2003
+#: src/ui/desktop/library.rs:2014
 msgid "Playlists available on your server appear here."
 msgstr "Здесь появятся плейлисты, доступные на вашем сервере."
 
-#: src/ui/desktop/library.rs:2017
+#: src/ui/desktop/library.rs:2028
 msgid "Search"
 msgstr "Поиск"
 
-#: src/ui/desktop/library.rs:2026
+#: src/ui/desktop/library.rs:2037
 msgid "Recent searches"
 msgstr "Недавние запросы"
 
-#: src/ui/desktop/library.rs:2036
+#: src/ui/desktop/library.rs:2047
 msgid "Remove"
 msgstr "Удалить"
 
-#: src/ui/desktop/library.rs:2082 src/ui/desktop/library.rs:2097
-#: src/ui/desktop/library.rs:2206
+#: src/ui/desktop/library.rs:2093 src/ui/desktop/library.rs:2108
+#: src/ui/desktop/library.rs:2217
 msgid "Artists"
 msgstr "Исполнители"
 
-#: src/ui/desktop/library.rs:2156
+#: src/ui/desktop/library.rs:2167
 #, rust-format
 msgid "No results for “{query}”"
 msgstr "Ничего не найдено по запросу «{query}»"
 
-#: src/ui/desktop/library.rs:2158
+#: src/ui/desktop/library.rs:2169
 msgid "Check the spelling, or try fewer words."
 msgstr "Проверь написание или попробуй меньше слов."
 
-#: src/ui/desktop/library.rs:2195
+#: src/ui/desktop/library.rs:2206
 msgid "Songs you favorite appear here."
 msgstr "Здесь появятся ваши любимые треки."
 
-#: src/ui/desktop/library.rs:2201
+#: src/ui/desktop/library.rs:2212
 msgid "Albums you favorite appear here."
 msgstr "Здесь появятся ваши любимые альбомы."
 
-#: src/ui/desktop/library.rs:2207
+#: src/ui/desktop/library.rs:2218
 msgid "Artists you favorite appear here."
 msgstr "Здесь появятся ваши любимые исполнители."
 
-#: src/ui/desktop/library.rs:2220 src/ui/desktop/home.rs:87
+#: src/ui/desktop/library.rs:2231 src/ui/desktop/home.rs:87
 msgid "See all"
 msgstr "Показать все"
 
-#: src/ui/desktop/library.rs:2279
+#: src/ui/desktop/library.rs:2290
 msgid "Favorite Songs"
 msgstr "Избранные треки"
 
-#: src/ui/desktop/library.rs:2280
+#: src/ui/desktop/library.rs:2291
 msgid "Favorite Albums"
 msgstr "Избранные альбомы"
 
-#: src/ui/desktop/library.rs:2281
+#: src/ui/desktop/library.rs:2292
 msgid "Favorite Artists"
 msgstr "Избранные исполнители"
 
-#: src/ui/desktop/library.rs:2321
+#: src/ui/desktop/library.rs:2332
 #, rust-format
 msgid "Could not update Favorites for {name}. {error}"
 msgstr "Не удалось обновить избранное для «{name}». {error}"
@@ -527,27 +531,27 @@ msgstr "Ваша музыка всегда под рукой."
 msgid "Your recent listening will appear here as you play."
 msgstr "Здесь появится музыка, которую вы недавно слушали."
 
-#: src/ui/desktop/mod.rs:108 src/ui/desktop/queue.rs:303
+#: src/ui/desktop/mod.rs:109 src/ui/desktop/queue.rs:303
 msgid "Loading…"
 msgstr "Загрузка…"
 
-#: src/ui/desktop/mod.rs:189 src/ui/desktop/queue.rs:227
+#: src/ui/desktop/mod.rs:190 src/ui/desktop/queue.rs:227
 msgid "Clear"
 msgstr "Очистить"
 
-#: src/ui/desktop/mod.rs:369
+#: src/ui/desktop/mod.rs:370
 msgid "Username"
 msgstr "Имя пользователя"
 
-#: src/ui/desktop/mod.rs:370
+#: src/ui/desktop/mod.rs:371
 msgid "Password"
 msgstr "Пароль"
 
-#: src/ui/desktop/mod.rs:415
+#: src/ui/desktop/mod.rs:416
 msgid "Connecting…"
 msgstr "Подключение…"
 
-#: src/ui/desktop/mod.rs:416 src/ui/desktop/playlists.rs:208
+#: src/ui/desktop/mod.rs:417 src/ui/desktop/playlists.rs:208
 #: src/ui/desktop/lyrics_card.rs:231
 msgid "Cancel"
 msgstr "Отмена"
@@ -1096,7 +1100,8 @@ msgstr "Добавить обложку"
 msgid "Lyric image"
 msgstr "Изображение текста"
 
-#: src/ui/desktop/lyrics_card.rs:333 src/ui/desktop/inspector.rs:177
+#: src/ui/desktop/lyrics_card.rs:333 src/ui/desktop/artwork.rs:45
+#: src/ui/desktop/inspector.rs:177
 msgid "Close"
 msgstr "Закрыть"
 
@@ -1109,19 +1114,20 @@ msgid "Copy image"
 msgstr "Копировать изображение"
 
 #: src/ui/desktop/lyrics_card.rs:382
-#: src/app/navidrome/desktop/lyrics_share.rs:353
+#: src/app/navidrome/desktop/lyrics_share.rs:352 src/ui/desktop/artwork.rs:49
+#: src/app/navidrome/desktop/artwork_viewer.rs:92
 msgid "Save image"
 msgstr "Сохранить изображение"
 
-#: src/app/navidrome/desktop/lyrics_share.rs:190
+#: src/app/navidrome/desktop/lyrics_share.rs:189
 msgid "Select fewer or shorter lines for this image."
 msgstr "Выберите меньше строк или более короткие строки для этого изображения."
 
-#: src/app/navidrome/desktop/lyrics_share.rs:308
+#: src/app/navidrome/desktop/lyrics_share.rs:307
 msgid "Image copied"
 msgstr "Изображение скопировано"
 
-#: src/app/navidrome/desktop/lyrics_share.rs:346
+#: src/app/navidrome/desktop/lyrics_share.rs:345 src/ui/desktop/artwork.rs:30
 msgid "Image saved"
 msgstr "Изображение сохранено"
 
@@ -1289,6 +1295,22 @@ msgstr "Популярные альбомы"
 msgid "Top artists"
 msgstr "Популярные исполнители"
 
+#: src/ui/desktop/artwork.rs:26
+msgid "Could not load artwork. Try again."
+msgstr "Не удалось загрузить обложку. Попробуйте снова."
+
+#: src/ui/desktop/artwork.rs:28
+msgid "No artwork available"
+msgstr "Обложка недоступна"
+
+#: src/ui/desktop/artwork.rs:32
+msgid "Loading artwork…"
+msgstr "Загрузка обложки…"
+
+#: src/ui/desktop/artwork.rs:65
+msgid "Artwork"
+msgstr "Обложка"
+
 #: src/ui/desktop/inspector.rs:36
 msgid "Unknown"
 msgstr "Неизвестно"
@@ -1390,3 +1412,16 @@ msgstr "Ожидание декодированного звука…"
 #: src/ui/desktop/inspector.rs:169
 msgid "Playback details appear when this track is playing."
 msgstr "Сведения о воспроизведении появляются, когда играет этот трек."
+
+#: src/app/navidrome/desktop/artwork_viewer.rs:119
+msgid "Keep the suggested image file extension."
+msgstr "Сохраните предложенное расширение файла изображения."
+
+#: src/app/navidrome/desktop/artwork_viewer.rs:137
+msgid "Could not open the Save dialog. Try again."
+msgstr "Не удалось открыть окно сохранения. Попробуйте снова."
+
+#: src/app/navidrome/desktop/artwork_viewer.rs:159
+#: src/app/navidrome/desktop/artwork_viewer.rs:254
+msgid "Could not save the image. Choose another location."
+msgstr "Не удалось сохранить изображение. Выберите другое место."

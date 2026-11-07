@@ -416,6 +416,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if s.inspector.is_some() {
         shell = shell.child(inspector::dialog(v));
     }
+    if s.artwork_viewer.open.is_some() {
+        shell = shell.child(artwork::dialog(v));
+    }
     autoscroll::shell(shell, s, v.zoom)
 }
 fn collection_queue_items(v: &Paint<'_>, mut menu: El, key: Option<String>) -> El {
@@ -1226,8 +1229,17 @@ fn collection_header(
     cover: Option<&str>,
     byline: El,
     actions: El,
+    inspect_art: bool,
 ) -> El {
     let edge = if v.content_width() > 720. { 212. } else { 160. };
+    let mut art = v.cover(cover, CoverSize::Sleeve, edge, 6.);
+    if inspect_art {
+        art = art
+            .role("button")
+            .label(v.tr(mark("View artwork")))
+            .focusable(true)
+            .on_press(|s: &mut State| s.open_album_artwork());
+    }
     let release = col()
         .gap(6.)
         .grow(1.)
@@ -1247,10 +1259,7 @@ fn collection_header(
             row()
                 .w_full()
                 .gap(24.)
-                .child(
-                    v.cover(cover, CoverSize::Sleeve, edge, 6.)
-                        .key("collection-art"),
-                )
+                .child(art.key("collection-art"))
                 .child(release),
         )
         .child(actions)
@@ -1346,6 +1355,7 @@ fn album(v: &Paint<'_>) -> El {
         a.cover_art.as_deref(),
         byline.child(label(format!("• {details}"), 13.5, 400., v.p.secondary)),
         actions,
+        true,
     );
     if a.song.is_empty() {
         page = page.child(label(v.tr("No tracks"), 14., 400., v.p.secondary));
@@ -1397,6 +1407,7 @@ fn playlist_header(v: &Paint<'_>) -> El {
             .size(38., 38.)
             .key("playlist-more"),
         ),
+        false,
     );
     if let Page::Playlist(id) = app.presentation.page()
         && let Some(progress) = playlists::progress(v, navidrome::decode(id).as_deref())

@@ -138,6 +138,18 @@ same keyboard, selection, sorting and context-menu code serves both collection
 types. Repeated song IDs remain separate occurrences. Playing a sorted view
 uses its displayed order; the active-row marker follows the occurrence.
 
+## Artwork viewer
+
+The album header sleeve opens a centered native modal without changing the
+collection layout. Reuse overlay, outline, shadow, 12-pixel corners, 24-pixel
+padding and existing 32-pixel pill buttons. The panel is at most 900 pixels wide
+and leaves 8 pixels at each window edge. Use a single-line 20-pixel bold album
+title, complete aspect-fitted artwork, then quiet inline status and Close/Save
+buttons. The thumbnail remains visible while larger artwork loads. Retry appears
+inline on failure; Save is disabled until validated image bytes are ready.
+Escape and Close return focus to the album sleeve. Portrait, landscape and square
+images retain their complete bounds in both narrow and normal windows.
+
 ## Queue
 
 Use the player bar's Queue control to show or hide it. At widths of at least

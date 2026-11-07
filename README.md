@@ -17,6 +17,9 @@ The current build supports:
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
+- Click an album cover to view the complete artwork fitted to the window.
+  **Save image** writes a JPEG or PNG copy to a location you choose. Escape
+  closes the viewer and returns focus to the cover.
 - The primary menu is **Home**, **Playlists**, **Favorites**, and **Discover**.
   Discover groups Albums, Songs, Genres, and Listening stats as top pills.
 - Choosing **Year range**, **Frequently played**, **Recently played on server**

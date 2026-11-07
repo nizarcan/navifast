@@ -139,6 +139,18 @@ impl Covers {
         Some(e.full.as_ref().unwrap_or(&e.preview).clone())
     }
 
+    pub fn bytes(&self, key: &str) -> Option<Arc<[u8]>> {
+        Some(self.items.get(key)?.bytes.clone())
+    }
+
+    pub fn has_failed(&self, key: &str) -> bool {
+        self.failures.contains_key(key)
+    }
+
+    pub fn retry(&mut self, key: &str) {
+        self.failures.remove(key);
+    }
+
     /// A miss needs the server; a demoted image has enough data for a local decode.
     pub fn visible(&mut self, key: &str) -> Option<Option<Arc<[u8]>>> {
         if self
@@ -183,6 +195,20 @@ mod tests {
         assert_eq!(full_key, covers.view_key("art"));
         assert_eq!(covers.get("art").unwrap().size(), (4, 4));
         assert!(covers.visible("art").is_none());
+    }
+
+    #[test]
+    fn shared_budget_demotes_old_textures_before_evicting_encoded_art() {
+        let mut covers = Covers::default();
+        covers.insert("old".into(), cover());
+        covers.insert("new".into(), cover());
+        covers.trim(64, 14);
+        assert_eq!(covers.get("old").unwrap().size(), (1, 1));
+        assert_eq!(covers.get("new").unwrap().size(), (4, 4));
+        assert!(covers.bytes("old").is_some());
+        covers.trim(64, 7);
+        assert!(covers.get("old").is_none());
+        assert!(covers.bytes("new").is_some());
     }
 
     #[test]

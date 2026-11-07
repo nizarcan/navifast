@@ -4,7 +4,6 @@ use crate::{i18n::mark, model::Loadable, navidrome::lyrics::Outcome, theme::Pale
 use rune::{ClipboardContent, ClipboardImage, Pixels, Tx};
 use std::{
     collections::BTreeSet,
-    path::Path,
     sync::{Arc, mpsc},
 };
 
@@ -358,7 +357,7 @@ impl State {
             .filter("PNG image", &["png"]),
             move |s: &mut State, result, _| match result {
                 Ok(Some(path)) => s.lyric_image_operation(revision, move || {
-                    save_png(&path, &png).map_err(|e| {
+                    crate::util::save_image(&path, &png).map_err(|e| {
                         format!("Could not save the image. Choose another location. {e}")
                     })
                 }),
@@ -405,27 +404,6 @@ fn take_result<T>(job: &mut Option<Job<T>>) -> Option<(u64, Result<T, String>)> 
 pub(crate) fn pixel_digest(rgba: &[u8]) -> [u8; 32] {
     use sha2::Digest;
     sha2::Sha256::digest(rgba).into()
-}
-
-fn save_png(path: &Path, png: &[u8]) -> std::io::Result<()> {
-    use std::io::Write;
-    // Use an exclusive sibling temporary file; a failed write preserves any existing image.
-    let temporary = path.with_extension(format!("png.{:016x}.tmp", rand::random::<u64>()));
-    // A collision is not our file to remove. Only clean up after exclusive creation succeeds.
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)?;
-    let result = (|| {
-        file.write_all(png)?;
-        file.sync_all()?;
-        drop(file);
-        crate::util::replace_file(&temporary, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(temporary);
-    }
-    result
 }
 
 #[cfg(test)]
@@ -490,14 +468,14 @@ mod tests {
         std::fs::create_dir(&root).unwrap();
         let path = root.join("lyrics.png");
         std::fs::write(&path, b"original").unwrap();
-        save_png(&path, b"replacement").unwrap();
+        crate::util::save_image(&path, b"replacement").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"replacement");
         let directory = root.join("directory.png");
         std::fs::create_dir(&directory).unwrap();
-        assert!(save_png(&directory, b"image").is_err());
+        assert!(crate::util::save_image(&directory, b"image").is_err());
         assert!(directory.is_dir());
         assert_eq!(std::fs::read_dir(&root).unwrap().count(), 2);
-        assert!(save_png(&root.join("missing/lyrics.png"), b"image").is_err());
+        assert!(crate::util::save_image(&root.join("missing/lyrics.png"), b"image").is_err());
         std::fs::remove_dir_all(root).unwrap();
     }
 

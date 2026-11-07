@@ -13,6 +13,7 @@ use rune::{Cx, El, Tx};
 
 mod albums;
 pub(crate) mod artist;
+mod artwork;
 mod backdrop;
 mod browse;
 mod home;

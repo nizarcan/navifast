@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 22:34+0300\n"
+"POT-Creation-Date: 2026-11-07 22:50+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Traditional Chinese\n"
@@ -54,8 +54,8 @@ msgstr "{name}，資料夾，已收合"
 msgid "{name}, folder, expanded"
 msgstr "{name}，資料夾，已展開"
 
-#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:501
-#: src/ui/desktop/library.rs:709
+#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:504
+#: src/ui/desktop/library.rs:712
 msgid "Home"
 msgstr "首頁"
 
@@ -139,17 +139,17 @@ msgstr "顯示較少"
 msgid "See more"
 msgstr "查看更多"
 
-#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1305
-#: src/ui/desktop/library.rs:1838 src/ui/desktop/library.rs:2174
-#: src/ui/desktop/library.rs:2300 src/ui/desktop/library.rs:2329
+#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1314
+#: src/ui/desktop/library.rs:1849 src/ui/desktop/library.rs:2185
+#: src/ui/desktop/library.rs:2311 src/ui/desktop/library.rs:2340
 #: src/ui/desktop/playlists.rs:160 src/ui/desktop/playlists.rs:267
 #: src/ui/desktop/preferences.rs:288 src/ui/desktop/ratings.rs:106
-#: src/ui/desktop/scrobble.rs:36
+#: src/ui/desktop/scrobble.rs:36 src/ui/desktop/artwork.rs:39
 msgid "Retry"
 msgstr "重試"
 
-#: src/ui/desktop/artist.rs:82 src/ui/desktop/library.rs:907
-#: src/ui/desktop/library.rs:1344
+#: src/ui/desktop/artist.rs:82 src/ui/desktop/library.rs:910
+#: src/ui/desktop/library.rs:1353
 msgid "Album"
 msgstr "專輯"
 
@@ -161,7 +161,7 @@ msgstr "單曲"
 msgid "EP"
 msgstr "EP"
 
-#: src/ui/desktop/artist.rs:278 src/ui/desktop/library.rs:2382
+#: src/ui/desktop/artist.rs:278 src/ui/desktop/library.rs:2393
 #: src/ui/desktop/home.rs:143
 msgid "Artist"
 msgstr "藝人"
@@ -170,10 +170,10 @@ msgstr "藝人"
 msgid "Discography"
 msgstr "音樂作品"
 
-#: src/ui/desktop/artist.rs:323 src/ui/desktop/library.rs:682
-#: src/ui/desktop/library.rs:783 src/ui/desktop/library.rs:785
-#: src/ui/desktop/library.rs:2081 src/ui/desktop/library.rs:2096
-#: src/ui/desktop/library.rs:2200 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
+#: src/ui/desktop/artist.rs:323 src/ui/desktop/library.rs:685
+#: src/ui/desktop/library.rs:786 src/ui/desktop/library.rs:788
+#: src/ui/desktop/library.rs:2092 src/ui/desktop/library.rs:2107
+#: src/ui/desktop/library.rs:2211 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
 #: src/ui/desktop/albums.rs:40
 msgid "Albums"
 msgstr "專輯"
@@ -207,12 +207,12 @@ msgid "No featured releases in your library."
 msgstr "你的音樂資料庫中沒有該藝人客串的作品。"
 
 #: src/ui/desktop/library.rs:226 src/ui/desktop/library.rs:282
-#: src/ui/desktop/library.rs:1434
+#: src/ui/desktop/library.rs:1445
 msgid "Remove from Favorites"
 msgstr "從收藏中移除"
 
 #: src/ui/desktop/library.rs:228 src/ui/desktop/library.rs:284
-#: src/ui/desktop/library.rs:1436
+#: src/ui/desktop/library.rs:1447
 msgid "Add to Favorites"
 msgstr "加入收藏"
 
@@ -234,18 +234,18 @@ msgstr "開啟專輯"
 msgid "Remove from playlist"
 msgstr "從播放清單中移除"
 
-#: src/ui/desktop/library.rs:331 src/ui/desktop/library.rs:1060
-#: src/ui/desktop/library.rs:1274 src/ui/desktop/library.rs:1643
+#: src/ui/desktop/library.rs:331 src/ui/desktop/library.rs:1063
+#: src/ui/desktop/library.rs:1283 src/ui/desktop/library.rs:1654
 #: src/ui/desktop/queue.rs:272 src/ui/desktop/queue.rs:360
 #: src/ui/desktop/transport.rs:273
 msgid "Play"
 msgstr "播放"
 
-#: src/ui/desktop/library.rs:345 src/ui/desktop/library.rs:427
+#: src/ui/desktop/library.rs:345 src/ui/desktop/library.rs:430
 msgid "Play next"
 msgstr "下一首播放"
 
-#: src/ui/desktop/library.rs:347 src/ui/desktop/library.rs:429
+#: src/ui/desktop/library.rs:347 src/ui/desktop/library.rs:432
 msgid "Add to queue"
 msgstr "加入待播清單"
 
@@ -254,212 +254,216 @@ msgstr "加入待播清單"
 msgid "Track details"
 msgstr "歌曲詳細資訊"
 
-#: src/ui/desktop/library.rs:524
+#: src/ui/desktop/library.rs:527
 msgid "Back"
 msgstr "上一頁"
 
-#: src/ui/desktop/library.rs:530
+#: src/ui/desktop/library.rs:533
 msgid "Forward"
 msgstr "下一頁"
 
-#: src/ui/desktop/library.rs:535 src/ui/desktop/library.rs:2018
+#: src/ui/desktop/library.rs:538 src/ui/desktop/library.rs:2029
 msgid "What do you want to play?"
 msgstr "想播放什麼？"
 
-#: src/ui/desktop/library.rs:576 src/ui/desktop/library.rs:623
+#: src/ui/desktop/library.rs:579 src/ui/desktop/library.rs:626
 #: src/ui/desktop/preferences.rs:214 src/ui/keys.rs:55
 msgid "Settings"
 msgstr "設定"
 
-#: src/ui/desktop/library.rs:588 src/ui/desktop/preferences.rs:217
+#: src/ui/desktop/library.rs:591 src/ui/desktop/preferences.rs:217
 msgid "Account"
 msgstr "帳戶"
 
-#: src/ui/desktop/library.rs:629 src/ui/desktop/preferences.rs:559
+#: src/ui/desktop/library.rs:632 src/ui/desktop/preferences.rs:559
 #: src/ui/desktop/preferences.rs:762 src/ui/desktop/preferences.rs:763
 msgid "Keyboard shortcuts"
 msgstr "鍵盤快捷鍵"
 
-#: src/ui/desktop/library.rs:637 src/ui/desktop/preferences.rs:218
+#: src/ui/desktop/library.rs:640 src/ui/desktop/preferences.rs:218
 msgid "Sign out"
 msgstr "登出"
 
-#: src/ui/desktop/library.rs:644 src/ui/desktop/library.rs:793
-#: src/ui/desktop/library.rs:1520
+#: src/ui/desktop/library.rs:647 src/ui/desktop/library.rs:796
+#: src/ui/desktop/library.rs:1531
 msgid "Library order"
 msgstr "音樂庫順序"
 
-#: src/ui/desktop/library.rs:647 src/ui/desktop/home.rs:250
+#: src/ui/desktop/library.rs:650 src/ui/desktop/home.rs:250
 msgid "Recently played"
 msgstr "最近播放"
 
-#: src/ui/desktop/library.rs:649 src/ui/desktop/albums.rs:18
+#: src/ui/desktop/library.rs:652 src/ui/desktop/albums.rs:18
 msgid "Name"
 msgstr "名稱"
 
-#: src/ui/desktop/library.rs:652 src/ui/desktop/albums.rs:17
+#: src/ui/desktop/library.rs:655 src/ui/desktop/albums.rs:17
 msgid "Recently added"
 msgstr "最近新增"
 
-#: src/ui/desktop/library.rs:683 src/ui/desktop/library.rs:2080
-#: src/ui/desktop/library.rs:2095 src/ui/desktop/library.rs:2194
+#: src/ui/desktop/library.rs:686 src/ui/desktop/library.rs:2091
+#: src/ui/desktop/library.rs:2106 src/ui/desktop/library.rs:2205
 #: src/ui/desktop/browse.rs:14 src/ui/desktop/browse.rs:32
 msgid "Songs"
 msgstr "歌曲"
 
-#: src/ui/desktop/library.rs:684 src/ui/desktop/browse.rs:13
+#: src/ui/desktop/library.rs:687 src/ui/desktop/browse.rs:13
 msgid "Genres"
 msgstr "曲風"
 
-#: src/ui/desktop/library.rs:685 src/ui/desktop/stats.rs:16
+#: src/ui/desktop/library.rs:688 src/ui/desktop/stats.rs:16
 msgid "Listening stats"
 msgstr "聆聽統計"
 
-#: src/ui/desktop/library.rs:710 src/ui/desktop/library.rs:1972
-#: src/ui/desktop/library.rs:2098 src/ui/desktop/library.rs:2145
+#: src/ui/desktop/library.rs:713 src/ui/desktop/library.rs:1983
+#: src/ui/desktop/library.rs:2109 src/ui/desktop/library.rs:2156
 msgid "Playlists"
 msgstr "播放清單"
 
-#: src/ui/desktop/library.rs:711 src/ui/desktop/library.rs:2278
+#: src/ui/desktop/library.rs:714 src/ui/desktop/library.rs:2289
 #: src/ui/keys.rs:47
 msgid "Favorites"
 msgstr "收藏"
 
-#: src/ui/desktop/library.rs:712
+#: src/ui/desktop/library.rs:715
 msgid "Discover"
 msgstr "探索"
 
-#: src/ui/desktop/library.rs:745
+#: src/ui/desktop/library.rs:748
 msgid "Library"
 msgstr "音樂庫"
 
-#: src/ui/desktop/library.rs:747 src/ui/desktop/library.rs:819
+#: src/ui/desktop/library.rs:750 src/ui/desktop/library.rs:822
 msgid "Search in Your Library"
 msgstr "在音樂庫中搜尋"
 
-#: src/ui/desktop/library.rs:768 src/ui/keys.rs:38
+#: src/ui/desktop/library.rs:771 src/ui/keys.rs:38
 msgid "Show or hide the sidebar"
 msgstr "顯示或隱藏側邊欄"
 
-#: src/ui/desktop/library.rs:1124 src/ui/desktop/library.rs:1389
+#: src/ui/desktop/library.rs:1127 src/ui/desktop/library.rs:1399
 #: src/ui/desktop/home.rs:258
 msgid "Playlist"
 msgstr "播放清單"
 
-#: src/ui/desktop/library.rs:1215
+#: src/ui/desktop/library.rs:1218
 msgid "No albums"
 msgstr "沒有專輯"
 
-#: src/ui/desktop/library.rs:1216 src/ui/desktop/home.rs:101
+#: src/ui/desktop/library.rs:1219 src/ui/desktop/home.rs:101
 msgid "Albums in your Navidrome library appear here."
 msgstr "Navidrome 音樂庫中的專輯會顯示在這裡。"
 
-#: src/ui/desktop/library.rs:1274 src/ui/desktop/library.rs:1641
+#: src/ui/desktop/library.rs:1239
+msgid "View artwork"
+msgstr "檢視封面"
+
+#: src/ui/desktop/library.rs:1283 src/ui/desktop/library.rs:1652
 #: src/ui/desktop/transport.rs:273
 msgid "Pause"
 msgstr "暫停"
 
-#: src/ui/desktop/library.rs:1332 src/ui/desktop/library.rs:1394
-#: src/ui/desktop/library.rs:1698 src/ui/desktop/library.rs:2130
+#: src/ui/desktop/library.rs:1341 src/ui/desktop/library.rs:1404
+#: src/ui/desktop/library.rs:1709 src/ui/desktop/library.rs:2141
 #: src/ui/desktop/home.rs:168 src/ui/desktop/queue.rs:321
 msgid "More"
 msgstr "更多"
 
-#: src/ui/desktop/library.rs:1408 src/ui/desktop/queue.rs:104
+#: src/ui/desktop/library.rs:1419 src/ui/desktop/queue.rs:104
 msgid "Nothing here yet."
 msgstr "這裡還沒有內容。"
 
-#: src/ui/desktop/library.rs:1464
+#: src/ui/desktop/library.rs:1475
 msgctxt "column heading"
 msgid "TITLE"
 msgstr "標題"
 
-#: src/ui/desktop/library.rs:1522
+#: src/ui/desktop/library.rs:1533
 msgid "Sort by playlist order"
 msgstr "依播放清單順序排序"
 
-#: src/ui/desktop/library.rs:1529
+#: src/ui/desktop/library.rs:1540
 #, rust-format
 msgid "Sort by {column}"
 msgstr "依{column}排序"
 
-#: src/ui/desktop/library.rs:1536
+#: src/ui/desktop/library.rs:1547
 msgid "Sort by duration"
 msgstr "依長度排序"
 
-#: src/ui/desktop/library.rs:1974 src/ui/desktop/playlists.rs:20
+#: src/ui/desktop/library.rs:1985 src/ui/desktop/playlists.rs:20
 msgid "Create playlist"
 msgstr "建立播放清單"
 
-#: src/ui/desktop/library.rs:1984 src/ui/desktop/library.rs:2289
+#: src/ui/desktop/library.rs:1995 src/ui/desktop/library.rs:2300
 #: src/ui/desktop/home.rs:184 src/ui/desktop/browse.rs:23
 #: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "重新整理"
 
-#: src/ui/desktop/library.rs:2002
+#: src/ui/desktop/library.rs:2013
 msgid "No playlists"
 msgstr "沒有播放清單"
 
-#: src/ui/desktop/library.rs:2003
+#: src/ui/desktop/library.rs:2014
 msgid "Playlists available on your server appear here."
 msgstr "伺服器上可用的播放清單會顯示在這裡。"
 
-#: src/ui/desktop/library.rs:2017
+#: src/ui/desktop/library.rs:2028
 msgid "Search"
 msgstr "搜尋"
 
-#: src/ui/desktop/library.rs:2026
+#: src/ui/desktop/library.rs:2037
 msgid "Recent searches"
 msgstr "最近搜尋"
 
-#: src/ui/desktop/library.rs:2036
+#: src/ui/desktop/library.rs:2047
 msgid "Remove"
 msgstr "移除"
 
-#: src/ui/desktop/library.rs:2082 src/ui/desktop/library.rs:2097
-#: src/ui/desktop/library.rs:2206
+#: src/ui/desktop/library.rs:2093 src/ui/desktop/library.rs:2108
+#: src/ui/desktop/library.rs:2217
 msgid "Artists"
 msgstr "藝人"
 
-#: src/ui/desktop/library.rs:2156
+#: src/ui/desktop/library.rs:2167
 #, rust-format
 msgid "No results for “{query}”"
 msgstr "找不到「{query}」的相關結果"
 
-#: src/ui/desktop/library.rs:2158
+#: src/ui/desktop/library.rs:2169
 msgid "Check the spelling, or try fewer words."
 msgstr "請檢查拼字，或減少字詞。"
 
-#: src/ui/desktop/library.rs:2195
+#: src/ui/desktop/library.rs:2206
 msgid "Songs you favorite appear here."
 msgstr "你收藏的歌曲會顯示在這裡。"
 
-#: src/ui/desktop/library.rs:2201
+#: src/ui/desktop/library.rs:2212
 msgid "Albums you favorite appear here."
 msgstr "你收藏的專輯會顯示在這裡。"
 
-#: src/ui/desktop/library.rs:2207
+#: src/ui/desktop/library.rs:2218
 msgid "Artists you favorite appear here."
 msgstr "你收藏的藝人會顯示在這裡。"
 
-#: src/ui/desktop/library.rs:2220 src/ui/desktop/home.rs:87
+#: src/ui/desktop/library.rs:2231 src/ui/desktop/home.rs:87
 msgid "See all"
 msgstr "查看全部"
 
-#: src/ui/desktop/library.rs:2279
+#: src/ui/desktop/library.rs:2290
 msgid "Favorite Songs"
 msgstr "收藏的歌曲"
 
-#: src/ui/desktop/library.rs:2280
+#: src/ui/desktop/library.rs:2291
 msgid "Favorite Albums"
 msgstr "收藏的專輯"
 
-#: src/ui/desktop/library.rs:2281
+#: src/ui/desktop/library.rs:2292
 msgid "Favorite Artists"
 msgstr "收藏的藝人"
 
-#: src/ui/desktop/library.rs:2321
+#: src/ui/desktop/library.rs:2332
 #, rust-format
 msgid "Could not update Favorites for {name}. {error}"
 msgstr "無法更新「{name}」的收藏狀態。{error}"
@@ -508,27 +512,27 @@ msgstr "你的音樂，近在身邊。"
 msgid "Your recent listening will appear here as you play."
 msgstr "開始播放後，最近聽過的音樂會顯示在這裡。"
 
-#: src/ui/desktop/mod.rs:108 src/ui/desktop/queue.rs:303
+#: src/ui/desktop/mod.rs:109 src/ui/desktop/queue.rs:303
 msgid "Loading…"
 msgstr "載入中…"
 
-#: src/ui/desktop/mod.rs:189 src/ui/desktop/queue.rs:227
+#: src/ui/desktop/mod.rs:190 src/ui/desktop/queue.rs:227
 msgid "Clear"
 msgstr "清除"
 
-#: src/ui/desktop/mod.rs:369
+#: src/ui/desktop/mod.rs:370
 msgid "Username"
 msgstr "使用者名稱"
 
-#: src/ui/desktop/mod.rs:370
+#: src/ui/desktop/mod.rs:371
 msgid "Password"
 msgstr "密碼"
 
-#: src/ui/desktop/mod.rs:415
+#: src/ui/desktop/mod.rs:416
 msgid "Connecting…"
 msgstr "正在連線…"
 
-#: src/ui/desktop/mod.rs:416 src/ui/desktop/playlists.rs:208
+#: src/ui/desktop/mod.rs:417 src/ui/desktop/playlists.rs:208
 #: src/ui/desktop/lyrics_card.rs:231
 msgid "Cancel"
 msgstr "取消"
@@ -1058,7 +1062,8 @@ msgstr "包含封面"
 msgid "Lyric image"
 msgstr "歌詞圖片"
 
-#: src/ui/desktop/lyrics_card.rs:333 src/ui/desktop/inspector.rs:177
+#: src/ui/desktop/lyrics_card.rs:333 src/ui/desktop/artwork.rs:45
+#: src/ui/desktop/inspector.rs:177
 msgid "Close"
 msgstr "關閉"
 
@@ -1071,19 +1076,20 @@ msgid "Copy image"
 msgstr "複製圖片"
 
 #: src/ui/desktop/lyrics_card.rs:382
-#: src/app/navidrome/desktop/lyrics_share.rs:353
+#: src/app/navidrome/desktop/lyrics_share.rs:352 src/ui/desktop/artwork.rs:49
+#: src/app/navidrome/desktop/artwork_viewer.rs:92
 msgid "Save image"
 msgstr "儲存圖片"
 
-#: src/app/navidrome/desktop/lyrics_share.rs:190
+#: src/app/navidrome/desktop/lyrics_share.rs:189
 msgid "Select fewer or shorter lines for this image."
 msgstr "請選擇較少或較短的歌詞行。"
 
-#: src/app/navidrome/desktop/lyrics_share.rs:308
+#: src/app/navidrome/desktop/lyrics_share.rs:307
 msgid "Image copied"
 msgstr "圖片已複製"
 
-#: src/app/navidrome/desktop/lyrics_share.rs:346
+#: src/app/navidrome/desktop/lyrics_share.rs:345 src/ui/desktop/artwork.rs:30
 msgid "Image saved"
 msgstr "圖片已儲存"
 
@@ -1242,6 +1248,22 @@ msgstr "最常聽的專輯"
 msgid "Top artists"
 msgstr "最常聽的藝人"
 
+#: src/ui/desktop/artwork.rs:26
+msgid "Could not load artwork. Try again."
+msgstr "無法載入封面。請重試。"
+
+#: src/ui/desktop/artwork.rs:28
+msgid "No artwork available"
+msgstr "沒有可用的封面"
+
+#: src/ui/desktop/artwork.rs:32
+msgid "Loading artwork…"
+msgstr "正在載入封面…"
+
+#: src/ui/desktop/artwork.rs:65
+msgid "Artwork"
+msgstr "封面"
+
 #: src/ui/desktop/inspector.rs:36
 msgid "Unknown"
 msgstr "未知"
@@ -1341,3 +1363,16 @@ msgstr "正在等待音訊解碼…"
 #: src/ui/desktop/inspector.rs:169
 msgid "Playback details appear when this track is playing."
 msgstr "播放此歌曲時會顯示播放詳細資訊。"
+
+#: src/app/navidrome/desktop/artwork_viewer.rs:119
+msgid "Keep the suggested image file extension."
+msgstr "請保留建議的圖片檔案副檔名。"
+
+#: src/app/navidrome/desktop/artwork_viewer.rs:137
+msgid "Could not open the Save dialog. Try again."
+msgstr "無法開啟儲存對話框。請重試。"
+
+#: src/app/navidrome/desktop/artwork_viewer.rs:159
+#: src/app/navidrome/desktop/artwork_viewer.rs:254
+msgid "Could not save the image. Choose another location."
+msgstr "無法儲存圖片。請選擇其他位置。"

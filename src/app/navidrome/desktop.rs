@@ -1,5 +1,6 @@
 //! The Rune window for the active Navidrome controller.
 mod artwork;
+pub(crate) mod artwork_viewer;
 pub(crate) mod autoscroll;
 pub(crate) mod inspector;
 mod lyrics;
@@ -123,6 +124,7 @@ pub(crate) struct State {
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
     pub(crate) inspector: Option<inspector::Inspector>,
+    pub(crate) artwork_viewer: artwork_viewer::Viewer,
     pub(crate) menu: Option<&'static str>,
     pub(crate) lyrics_view: lyrics::View,
     pub(crate) lyrics_share: lyrics_share::Share,
@@ -396,6 +398,7 @@ impl State {
             artist_views: Default::default(),
             favorite_menu: None,
             inspector: None,
+            artwork_viewer: Default::default(),
             menu: None,
             lyrics_view: Default::default(),
             lyrics_share: Default::default(),
@@ -444,6 +447,10 @@ impl State {
             state.populate_lyric_share_demo(&flags);
         }
         state.sync_tracks();
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo && flags.contains(&"artwork") {
+            state.demo_artwork(&flags);
+        }
         #[cfg(feature = "navidrome-demo")]
         if launch.demo && flags.contains(&"inspector") {
             state.demo_inspector(&flags);
@@ -680,6 +687,7 @@ impl State {
         self.queue_menu = None;
         if session != self.app.session {
             self.inspector = None;
+            self.close_artwork();
             self.queue_open = false;
             self.lyrics_view = Default::default();
             self.cancel_lyric_selection();
@@ -814,6 +822,7 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     s.autoscroll.poll(tx);
     let restoring = s.app.restoring_login;
     let mut changed = s.app.poll(&s.window);
+    changed |= s.poll_artwork_save();
     #[cfg(feature = "navidrome-demo")]
     if s.demo_scroll_end && _time >= 0.1 {
         s.demo_scroll_end = false;

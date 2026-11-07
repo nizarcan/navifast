@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.25" date="2026-11-07" type="development">
+      <description><p>Open complete album artwork and save a local image through the native file picker.</p></description>
+    </release>
     <release version="0.1.0-rc.24" date="2026-11-07" type="development">
       <description><p>Inspect library file metadata, decoded audio and configured device output.</p></description>
     </release>

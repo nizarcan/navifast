@@ -32,4 +32,6 @@ src/ui/desktop/albums.rs
 src/ui/desktop/ratings.rs
 src/ui/desktop/scrobble.rs
 src/ui/desktop/stats.rs
+src/ui/desktop/artwork.rs
 src/ui/desktop/inspector.rs
+src/app/navidrome/desktop/artwork_viewer.rs

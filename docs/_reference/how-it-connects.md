@@ -18,10 +18,20 @@ scrolling back paints a preview immediately while the worker restores the full
 cover without another server request. Both caches evict the least recently
 viewed artwork; only a cover evicted from the second cache needs downloading
 again. GPU textures are released with their corresponding images. Sign-out
-clears both caches, and no artwork is written to disk. `navidrome::backend`
+clears both caches. Artwork stays in memory unless you explicitly save a copy. `navidrome::backend`
 executes API requests on a dedicated Tokio runtime with cancellation and
 session/request generations. IDs are opaque strings. Album pages use
 `getAlbumList2` and `getAlbum`. Artwork is fetched and decoded off the UI.
+
+Opening an album cover requests `getCoverArt` without `size`, using its own
+session-scoped Original cache key. The existing sleeve paints during loading.
+The encoded response is limited to 8 MiB; decoding accepts JPEG/PNG up to
+4096 pixels per dimension and 64 MiB of decoder allocation. The display texture
+is reduced to a maximum 2048-pixel edge (16 MiB RGBA), fits the complete image,
+and shares the existing cache budgets. Save uses the validated original bytes,
+a matching extension and a native picker. One background export at a time writes
+an exclusive sibling temporary file and atomically replaces the selected path.
+Canceling the picker writes nothing. This is not an automatic disk artwork cache.
 
 Songs enumerates `search3` with an empty query, zero artist/album counts and
 60-song pages. This follows the OpenSubsonic empty-query contract and requires

@@ -957,7 +957,9 @@ fn decode_cover(bytes: Arc<[u8]>, size: CoverSize) -> Result<Cover, String> {
     Ok(Cover {
         image,
         preview,
-        color: crate::images::accent_color(&bytes),
+        color: (size != CoverSize::Original)
+            .then(|| crate::images::accent_color(&bytes))
+            .flatten(),
         bytes,
     })
 }
@@ -1391,6 +1393,37 @@ mod tests {
         let portrait = decode_cover(bytes, CoverSize::Portrait).unwrap();
         assert_eq!(portrait.image.dimensions(), (600, 300));
         assert_eq!(portrait.preview.dimensions(), (64, 32));
+    }
+
+    #[test]
+    fn original_art_is_bounded_for_display_and_preserves_export_bytes() {
+        for (width, height, expected) in [
+            (3000, 1500, (2048, 1024)),
+            (1500, 3000, (1024, 2048)),
+            (2200, 2200, (2048, 2048)),
+        ] {
+            let image = image::RgbImage::new(width, height);
+            let mut encoded = std::io::Cursor::new(Vec::new());
+            image
+                .write_to(&mut encoded, image::ImageFormat::Png)
+                .unwrap();
+            let bytes: Arc<[u8]> = encoded.into_inner().into();
+            let cover = decode_cover(bytes.clone(), CoverSize::Original).unwrap();
+            assert_eq!(cover.image.dimensions(), expected);
+            assert!(cover.image.as_raw().len() <= 16 * 1024 * 1024);
+            assert!(Arc::ptr_eq(&bytes, &cover.bytes));
+            assert!(
+                cover.color.is_none(),
+                "viewer does not need a second color-analysis decode"
+            );
+        }
+        let image = image::RgbImage::new(4097, 1);
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        image
+            .write_to(&mut encoded, image::ImageFormat::Png)
+            .unwrap();
+        assert!(decode_cover(encoded.into_inner().into(), CoverSize::Original).is_err());
+        assert!(decode_cover(Arc::from(b"invalid".as_slice()), CoverSize::Original).is_err());
     }
 
     #[test]

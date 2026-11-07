@@ -14,6 +14,7 @@ pub const PAGE_SIZE: usize = 60;
 pub enum CoverSize {
     Sleeve,
     Portrait,
+    Original,
 }
 
 impl CoverSize {
@@ -21,6 +22,8 @@ impl CoverSize {
         match self {
             Self::Sleeve => 300,
             Self::Portrait => 1200,
+            // Keep the display texture bounded; exported bytes retain the server image.
+            Self::Original => 2048,
         }
     }
 }
@@ -747,12 +750,13 @@ impl Client {
     }
 
     pub async fn cover(&self, id: &str, size: CoverSize) -> Result<Vec<u8>, String> {
+        let mut params = vec![("id", id.into())];
+        if size != CoverSize::Original {
+            params.push(("size", size.pixels().to_string()));
+        }
         let mut response = self
             .http
-            .get(self.url(
-                "getCoverArt",
-                &[("id", id.into()), ("size", size.pixels().to_string())],
-            ))
+            .get(self.url("getCoverArt", &params))
             .send()
             .await
             .map_err(network_error)?
@@ -831,6 +835,40 @@ fn envelope(bytes: &[u8]) -> Result<serde_json::Value, RequestError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn artwork_original_omits_resize_and_preserves_binary_bytes() {
+        use crate::navidrome::test_server::{Server, response};
+        let server = Server::spawn(|request| {
+            let url = reqwest::Url::parse(&format!(
+                "http://localhost{}",
+                request.split_whitespace().nth(1).unwrap()
+            ))
+            .unwrap();
+            let query: std::collections::HashMap<_, _> = url.query_pairs().collect();
+            assert_eq!(url.path(), "/rest/getCoverArt.view");
+            match query["id"].as_ref() {
+                "original:/λ" => assert!(!query.contains_key("size")),
+                "sleeve" => assert_eq!(query["size"], "300"),
+                _ => assert_eq!(query["size"], "1200"),
+            }
+            response("200 OK", "Content-Type: image/png\r\n", b"binary bytes")
+        });
+        let client = Client::new(
+            &server.url,
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        for (id, size) in [
+            ("original:/λ", CoverSize::Original),
+            ("sleeve", CoverSize::Sleeve),
+            ("portrait", CoverSize::Portrait),
+        ] {
+            assert_eq!(client.cover(id, size).await.unwrap(), b"binary bytes");
+        }
+    }
 
     #[tokio::test]
     async fn favorites_decode_all_groups_and_write_only_the_entity_parameter() {
