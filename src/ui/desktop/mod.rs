@@ -13,6 +13,7 @@ use rune::{Cx, El, Tx};
 
 pub(crate) mod artist;
 mod backdrop;
+mod browse;
 mod home;
 mod library;
 mod lyrics;
@@ -602,7 +603,7 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
             && s.app.presentation.dialog.is_none()
             && matches!(
                 s.app.presentation.page(),
-                Page::Album(_) | Page::Playlist(_)
+                Page::Album(_) | Page::Playlist(_) | Page::Songs | Page::Genre(_)
             )
             && s.table.cursor.is_some() =>
         {

@@ -290,6 +290,12 @@ impl App {
                             .filter_map(|e| self.transport.queue.song(e)),
                     )
                     .chain(playlist)
+                    .chain(
+                        self.browse
+                            .current()
+                            .into_iter()
+                            .flat_map(super::browse::Listing::songs),
+                    )
                     .chain(self.album.iter().flat_map(|album| album.song.as_slice()))
                     .find(|s| s.id == id)
                     .cloned()
@@ -304,6 +310,12 @@ impl App {
                     .album
                     .iter()
                     .chain(&self.albums)
+                    .chain(
+                        self.browse
+                            .current()
+                            .into_iter()
+                            .flat_map(super::browse::Listing::albums),
+                    )
                     .chain(discography)
                     .chain(search.appearances.get().into_iter().flatten())
                     .find(|a| a.id == id)?

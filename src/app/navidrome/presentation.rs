@@ -70,6 +70,13 @@ impl App {
         let was_favorites = self.presentation.page().is_favorites();
         let was_playlists = matches!(self.presentation.page(), Page::Home | Page::Playlists);
         match action {
+            UiAction::Browse(action) if self.connected => self.browse_action(action),
+            UiAction::Open(ref page) if self.connected && page.is_browse() => {
+                self.presentation.open(page.clone())
+            }
+            UiAction::Reload(ref page) if self.connected && page.is_browse() => {
+                self.browse_action(super::browse::Action::Refresh)
+            }
             UiAction::Queue(action) if self.connected => self.queue_action(action),
             UiAction::EditPlaylists(action) if self.connected => self.playlist_action(action),
             UiAction::ToggleSaved(uri) if self.connected => self.toggle_favorite(&uri),
@@ -299,6 +306,7 @@ impl App {
         if collection != self.presentation.navidrome_search.collection_page.as_ref() {
             self.fetch_collection(&self.presentation.page().clone());
         }
+        self.sync_browse();
     }
 }
 

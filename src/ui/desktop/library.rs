@@ -61,6 +61,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     let page = s.app.presentation.page();
     let content = match page {
         Page::Home => home::page(v),
+        page if page.is_browse() => browse::page(v),
         Page::Album(_) | Page::Playlist(_) => songs(v),
         Page::Playlists => playlists(v),
         Page::Search => search(v),
@@ -271,6 +272,22 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             ));
         }
         if let Some(key) = menu.row.clone() {
+            if s.app.presentation.page().is_browse_songs()
+                && let Some(id) = s
+                    .table
+                    .index(&key)
+                    .and_then(|i| s.app.page_songs()?.get(s.table.source(i)))
+                    .and_then(|song| song.album_id.as_ref())
+                    .filter(|id| !id.is_empty())
+            {
+                let page = Page::Album(navidrome::encode(id));
+                popup = popup.child(
+                    v.menu_item(&v.tr(mark("Open album")), Some(Icon::Disc), move |s, tx| {
+                        s.dispatch(Action::Open(page.clone()), tx);
+                    })
+                    .key("browse-open-album"),
+                );
+            }
             popup = collection_queue_items(v, popup, Some(key.clone()));
             let add_key = key.clone();
             popup = popup.child(
@@ -619,10 +636,17 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
     for (name, icon, page) in [
         (mark("Home"), Icon::House, Page::Home),
         (mark("Albums"), Icon::Disc, Page::Albums),
+        (mark("Songs"), Icon::Music, Page::Songs),
+        (mark("Genres"), Icon::LayoutGrid, Page::Genres),
         (mark("Favorites"), Icon::Star, Page::LikedSongs),
         (mark("Playlists"), Icon::ListMusic, Page::Playlists),
     ] {
-        let ink = if &page == app.presentation.page() {
+        let ink = if &page == app.presentation.page()
+            || page == Page::Genres
+                && matches!(
+                    app.presentation.page(),
+                    Page::Genre(_) | Page::GenreAlbums(_)
+                ) {
             v.p.text
         } else {
             v.p.secondary
@@ -1419,7 +1443,11 @@ fn collection_columns(v: &Paint<'_>) -> El {
                 .items_center()
                 .child(button(
                     SortColumn::Index,
-                    v.tr(mark("Sort by playlist order")),
+                    v.tr(if v.s.app.presentation.page().is_browse_songs() {
+                        mark("Library order")
+                    } else {
+                        mark("Sort by playlist order")
+                    }),
                     30.,
                     "#",
                 ))
@@ -1439,7 +1467,7 @@ fn collection_columns(v: &Paint<'_>) -> El {
         )
         .child(el().mx(8.).h(1.).fill(color(v.p.outline)))
 }
-fn songs(v: &Paint<'_>) -> El {
+pub(super) fn songs(v: &Paint<'_>) -> El {
     let p = v.p;
     let zoom = v.zoom;
     let scale = v.scale;
@@ -1468,15 +1496,20 @@ fn songs(v: &Paint<'_>) -> El {
                 .as_ref()
                 .is_some_and(|a| navidrome::encode(&a.id) == *id)
         }
+        page if page.is_browse_songs() => v.s.app.browse.playing.as_ref() == Some(page),
         _ => false,
     };
     let current_key = context_playing.then(|| v.s.playing_row()).flatten();
-    grid.virtual_rows(
-        list_songs(v.s).len() + 1,
+    let browsing = v.s.app.presentation.page().is_browse_songs();
+    let rows = list_songs(v.s).len() + 1 + usize::from(browsing);
+    let grid = grid.virtual_rows(
+        rows,
         h,
         |s: &State, r| {
             if r == 0 {
                 "tracks-heading".into()
+            } else if r > list_songs(s).len() {
+                "browse-status".into()
             } else {
                 Cow::Borrowed(s.table.key(r - 1))
             }
@@ -1491,7 +1524,9 @@ fn songs(v: &Paint<'_>) -> El {
                 height: bounds.1,
             };
             if r == 0 {
-                let header = if matches!(s.app.presentation.page(), Page::Playlist(_)) {
+                let header = if browsing {
+                    browse::heading(&v)
+                } else if matches!(s.app.presentation.page(), Page::Playlist(_)) {
                     playlist_header(&v)
                 } else {
                     album(&v)
@@ -1502,6 +1537,9 @@ fn songs(v: &Paint<'_>) -> El {
                 } else {
                     head
                 };
+            }
+            if browsing && r == rows - 1 {
+                return browse::status(&v);
             }
             let i = r - 1;
             let source = s.table.source(i);
@@ -1666,7 +1704,18 @@ fn songs(v: &Paint<'_>) -> El {
                     }
                 })
         },
-    )
+    );
+    if browsing {
+        let version = (
+            v.s.app.presentation.page(),
+            v.s.app.browse.current().map_or(0, |list| list.revision),
+            v.s.collection_sort()
+                .map(|sort| (sort.column as u8, sort.ascending)),
+        );
+        browse::load_ahead(v, grid.virtual_rows_version(version), rows, h)
+    } else {
+        grid
+    }
 }
 pub(super) fn track_key(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
     let count = list_songs(s).len();

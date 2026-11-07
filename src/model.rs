@@ -8,6 +8,10 @@ pub enum Page {
     LikedSongs,
     FavoriteGroup(FavoriteKind),
     Albums,
+    Songs,
+    Genres,
+    Genre(String),
+    GenreAlbums(String),
     Playlists,
     Playlist(String),
     Album(String),
@@ -16,6 +20,15 @@ pub enum Page {
 }
 
 impl Page {
+    pub fn is_browse(&self) -> bool {
+        matches!(
+            self,
+            Self::Songs | Self::Genres | Self::Genre(_) | Self::GenreAlbums(_)
+        )
+    }
+    pub fn is_browse_songs(&self) -> bool {
+        matches!(self, Self::Songs | Self::Genre(_))
+    }
     pub fn is_favorites(&self) -> bool {
         matches!(self, Page::LikedSongs | Page::FavoriteGroup(_))
     }
@@ -29,6 +42,10 @@ impl Page {
             Page::FavoriteGroup(FavoriteKind::Album) => "favorite-albums".into(),
             Page::FavoriteGroup(FavoriteKind::Artist) => "favorite-artists".into(),
             Page::Albums => "albums".into(),
+            Page::Songs => "songs".into(),
+            Page::Genres => "genres".into(),
+            Page::Genre(genre) => format!("genre:{genre}"),
+            Page::GenreAlbums(genre) => format!("genre-albums:{genre}"),
             Page::Playlists => "playlists".into(),
             Page::Playlist(id) => format!("playlist:{id}"),
             Page::Album(id) => format!("album:{id}"),
@@ -46,6 +63,8 @@ impl Page {
             "favorite-albums" => Page::FavoriteGroup(FavoriteKind::Album),
             "favorite-artists" => Page::FavoriteGroup(FavoriteKind::Artist),
             "albums" => Page::Albums,
+            "songs" => Page::Songs,
+            "genres" => Page::Genres,
             "playlists" => Page::Playlists,
             "settings" => Page::Settings,
             other => {
@@ -54,6 +73,8 @@ impl Page {
                     "playlist" => Page::Playlist(id.into()),
                     "album" => Page::Album(id.into()),
                     "artist" => Page::Artist(id.into()),
+                    "genre" => Page::Genre(id.into()),
+                    "genre-albums" => Page::GenreAlbums(id.into()),
                     _ => return None,
                 }
             }
@@ -199,6 +220,7 @@ pub enum Dialog {
 }
 #[derive(Clone, Debug)]
 pub enum Action {
+    Browse(crate::app::navidrome::browse::Action),
     Open(Page),
     OpenUri(String),
     Back,

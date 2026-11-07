@@ -72,6 +72,7 @@ pub(crate) fn album(index: usize) -> Album {
                     },
                     artist: ARTISTS[album_index % ARTISTS.len()].into(),
                     album: ALBUMS[album_index].0.into(),
+                    album_id: Some(format!("alb{album_index}")),
                     cover_art: Some(id.clone()),
                     duration: f64::from(180_000 + (track as u32 * 37_000) % 240_000) / 1000.,
                     suffix: "flac".into(),

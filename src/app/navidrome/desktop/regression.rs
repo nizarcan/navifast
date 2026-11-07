@@ -24,6 +24,91 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn browse_paging_preserves_playback_context_and_back_scroll() {
+    let mut rt = runtime("songs", "restored");
+    assert_eq!(rt.state.app.page_songs().unwrap().len(), 60);
+    rt.update(|_, tx| tx.scroll_to_y("page", 1_000_000.));
+    rt.frame(0.);
+    rt.settle_all();
+    rt.frame(0.1);
+    rt.settle_all();
+    assert!(
+        rt.state.app.page_songs().unwrap().len() >= 120,
+        "offset {}",
+        rt.state.offsets[&Page::Songs].get()
+    );
+    let offset = rt.state.offsets[&Page::Songs].get();
+    assert!(offset > 1000.);
+    rt.update(|s, tx| {
+        s.play_collection_row(70);
+        s.dispatch(Action::Open(Page::Genres), tx);
+    });
+    rt.frame(0.);
+    assert_eq!(rt.state.app.transport.song().unwrap().id, "browse-70");
+    assert_eq!(rt.state.app.browse.playing, Some(Page::Songs));
+    rt.update(|s, tx| s.dispatch(Action::Back, tx));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!((rt.state.offsets[&Page::Songs].get() - offset).abs() < 2.);
+    assert_eq!(rt.state.app.transport.song().unwrap().id, "browse-70");
+    let mounted = rt.elements().iter().filter(|e| e.role == "row").count();
+    assert!(mounted < 60, "mounted {mounted} tracks");
+}
+
+#[test]
+fn browse_genres_keep_exact_names_and_compilation_tracks_without_albums() {
+    for theme in ["restored", "restored,light"] {
+        let mut rt = runtime("genres", theme);
+        rt.set_viewport((760., 800.), 2.);
+        click_label(&mut rt, "R&B / موسيقى + 夜", 0);
+        assert_eq!(
+            rt.state.app.presentation.page(),
+            &Page::Genre("R&B / موسيقى + 夜".into())
+        );
+        rt.update(|s, tx| s.dispatch(Action::Back, tx));
+        click_label(&mut rt, "Compilation only", 0);
+        assert!(!rt.state.app.page_songs().unwrap().is_empty());
+        assert!(rt.accessibility_action("browse-tab-Albums", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(rt.state.app.browse.current().unwrap().albums().is_empty());
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.text.as_deref() == Some("No results"))
+        );
+        rt.update(|s, tx| s.dispatch(Action::Open(Page::Genre("Empty genre".into())), tx));
+        rt.frame(0.);
+        assert!(rt.state.app.page_songs().unwrap().is_empty());
+    }
+}
+
+#[test]
+fn browse_retry_retains_tracks_and_song_menu_opens_its_album() {
+    let mut rt = runtime("songs", "restored,error");
+    assert_eq!(rt.state.app.page_songs().unwrap().len(), 60);
+    rt.update(|s, _| {
+        s.favorite_menu = Some(ItemMenu {
+            uri: String::new(),
+            row: Some(s.table.key(0).into()),
+            at: Some([500., 200.]),
+        })
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.accessibility_action("browse-open-album", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert!(matches!(rt.state.app.presentation.page(), Page::Album(_)));
+    rt.update(|s, tx| {
+        s.dispatch(Action::Back, tx);
+        s.dispatch(Action::Browse(super::super::browse::Action::Retry), tx);
+    });
+    rt.frame(0.);
+    assert_eq!(rt.state.app.page_songs().unwrap().len(), 120);
+    assert!(rt.state.app.browse.current().unwrap().error.is_none());
+}
+
+#[test]
 fn home_navigation_keeps_restored_playback_and_opens_recent_collections() {
     for theme in ["restored", "restored,light"] {
         let mut rt = runtime("home", theme);

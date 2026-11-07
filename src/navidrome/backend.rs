@@ -9,6 +9,14 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Browse {
+        session: u64,
+        request: u64,
+        client: Client,
+        query: super::browse::Query,
+        offset: usize,
+    },
+    CancelBrowse,
     Lyrics {
         session: u64,
         request: u64,
@@ -137,6 +145,13 @@ pub enum Request {
 }
 
 pub enum Event {
+    Browse {
+        session: u64,
+        request: u64,
+        query: super::browse::Query,
+        offset: usize,
+        result: Result<super::browse::Items, String>,
+    },
     Lyrics {
         session: u64,
         request: u64,
@@ -278,6 +293,7 @@ impl Backend {
                 let mut collections = tokio::task::JoinSet::new();
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
+                let mut browsing = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
                 let mut lyrics = tokio::task::JoinSet::new();
                 let lyrics_provider = Arc::new(super::lyrics::lrclib::Lookup::default());
@@ -298,6 +314,7 @@ impl Backend {
                                     tasks.abort_all();
                                     searches.abort_all();
                                     playlists.abort_all();
+                                    browsing.abort_all();
                                     queue_reads.abort_all();
                                     queue_handles.clear();
                                 }
@@ -348,6 +365,7 @@ impl Backend {
                                 Request::CancelCollection => collections.abort_all(),
                                 Request::CancelSearch => searches.abort_all(),
                                 Request::CancelPlaylistLibrary => playlists.abort_all(),
+                                Request::CancelBrowse => browsing.abort_all(),
                                 Request::Forget { session } => {
                                     // Persist revocation off the UI thread before queuing deletion.
                                     // A locked keyring must not restore a signed-out account.
@@ -396,6 +414,7 @@ impl Backend {
                                         Request::Lyrics { .. } => &mut lyrics,
                                         Request::Search { .. } => &mut searches,
                                         Request::PlaylistLibrary { .. } => &mut playlists,
+                                        Request::Browse { .. } => &mut browsing,
                                         Request::Collection { .. } | Request::ArtistInfo { .. } | Request::Appearances { .. } => &mut collections,
                                         _ => &mut tasks,
                                     };
@@ -432,6 +451,7 @@ impl Backend {
                         _ = collections.join_next(), if !collections.is_empty() => {}
                         _ = searches.join_next(), if !searches.is_empty() => {}
                         _ = playlists.join_next(), if !playlists.is_empty() => {}
+                        _ = browsing.join_next(), if !browsing.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
                     }
@@ -467,6 +487,22 @@ async fn execute(
     provider: &super::lyrics::lrclib::Lookup,
 ) -> Option<Event> {
     Some(match request {
+        Request::Browse {
+            session,
+            request,
+            client,
+            query,
+            offset,
+        } => {
+            let result = client.browse(&query, offset).await;
+            Event::Browse {
+                session,
+                request,
+                query,
+                offset,
+                result,
+            }
+        }
         Request::Lyrics {
             session,
             request,
@@ -670,6 +706,7 @@ async fn execute(
         | Request::QueueAlbum { .. }
         | Request::CancelQueueAlbum(_)
         | Request::ClearQueueAlbums
+        | Request::CancelBrowse
         | Request::Shutdown => return None,
     })
 }

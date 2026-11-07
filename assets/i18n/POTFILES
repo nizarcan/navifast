@@ -27,3 +27,4 @@ src/window.rs
 src/ui/desktop/lyrics.rs
 src/ui/desktop/lyrics_card.rs
 src/app/navidrome/desktop/lyrics_share.rs
+src/ui/desktop/browse.rs

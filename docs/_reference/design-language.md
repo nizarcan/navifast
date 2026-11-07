@@ -65,6 +65,19 @@ of invented listening history. Loading and failed refreshes keep their own inlin
 feedback, with usable cached cards retained. The recent list is local to the
 current server/account, never a claim about listening in other clients.
 
+## Songs and genres
+
+Songs and Genres use standard sidebar destinations and 28-pixel bold headings.
+Genres is a virtual list of the server's exact names with muted song counts and
+the existing hover/chevron treatment. Do not invent artwork or colors for genres.
+Inside a genre, Songs and Albums use the existing pill controls to switch views.
+Songs reuses the collection track table and its selection, sorting, playback,
+queue and playlist actions. Albums reuses the exact album card grid. Keep both
+tabs independent: a compilation track can match a genre without its whole album
+matching. Keep loading, retry, empty and end-of-list feedback inline at the end
+of each list. Failed requests preserve the loaded rows and back navigation keeps
+the cached page's scroll position.
+
 ## Playable collection pages
 
 Albums and playlists use the same header, action row and track table. Differences

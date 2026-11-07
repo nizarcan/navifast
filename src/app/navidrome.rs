@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
+pub mod browse;
 pub mod desktop;
 pub mod favorites;
 pub mod home;
@@ -190,6 +191,7 @@ pub struct App {
     pub error: Option<String>,
     pub transport: Transport,
     pub lyrics: lyrics::State,
+    pub browse: browse::State,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
@@ -315,6 +317,7 @@ impl App {
             newest,
             error: None,
             lyrics: Default::default(),
+            browse: Default::default(),
             transport: Transport {
                 paused: true,
                 ..Default::default()
@@ -394,6 +397,7 @@ impl App {
                 self.restoring_login = false;
             }
             Action::SignOut => {
+                self.browse = Default::default();
                 self.forget_session();
                 self.lyrics = Default::default();
                 self.session = self.session.wrapping_add(1);
@@ -628,6 +632,7 @@ impl App {
     }
 
     fn set_client(&mut self, client: Client) {
+        self.browse = Default::default();
         self.lyrics = Default::default();
         if self
             .client
@@ -685,6 +690,7 @@ impl App {
             return;
         }
         self.edit_session();
+        self.browse.playing = None;
         self.playing_album = None;
         self.playing_playlist = None;
         if let Some(album) = album {
@@ -757,6 +763,7 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::Browse {session, request, query, offset, result} => self.browse_result(session,request,query,offset,result),
                 Event::Lyrics { session, request, song, result } => self.lyrics_result(session, request, &song, result),
                 Event::SessionRestored { session, token, result } => self.session_restored(session, token, result),
                 Event::SessionSaveFailed => self.presentation.toast_error("Your listening session could not be saved. Check the state directory permissions."),
@@ -1145,7 +1152,11 @@ impl App {
             _ => crate::model::Page::decode(p).filter(crate::model::Page::is_favorites),
         });
         self.populate_demo_favorites(favorite_page.is_some(), &flags);
-        let library_state = favorite_page.is_none()
+        let browse_page = page
+            .and_then(crate::model::Page::decode)
+            .filter(crate::model::Page::is_browse);
+        let library_state = browse_page.is_none()
+            && favorite_page.is_none()
             && page != Some("search")
             && page != Some("playlists")
             && !page.is_some_and(|p| p.starts_with("artist:") || p.starts_with("playlist:"));
@@ -1237,6 +1248,11 @@ impl App {
         }
         if flags.contains(&"playlist-delete") {
             self.playlist_action(playlists::Action::ConfirmDelete);
+        }
+        if let Some(page) = browse_page {
+            self.presentation.history = vec![page];
+            self.sync_browse();
+            self.configure_demo_browse(&flags);
         }
         self.populate_demo_lyrics(&flags);
         if page == Some("albums") {

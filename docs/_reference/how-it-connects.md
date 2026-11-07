@@ -23,6 +23,21 @@ executes API requests on a dedicated Tokio runtime with cancellation and
 session/request generations. IDs are opaque strings. Album pages use
 `getAlbumList2` and `getAlbum`. Artwork is fetched and decoded off the UI.
 
+Songs enumerates `search3` with an empty query, zero artist/album counts and
+60-song pages. This follows the OpenSubsonic empty-query contract and requires
+the response's `openSubsonic: true` declaration; legacy servers show an unsupported
+message instead of an apparently empty library. Genres uses `getGenres`, then
+independent `getSongsByGenre` and `getAlbumList2(type=byGenre)` pages of 60.
+Genre names are passed unchanged, including whitespace, punctuation and Unicode.
+These reads share the bounded worker request slots and a navigation cancellation
+group. Session, query, request and offset guards reject late pages. Failed pages
+retain loaded rows; Retry repeats the failed offset, including a failed refresh.
+IDs are deduplicated in server order, and a repeated page stops automatic loading.
+Eight cached query slots share a 20,000-item inactive-page allowance. The active
+page grows only through demand paging; leaving an oversized page evicts it.
+Tables and grids virtualize their rows. Back navigation restores cached selection
+and scroll position. No browse index is persisted to disk yet.
+
 After sign-in, opening Favorites, or a manual refresh, `getStarred2` reads
 the account’s starred songs, albums and artists. The UI shares one membership
 set across the overview and full grids. Cards load visible artwork from the

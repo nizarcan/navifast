@@ -97,13 +97,14 @@ pub(crate) struct State {
     pub(crate) library_search: bool,
     pub(crate) home_expanded: [bool; 2],
     #[cfg(feature = "navidrome-demo")]
-    demo_home_scroll: bool,
+    demo_scroll_end: bool,
     pub(crate) images: rune::ImageCache,
     pub(crate) icons: RefCell<HashMap<(crate::theme::Icon, crate::color::Srgba, u32), rune::Image>>,
     pub(crate) logos: RefCell<HashMap<u32, rune::Pixels>>,
     pub(crate) table: tracks::Tracks,
     pub(crate) autoscroll: autoscroll::Autoscroll,
     history_tables: HashMap<Page, tracks::Tracks>,
+    browse_table_revision: Option<(Page, u64, Option<crate::model::TableSort>)>,
     pub(crate) offsets: HashMap<Page, Live<f32>>,
     restore_scroll: Option<f32>,
     pub(crate) analyser: crate::vis::WideAnalyser,
@@ -130,6 +131,9 @@ impl App {
     pub(crate) fn page_songs(&self) -> Option<&[crate::navidrome::api::Song]> {
         use crate::navidrome::api::Collection;
         match self.presentation.page() {
+            Page::Songs | Page::Genre(_) => {
+                self.browse.current().map(super::browse::Listing::songs)
+            }
             Page::Album(_) => self.album.as_ref().map(|a| a.song.as_slice()),
             Page::Playlist(_) => match self.presentation.navidrome_search.collection.get() {
                 Some(Collection::Playlist { songs, .. }) => Some(songs),
@@ -277,7 +281,8 @@ impl State {
             library_search: false,
             home_expanded: [launch.demo && flags.contains(&"home-expanded"); 2],
             #[cfg(feature = "navidrome-demo")]
-            demo_home_scroll: launch.demo && flags.contains(&"home-artists"),
+            demo_scroll_end: launch.demo
+                && (flags.contains(&"home-artists") || flags.contains(&"browse-end")),
             app,
             window,
             placement: None,
@@ -288,6 +293,7 @@ impl State {
             table: Default::default(),
             autoscroll: Default::default(),
             history_tables: Default::default(),
+            browse_table_revision: None,
             offsets: HashMap::from([(page, Live::new(0.))]),
             restore_scroll: None,
             analyser: Default::default(),
@@ -345,6 +351,17 @@ impl State {
             state.populate_lyric_share_demo(&flags);
         }
         state.sync_tracks();
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo
+            && flags.contains(&"browse-menu")
+            && state.app.presentation.page().is_browse_songs()
+        {
+            state.favorite_menu = Some(ItemMenu {
+                uri: crate::navidrome::api::FavoriteKind::Song.uri("browse-0"),
+                row: Some(state.table.key(0).into()),
+                at: None,
+            });
+        }
         state
     }
 
@@ -382,14 +399,30 @@ impl State {
             self.app.backend.send(Request::Save { path, json });
         }
     }
-    fn sync_tracks(&mut self) {
+    pub(crate) fn sync_tracks(&mut self) {
+        let page = self.app.presentation.page();
+        let revision = page.is_browse_songs().then(|| {
+            (
+                page.clone(),
+                self.app.browse.current().map_or(0, |list| list.revision),
+                self.collection_sort(),
+            )
+        });
+        // Position updates do not change a paged catalogue. Avoid scanning every
+        // loaded song on each playback tick.
+        if revision.is_some() && revision == self.browse_table_revision {
+            return;
+        }
         if let Some(songs) = self.app.page_songs() {
             self.table.update(songs, self.collection_sort());
         }
+        self.browse_table_revision = revision;
+        self.history_tables
+            .retain(|page, _| !page.is_browse() || self.app.browse.cached(page));
     }
     pub(crate) fn collection_sort(&self) -> Option<crate::model::TableSort> {
         let page = self.app.presentation.page();
-        if matches!(page, Page::Album(_) | Page::Playlist(_)) {
+        if matches!(page, Page::Album(_) | Page::Playlist(_)) || page.is_browse_songs() {
             self.app.presentation.table_sorts.get(page).copied()
         } else {
             None
@@ -405,8 +438,8 @@ impl State {
         self.sync_tracks();
     }
     pub(crate) fn play_collection_row(&mut self, index: usize) {
-        if let Page::Playlist(id) = self.app.presentation.page() {
-            let id = id.clone();
+        let page = self.app.presentation.page().clone();
+        if matches!(page, Page::Playlist(_)) || page.is_browse_songs() {
             let Some(source) = self.app.page_songs().filter(|songs| index < songs.len()) else {
                 return;
             };
@@ -416,8 +449,12 @@ impl State {
                 .map(|(i, key)| (source[i].clone(), key.to_owned()))
                 .unzip();
             self.app.play_search_songs(songs, index);
-            self.app.playing_playlist = Some(id);
-            self.app.remember_home_playlist();
+            if let Page::Playlist(id) = page {
+                self.app.playing_playlist = Some(id);
+                self.app.remember_home_playlist();
+            } else {
+                self.app.browse.playing = Some(page);
+            }
             self.app.transport.collection_rows = keys;
             return;
         }
@@ -481,6 +518,7 @@ impl State {
             self.window.covers.replace(Default::default());
             self.offsets.clear();
             self.history_tables.clear();
+            self.browse_table_revision = None;
             self.artist_views.clear();
             self.table = Default::default();
             self.library_filter.clear();
@@ -492,6 +530,7 @@ impl State {
         }
         let page = self.app.presentation.page().clone();
         if previous != page {
+            self.browse_table_revision = None;
             self.query.focused = page == Page::Search;
             if page != Page::Search {
                 tx.blur();
@@ -520,6 +559,10 @@ impl State {
     fn page_loading(&self) -> bool {
         let app = &self.app;
         match app.presentation.page() {
+            page if page.is_browse() => app
+                .browse
+                .current()
+                .is_some_and(|list| list.loading && !list.loaded),
             Page::Albums => app.list_loading,
             Page::Album(_) => app.album_loading,
             Page::Playlist(_) | Page::Artist(_) => matches!(
@@ -597,8 +640,8 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     let restoring = s.app.restoring_login;
     let mut changed = s.app.poll(&s.window);
     #[cfg(feature = "navidrome-demo")]
-    if s.demo_home_scroll && _time >= 0.1 {
-        s.demo_home_scroll = false;
+    if s.demo_scroll_end && _time >= 0.1 {
+        s.demo_scroll_end = false;
         tx.scroll_to_bottom_instant("page");
         changed = true;
     }

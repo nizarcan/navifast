@@ -310,6 +310,7 @@ impl App {
         index: usize,
     ) {
         self.edit_session();
+        self.browse.playing = None;
         self.playing_album = None;
         self.playing_playlist = None;
         self.transport.collection_rows.clear();

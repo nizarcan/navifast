@@ -2,6 +2,37 @@ use super::*;
 use crate::app::navidrome::{Action, tests::with_app};
 use crate::model::Action as UiAction;
 
+#[cfg(feature = "navidrome-demo")]
+#[test]
+fn paged_browse_items_can_be_favorited_without_playing_or_opening_them() {
+    super::super::tests::with_app(|app, host| {
+        app.presentation.navidrome_favorites.ready = true;
+        app.ui_action(crate::model::Action::Open(Page::Songs), host);
+        let song = app.browse.current().unwrap().songs()[0].clone();
+        let uri = FavoriteKind::Song.uri(&song.id);
+        assert!(app.favorite_item(&uri).is_some());
+        app.toggle_favorite(&uri);
+        assert_eq!(
+            app.presentation.navidrome_favorites.contains(&uri),
+            Some(true)
+        );
+        app.ui_action(
+            crate::model::Action::Open(Page::GenreAlbums("Electronic".into())),
+            host,
+        );
+        let album = app.browse.current().unwrap().albums()[0].clone();
+        app.albums.clear(); // The item exists only in the paged view's cache.
+        app.album = None;
+        let uri = FavoriteKind::Album.uri(&album.id);
+        assert!(app.favorite_item(&uri).is_some());
+        app.toggle_favorite(&uri);
+        assert_eq!(
+            app.presentation.navidrome_favorites.contains(&uri),
+            Some(true)
+        );
+    });
+}
+
 fn song() -> Song {
     Song {
         id: "shared:/α".into(),

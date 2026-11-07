@@ -17,6 +17,11 @@ The current build supports:
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
+- Browsing **Songs** and **Genres** from the sidebar. Songs requires the server's
+  OpenSubsonic declaration; genres offer separate song and album views, including
+  tracks on compilations. Pages load as you scroll, with retry and end-of-list
+  feedback. Playing a row uses the currently loaded songs in their displayed
+  order. The song menu opens its album when the server supplies an album ID.
 - Searching songs, albums, artists and playlists from the top bar. Select a
   result with the arrow keys and press Enter to play the song or open the
   album, artist or playlist.

@@ -83,6 +83,8 @@ pub struct Song {
     #[serde(default)]
     pub album: String,
     #[serde(default)]
+    pub album_id: Option<String>,
+    #[serde(default)]
     pub cover_art: Option<String>,
     #[serde(default)]
     pub duration: f64,
@@ -758,7 +760,7 @@ impl Client {
     }
 }
 
-fn decode<T: DeserializeOwned>(value: serde_json::Value) -> Result<T, String> {
+pub(super) fn decode<T: DeserializeOwned>(value: serde_json::Value) -> Result<T, String> {
     serde_json::from_value(value)
         .map_err(|_| "The server returned unexpected music metadata.".into())
 }
