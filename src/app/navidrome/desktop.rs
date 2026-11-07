@@ -1,6 +1,7 @@
 //! The Rune window for the active Navidrome controller.
 mod artwork;
 pub(crate) mod autoscroll;
+pub(crate) mod inspector;
 mod lyrics;
 pub(crate) mod lyrics_share;
 mod placement;
@@ -121,6 +122,7 @@ pub(crate) struct State {
     pub(crate) portrait_fade: RefCell<views::artist::PortraitFade>,
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
+    pub(crate) inspector: Option<inspector::Inspector>,
     pub(crate) menu: Option<&'static str>,
     pub(crate) lyrics_view: lyrics::View,
     pub(crate) lyrics_share: lyrics_share::Share,
@@ -366,7 +368,9 @@ impl State {
             home_expanded: [launch.demo && flags.contains(&"home-expanded"); 2],
             #[cfg(feature = "navidrome-demo")]
             demo_scroll_end: launch.demo
-                && (flags.contains(&"home-artists") || flags.contains(&"browse-end")),
+                && (flags.contains(&"home-artists")
+                    || flags.contains(&"browse-end")
+                    || flags.contains(&"inspector-output")),
             app,
             window,
             placement: None,
@@ -391,6 +395,7 @@ impl State {
             portrait_fade: Default::default(),
             artist_views: Default::default(),
             favorite_menu: None,
+            inspector: None,
             menu: None,
             lyrics_view: Default::default(),
             lyrics_share: Default::default(),
@@ -439,6 +444,10 @@ impl State {
             state.populate_lyric_share_demo(&flags);
         }
         state.sync_tracks();
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo && flags.contains(&"inspector") {
+            state.demo_inspector(&flags);
+        }
         #[cfg(feature = "navidrome-demo")]
         if launch.demo && flags.contains(&"album-order") {
             state.menu = Some("album-order");
@@ -670,6 +679,7 @@ impl State {
         self.favorite_menu = None;
         self.queue_menu = None;
         if session != self.app.session {
+            self.inspector = None;
             self.queue_open = false;
             self.lyrics_view = Default::default();
             self.cancel_lyric_selection();
@@ -807,7 +817,11 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     #[cfg(feature = "navidrome-demo")]
     if s.demo_scroll_end && _time >= 0.1 {
         s.demo_scroll_end = false;
-        tx.scroll_to_bottom_instant("page");
+        tx.scroll_to_bottom_instant(if s.inspector.is_some() {
+            "track-details-scroll"
+        } else {
+            "page"
+        });
         changed = true;
     }
     if changed {

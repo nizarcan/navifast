@@ -3,6 +3,8 @@ use symphonia::core::io::MediaSource;
 
 pub(super) fn track(generation: u64, from: u64) -> Arc<Track> {
     Arc::new(Track {
+        decoded: Default::default(),
+        output: Default::default(),
         quality: Quality::Original,
         seekable: std::sync::atomic::AtomicBool::new(true),
         generation,
@@ -539,10 +541,22 @@ fn local_navidrome_quality_decodes_seeks_and_reconnects() {
                 count += block.len();
                 true
             };
-            if quality == Quality::Original {
-                decode::decode_raw(source, &song.suffix, plan.decode_position, consume).unwrap();
-            } else {
-                decode::decode_mp3(source, plan.decode_position, consume).unwrap();
+            let mut observation = None;
+            let expected =
+                (quality != Quality::Original).then_some(symphonia::core::codecs::CODEC_TYPE_MP3);
+            decode::decode_observed(
+                source,
+                &song.suffix,
+                plan.decode_position,
+                expected,
+                |facts| observation = Some(facts),
+                consume,
+            )
+            .unwrap();
+            let observed = observation.unwrap();
+            assert!(observed.sample_rate > 0 && observed.channels > 0);
+            if quality != Quality::Original {
+                assert_eq!(observed.codec, "mp3");
             }
             let seconds = count as f64 / (2.0 * f64::from(RATE));
             assert!(
@@ -633,4 +647,32 @@ fn paused_native_output_reports_quality_failure_without_playing() {
     if root.exists() {
         std::fs::remove_dir_all(root).unwrap();
     }
+}
+
+#[test]
+fn inspector_observes_96khz_before_stereo_44100_processing() {
+    let mut observed = Vec::new();
+    let mut samples = 0;
+    decode::decode_observed(
+        Box::new(std::io::Cursor::new(wav(96_000, 2))),
+        "wav",
+        0.0,
+        None,
+        |facts| observed.push(facts),
+        |block| {
+            samples += block.len();
+            true
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        observed.len(),
+        1,
+        "publish changes, never one event per audio block"
+    );
+    assert_eq!(observed[0].sample_rate, 96_000);
+    assert_eq!(observed[0].channels, 2);
+    assert_eq!(observed[0].bit_depth, Some(16));
+    assert!(observed[0].codec.contains("pcm"));
+    assert!((samples as i64 - i64::from(RATE) * 2).abs() < 200);
 }

@@ -355,6 +355,21 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 ));
             }
         }
+        if menu.uri.starts_with("navidrome:track:") {
+            let uri = menu.uri.clone();
+            let origin = menu
+                .anchor
+                .clone()
+                .or_else(|| menu.row.as_ref().map(|key| format!("more-{key}")));
+            popup = popup.child(
+                v.menu_item(
+                    &v.tr(mark("Track details")),
+                    Some(Icon::Info),
+                    move |s, _| s.inspect_song(&uri, origin.clone()),
+                )
+                .key("inspect-track"),
+            );
+        }
         popup = popup.child(ratings::menu(v, &menu.uri));
         if let Some([x, y]) = menu.at {
             shell = shell.child(
@@ -397,6 +412,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         .is_some_and(|d| d.preview_open)
     {
         shell = shell.child(lyrics_card::preview(v));
+    }
+    if s.inspector.is_some() {
+        shell = shell.child(inspector::dialog(v));
     }
     autoscroll::shell(shell, s, v.zoom)
 }

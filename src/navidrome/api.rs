@@ -98,6 +98,25 @@ pub struct Song {
     pub track: u32,
     #[serde(default)]
     pub disc_number: u32,
+    #[serde(default)]
+    pub bit_rate: Option<u32>,
+    #[serde(default)]
+    pub sampling_rate: Option<u32>,
+    #[serde(default)]
+    pub bit_depth: Option<u32>,
+    #[serde(default)]
+    pub channel_count: Option<u32>,
+    #[serde(default)]
+    pub replay_gain: Option<ReplayGain>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ReplayGain {
+    pub track_gain: Option<f64>,
+    pub album_gain: Option<f64>,
+    pub track_peak: Option<f64>,
+    pub album_peak: Option<f64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]

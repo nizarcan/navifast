@@ -117,6 +117,7 @@ pub struct Transport {
     pub paused: bool,
     pub loading: bool,
     pub seekable: bool,
+    pub information: Option<crate::navidrome::audio::Playback>,
     pub generation: u64,
     pub error: Option<String>,
 }
@@ -137,12 +138,16 @@ impl Transport {
         self.position = position.max(0.0).min(song.duration.max(0.0));
         self.paused = paused;
         self.loading = true;
+        self.information = None;
         self.error = None;
         self.generation = player::next_generation();
         Some(song)
     }
     fn event(&mut self, event: player::Event) -> bool {
         match event {
+            player::Event::Information { generation, info } if generation == self.generation => {
+                self.information = Some(info);
+            }
             player::Event::Ready {
                 generation,
                 seekable,
@@ -182,6 +187,7 @@ impl Transport {
                 self.paused = true;
                 self.loading = false;
                 self.error = Some(message);
+                self.information = None;
             }
             _ => {}
         }
@@ -977,6 +983,7 @@ impl App {
         }
         while let Ok(event) = self.player_events.try_recv() {
             if let player::Event::Transition {
+                information,
                 from,
                 generation,
                 occurrence,
@@ -989,6 +996,7 @@ impl App {
                     self.quality.active = quality;
                     self.quality.deferred = false;
                     self.transport.seekable = seekable;
+                    self.transport.information = information;
                     changed = true;
                 }
                 continue;

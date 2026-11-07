@@ -184,6 +184,7 @@ pub(super) fn player(v: &Paint<'_>) -> El {
     let side = (inner_width * 0.30).clamp(200., 420.);
     let seek_width = (inner_width - side * 2. - 120.).clamp(120., 620.);
     let mut meta = row()
+        .key("playing-track")
         .w(side)
         .min_w(0.)
         .h_full()
@@ -202,7 +203,20 @@ pub(super) fn player(v: &Paint<'_>) -> El {
                     s.dispatch(Action::Open(Page::Album(id.clone())), tx)
                 });
         }
+        let uri = crate::navidrome::api::FavoriteKind::Song.uri(&t.id);
         meta = meta
+            .focusable(true)
+            .role("group")
+            .label(v.tr(mark("Now playing")))
+            .on_secondary_press(move |s: &mut State, point, _| {
+                let zoom = s.app.presentation.settings.zoom;
+                s.open_item_menu(crate::app::navidrome::desktop::ItemMenu {
+                    uri: uri.clone(),
+                    row: None,
+                    anchor: Some("playing-track".into()),
+                    at: Some([point.x / zoom, point.y / zoom]),
+                });
+            })
             .child(artwork(v, 56., false))
             .child(col().min_w(0.).gap(2.).child(title).child(library::credit(
                 v,

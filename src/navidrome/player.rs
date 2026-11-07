@@ -61,6 +61,10 @@ pub enum Command {
 }
 #[derive(Clone, Debug)]
 pub enum Event {
+    Information {
+        generation: u64,
+        info: super::audio::Playback,
+    },
     Scrobble {
         context: super::scrobble::Context,
         report: super::scrobble::Report,
@@ -70,6 +74,7 @@ pub enum Event {
         seekable: bool,
     },
     Transition {
+        information: Option<super::audio::Playback>,
         quality: Quality,
         seekable: bool,
         from: u64,
@@ -304,21 +309,36 @@ fn decode_job(
         }
         job.send(Ok(block), current)
     };
-    if job.track.quality == Quality::Original {
-        decode::decode_raw(
-            source,
-            &job.track.song.suffix,
-            plan.decode_position,
-            consume,
-        )
-    } else {
-        decode::decode_mp3(source, plan.decode_position, consume).map_err(|message| {
-            format!(
-                "MP3 at up to {} kbps could not play: {message}",
-                job.track.quality.kbps().unwrap_or(128)
-            )
-        })
-    }
+    let expected =
+        (job.track.quality != Quality::Original).then_some(symphonia::core::codecs::CODEC_TYPE_MP3);
+    let observe = |decoded| {
+        *job.track.decoded.lock().unwrap_or_else(|p| p.into_inner()) = Some(decoded);
+        if let Some(info) = job.track.information() {
+            notify(Event::Information {
+                generation: job.track.generation,
+                info,
+            });
+        }
+    };
+    decode::decode_observed(
+        source,
+        if expected.is_some() {
+            "mp3"
+        } else {
+            &job.track.song.suffix
+        },
+        plan.decode_position,
+        expected,
+        observe,
+        consume,
+    )
+    .map_err(|message| {
+        if let Some(bitrate) = job.track.quality.kbps() {
+            format!("MP3 at up to {bitrate} kbps could not play: {message}")
+        } else {
+            message
+        }
+    })
 }
 
 struct Playing {
@@ -359,6 +379,7 @@ fn transition(
     }
     listening.begin(context, &track.song);
     notify(Event::Transition {
+        information: track.information(),
         quality: track.quality,
         seekable: track.seekable.load(Ordering::Acquire),
         from: track.from,
@@ -471,6 +492,8 @@ fn output_loop(
                     sink.pause();
                 }
                 let track = Arc::new(Track {
+                    decoded: Default::default(),
+                    output: super::audio::Output::configured(stream),
                     quality,
                     seekable: std::sync::atomic::AtomicBool::new(false),
                     generation,
@@ -526,6 +549,8 @@ fn output_loop(
                     continue;
                 }
                 let track = Arc::new(Track {
+                    decoded: Default::default(),
+                    output: play.track.output.clone(),
                     quality,
                     seekable: std::sync::atomic::AtomicBool::new(false),
                     generation,

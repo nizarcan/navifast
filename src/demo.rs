@@ -81,6 +81,7 @@ pub(crate) fn album(index: usize) -> Album {
                     suffix: "flac".into(),
                     track: track as u32 + 1,
                     disc_number: 1,
+                    ..Default::default()
                 }
             })
             .collect(),

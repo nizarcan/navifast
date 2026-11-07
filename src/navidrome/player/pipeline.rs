@@ -7,6 +7,8 @@ const PREPARED: u8 = 1;
 const ACTIVE: u8 = 2;
 
 pub(super) struct Track {
+    pub decoded: Mutex<Option<super::super::audio::Decoded>>,
+    pub output: super::super::audio::Output,
     pub quality: super::super::quality::Quality,
     pub seekable: std::sync::atomic::AtomicBool,
     pub generation: u64,
@@ -21,6 +23,17 @@ pub(super) struct Track {
 }
 
 impl Track {
+    pub fn information(&self) -> Option<super::super::audio::Playback> {
+        self.decoded
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone()
+            .map(|decoded| super::super::audio::Playback {
+                decoded,
+                output: self.output.clone(),
+                quality: self.quality,
+            })
+    }
     pub fn cancel_prepared(&self) {
         let _ =
             self.gate

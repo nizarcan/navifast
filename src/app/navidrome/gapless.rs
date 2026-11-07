@@ -94,6 +94,7 @@ impl App {
         }
         self.scrobbles.activate(occurrence, listening);
         self.transport.generation = generation;
+        self.transport.information = None;
         self.transport.position = 0.0;
         self.transport.loading = false;
         self.transport.error = None;
@@ -115,6 +116,54 @@ mod tests {
             duration: 60.0,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn inspector_facts_change_at_the_handoff_and_never_during_preparation() {
+        use crate::navidrome::{audio, quality::Quality};
+        super::super::tests::with_app(|app, host| {
+            app.play_search_songs(vec![song("first"), song("second")], 0);
+            let from = app.transport.generation;
+            let generation = player::next_generation();
+            let occurrence = app.transport.queue.upcoming()[0].id;
+            let information = audio::Playback {
+                quality: Quality::Mp3Standard,
+                decoded: audio::Decoded {
+                    codec: "mp3".into(),
+                    sample_rate: 48_000,
+                    channels: 2,
+                    bit_depth: None,
+                },
+                output: audio::Output {
+                    sample_rate: 48_000,
+                    channels: 2,
+                    sample_format: "f32".into(),
+                },
+            };
+            let (send, receive) = std::sync::mpsc::channel();
+            app.player_events = receive;
+            send.send(player::Event::Information {
+                generation,
+                info: information.clone(),
+            })
+            .unwrap();
+            app.poll(host);
+            assert!(app.transport.information.is_none());
+            assert_eq!(app.transport.song().unwrap().id, "first");
+            send.send(player::Event::Transition {
+                information: Some(information.clone()),
+                quality: Quality::Mp3Standard,
+                seekable: true,
+                from,
+                generation,
+                occurrence,
+                listening: app.scrobbles.reserve(app.session, true),
+            })
+            .unwrap();
+            app.poll(host);
+            assert_eq!(app.transport.song().unwrap().id, "second");
+            assert_eq!(app.transport.information, Some(information));
+        });
     }
 
     #[test]

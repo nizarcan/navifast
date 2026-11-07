@@ -364,6 +364,15 @@ pub(super) fn menu(v: &Paint<'_>) -> Option<El> {
             .key("queue-play-selected"),
         );
     if let Some(song) = v.s.app.transport.queue.song(&entries[at]) {
+        let uri = crate::navidrome::ratings::Kind::Song.uri(&song.id);
+        menu = menu.child(
+            v.menu_item(
+                &v.tr(mark("Track details")),
+                Some(Icon::Info),
+                move |s, _| s.inspect_song(&uri, Some(format!("queue-more-{id}"))),
+            )
+            .key("inspect-queue-track"),
+        );
         menu = menu.child(ratings::menu(
             v,
             &crate::navidrome::ratings::Kind::Song.uri(&song.id),

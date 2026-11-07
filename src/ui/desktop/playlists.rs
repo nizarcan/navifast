@@ -4,36 +4,14 @@ use crate::app::navidrome::playlists::Action as Edit;
 use crate::model::Loadable;
 
 fn dialog(v: &Paint<'_>, title: &str, contents: El, actions: El) -> El {
-    let panel = col()
-        .w(470_f32.min(v.width - 16.))
-        .padding(24.)
-        .radius(12.)
-        .border(1., color(v.p.outline))
-        .fill(color(v.p.overlay))
-        .shadow(10., 40., color(v.p.shadow))
-        .modal(true, |s: &mut State| s.app.presentation.dialog = None)
-        .role("dialog")
-        .label(title)
-        .child(label(title, 20., 700., v.p.text).wrap().mb(18.))
-        .child(
-            contents
-                .max_h((v.height - 190.).max(120.))
-                .scroll(ScrollSpec {
-                    stick_bottom: false,
-                }),
-        )
-        .child(row().w_full().justify_end().gap(8.).mt(22.).child(actions));
-    col()
-        .absolute(0., 0.)
-        .w_full()
-        .h_full()
-        .center()
-        .fill(color(Srgba::from_black_alpha(if v.p.dark {
-            150
-        } else {
-            80
-        })))
-        .child(panel)
+    detail_dialog(
+        v,
+        title,
+        contents,
+        actions,
+        |s| s.app.presentation.dialog = None,
+        None,
+    )
 }
 
 pub(super) fn editor(v: &Paint<'_>) -> El {

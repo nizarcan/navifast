@@ -14,34 +14,38 @@ use symphonia::core::{
 
 use super::{PCM_BLOCK_SAMPLES, RATE};
 
+#[cfg(test)]
 pub(super) fn decode_raw(
     source: Box<dyn MediaSource>,
     suffix: &str,
     position: f64,
     consume: impl FnMut(Vec<f32>) -> bool,
 ) -> Result<(), String> {
-    decode_checked(source, suffix, position, None, consume)
+    decode_observed(source, suffix, position, None, |_| {}, consume)
 }
 
+#[cfg(test)]
 pub(super) fn decode_mp3(
     source: Box<dyn MediaSource>,
     position: f64,
     consume: impl FnMut(Vec<f32>) -> bool,
 ) -> Result<(), String> {
-    decode_checked(
+    decode_observed(
         source,
         "mp3",
         position,
         Some(symphonia::core::codecs::CODEC_TYPE_MP3),
+        |_| {},
         consume,
     )
 }
 
-fn decode_checked(
+pub(super) fn decode_observed(
     source: Box<dyn MediaSource>,
     suffix: &str,
     position: f64,
     expected: Option<symphonia::core::codecs::CodecType>,
+    mut observe: impl FnMut(super::super::audio::Decoded),
     mut consume: impl FnMut(Vec<f32>) -> bool,
 ) -> Result<(), String> {
     let mut hint = Hint::new();
@@ -55,6 +59,12 @@ fn decode_checked(
     if expected.is_some_and(|codec| codec != track.codec_params.codec) {
         return Err("The server returned a different codec instead of MP3. Check its MP3 encoder or choose another quality.".into());
     }
+    let codec = symphonia::default::get_codecs()
+        .get_codec(track.codec_params.codec)
+        .map(|c| c.short_name.to_owned())
+        .unwrap_or_default();
+    let bit_depth = track.codec_params.bits_per_sample.filter(|v| *v > 0);
+    let mut observed = None;
     let track_id = track.id;
     let time_base = track.codec_params.time_base;
     let mut decoder = symphonia::default::get_codecs()
@@ -99,6 +109,15 @@ fn decode_checked(
         let channels = spec.channels.count();
         if channels == 0 || channels > 2 {
             return Err("Only mono and stereo audio are supported. Multichannel conversion is not available yet.".into());
+        }
+        if observed != Some((spec.rate, channels)) {
+            observe(super::super::audio::Decoded {
+                codec: codec.clone(),
+                sample_rate: spec.rate,
+                channels: channels as u32,
+                bit_depth,
+            });
+            observed = Some((spec.rate, channels));
         }
         if source_rate != spec.rate {
             source_rate = spec.rate;

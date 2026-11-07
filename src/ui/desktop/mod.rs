@@ -16,6 +16,7 @@ pub(crate) mod artist;
 mod backdrop;
 mod browse;
 mod home;
+mod inspector;
 mod library;
 mod lyrics;
 pub(crate) mod lyrics_card;
@@ -617,4 +618,47 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
     };
     s.dispatch(action, tx);
     true
+}
+
+fn detail_dialog(
+    v: &Paint<'_>,
+    title: &str,
+    contents: El,
+    actions: El,
+    close: fn(&mut State),
+    origin: Option<&str>,
+) -> El {
+    let mut panel = col()
+        .w(470_f32.min(v.width - 16.))
+        .padding(24.)
+        .radius(12.)
+        .border(1., color(v.p.outline))
+        .fill(color(v.p.overlay))
+        .shadow(10., 40., color(v.p.shadow))
+        .modal(true, close)
+        .role("dialog")
+        .label(title)
+        .child(label(title, 20., 700., v.p.text).wrap().mb(18.))
+        .child(
+            contents
+                .max_h((v.height - 190.).max(120.))
+                .scroll(ScrollSpec {
+                    stick_bottom: false,
+                }),
+        )
+        .child(row().w_full().justify_end().gap(8.).mt(22.).child(actions));
+    if let Some(origin) = origin {
+        panel = panel.focus_return(origin.to_owned());
+    }
+    col()
+        .absolute(0., 0.)
+        .w_full()
+        .h_full()
+        .center()
+        .fill(color(Srgba::from_black_alpha(if v.p.dark {
+            150
+        } else {
+            80
+        })))
+        .child(panel)
 }

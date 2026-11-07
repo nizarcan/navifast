@@ -62,6 +62,11 @@ are refused. No provider lookup runs for a server hit or server error. Disabling
 the setting cancels pending lookups and removes external lyrics immediately.
 Provider lyrics remain in memory only and are never uploaded or published by Navifast.
 
+Track details displays metadata already received from your server and observations
+from the local decoder and configured output stream. Opening it makes no additional
+network request and does not expose authenticated URLs, credentials or file paths.
+Its selected-song snapshot stays in memory until dismissal or sign-out.
+
 Creating a lyric image holds the selected song's lyric document and cached cover
 in memory while you edit. Rendering uses the native text layout and makes no
 network requests. Copy writes the PNG to the system clipboard and reads it back

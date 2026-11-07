@@ -85,6 +85,9 @@ The current build supports:
   choice of background. Copy it or save a PNG through the native file chooser.
 - Original or MP3 streaming at up to 64, 128, 192 or 320 kbps, selected in Settings.
   Server capabilities determine whether converted audio supports seeking.
+- Track details in song and queue menus, and on a right-click of the playing
+  track. It separates server file metadata, decoded audio, processing format and
+  configured device output, with unknown values shown explicitly.
 - Basic native media controls.
 
 This is an early playback build. Tray behavior is not available in the current

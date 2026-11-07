@@ -150,6 +150,7 @@ impl App {
                 self.transport.paused = paused;
                 self.transport.error = None;
                 self.transport.generation = player::next_generation();
+                self.transport.information = None;
                 self.player.send(player::Command::Stop);
                 self.tap.clear();
             }

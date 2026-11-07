@@ -202,6 +202,29 @@ pairs; enabling a decoder alone does not certify gapless support.
 See [Privacy](/privacy/) for endpoints and storage and
 [Getting started](/getting-started/) for user-facing limitations.
 
+## Track details
+
+Track details reads the already loaded `Song` metadata, including optional
+`bitRate`, `samplingRate`, `bitDepth`, `channelCount` and `replayGain` fields from
+[OpenSubsonic Child](https://opensubsonic.netlify.app/docs/responses/child/).
+No extra request, file path or authenticated URL is needed. Missing or invalid
+positive measurements display Unknown; a real zero ReplayGain stays 0 dB.
+ReplayGain peaks are ratios relative to full scale. These are source tags, not
+an assertion that ReplayGain processing is enabled.
+
+The decoder publishes its codec, sample rate, channels and available bit depth
+on the first decoded packet and subsequent format changes, before resampling.
+This is independent of the server's source metadata and selected quality. The
+processing stage is stereo 44100 Hz f32. The output worker reports the configured
+rodio device stream's rate, channels and sample format; the OS or hardware may
+perform further conversion, so this is not a hardware DAC or bit-perfect claim.
+
+Facts follow the playback generation. Loading or seeking clears the previous
+observation; stale observations are rejected. Prepared successor facts remain
+private until the sample-aligned handoff. Inspecting another song shows its
+source metadata without attaching the active song's playback facts. The modal
+keeps its selected song while playback changes and closes on sign-out.
+
 ## Server lyrics
 
 `src/navidrome/lyrics.rs` discovers the

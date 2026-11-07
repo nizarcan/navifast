@@ -165,6 +165,18 @@ technology. Repeat One adds a small centered 1 inside the existing repeat glyph;
 its accessible name distinguishes Off, All and One. Collection Shuffle controls
 share the player control's state and behavior.
 
+## Track details
+
+Use **Track details** in the existing song and queue menus. Right-clicking the
+playing track opens the same song menu without adding another player-bar button.
+The inspector shares the playlist dialog's rounded overlay, padding, shadow,
+20-pixel heading, scrolling body and Close pill. Keep the selected song's title
+and artist above quiet 13-pixel label/value rows. Group **Source file**,
+**Decoded audio**, **Processing** and **Device output** under 15-pixel headings.
+Use explicit units and Unknown for missing facts. Preserve keyboard dismissal,
+return focus to the originating control, and fit narrow windows without changing
+the shell or collection layout.
+
 ## Streaming quality
 
 Use the existing Settings section, row and 200 × 30 dropdown for **Playback →

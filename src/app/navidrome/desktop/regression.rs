@@ -1427,3 +1427,110 @@ fn converted_stream_without_offsets_explains_disabled_seek_and_keeps_lyrics_read
     rt.update(|s, _| s.set_streaming_quality(crate::navidrome::quality::Quality::Original));
     assert!(rt.state.app.can_seek());
 }
+
+#[test]
+fn inspector_opens_from_song_menu_and_keeps_other_tracks_separate() {
+    for flags in ["restored,rating-song", "restored,rating-song,light"] {
+        for width in [760., 1280.] {
+            let mut rt = runtime("album:alb0", flags);
+            rt.set_viewport((width, 800.), 1.);
+            rt.frame(0.);
+            rt.settle_all();
+            click_label(&mut rt, "Track details", 0);
+            assert!(rt.state.inspector.is_some());
+            assert!(rt.state.favorite_menu.is_none());
+            assert!(
+                rt.elements()
+                    .iter()
+                    .any(|e| e.text.as_deref() == Some("Source file"))
+            );
+            click_label(&mut rt, "Close", 0);
+            assert!(rt.state.inspector.is_none());
+        }
+    }
+    let mut rt = runtime("album:alb0", "restored,inspector,inspector-other");
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.state.app.transport.information.is_some());
+    assert!(
+        rt.state
+            .inspector
+            .as_ref()
+            .unwrap()
+            .playback(&rt.state.app)
+            .is_none()
+    );
+    assert!(
+        !rt.elements()
+            .iter()
+            .any(|e| e.text.as_deref() == Some("Device output"))
+    );
+}
+
+#[test]
+fn inspector_discards_old_stream_facts_on_seek_and_account_change() {
+    let mut rt = runtime("album:alb0", "restored,inspector");
+    rt.frame(0.);
+    rt.settle_all();
+    let old = rt.state.app.transport.generation;
+    let facts = rt.state.app.transport.information.clone().unwrap();
+    rt.update(|s, _| s.app.apply(super::super::Action::Seek(20.0)));
+    assert!(rt.state.app.transport.information.is_none());
+    rt.state
+        .app
+        .transport
+        .event(crate::navidrome::player::Event::Information {
+            generation: old,
+            info: facts.clone(),
+        });
+    assert!(rt.state.app.transport.information.is_none());
+    let generation = rt.state.app.transport.generation;
+    rt.state
+        .app
+        .transport
+        .event(crate::navidrome::player::Event::Information {
+            generation,
+            info: facts,
+        });
+    assert!(
+        rt.state
+            .inspector
+            .as_ref()
+            .unwrap()
+            .playback(&rt.state.app)
+            .is_some()
+    );
+    rt.update(|s, tx| s.dispatch(Action::SignOut, tx));
+    assert!(rt.state.inspector.is_none());
+}
+
+#[test]
+fn inspector_scrolls_to_device_facts_and_escape_dismisses_without_changing_playback() {
+    for flags in [
+        "restored,inspector",
+        "restored,inspector,light,inspector-mp3",
+    ] {
+        let mut rt = runtime("album:alb0", flags);
+        rt.set_viewport((760., 800.), 1.);
+        rt.frame(0.);
+        rt.settle_all();
+        let generation = rt.state.app.transport.generation;
+        rt.update(|_, tx| tx.scroll_to_bottom_instant("track-details-scroll"));
+        rt.frame(0.);
+        rt.settle_all();
+        let field = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.text.as_deref() == Some("Device output"))
+            .unwrap();
+        assert!(field.rect[1] > 0. && field.rect[1] + field.rect[3] < 800.);
+        rt.key(rune::KeyEvent {
+            key: rune::Key::Escape,
+            mods: Default::default(),
+        });
+        rt.frame(0.);
+        assert!(rt.state.inspector.is_none());
+        assert_eq!(rt.state.app.transport.generation, generation);
+        assert!(rt.state.app.transport.paused);
+    }
+}
