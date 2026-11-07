@@ -28,7 +28,7 @@ local history from this computer, not listening history from other clients.
 On a first visit, Home offers albums and playlists from your library. Failed
 playlist refreshes retain usable cards and offer **Retry**.
 
-Use **Albums** or the sidebar library list, open an album, then **Play** or
+Use **Discover → Albums** or the sidebar library list, open an album, then **Play** or
 double-click a song. The sidebar retains its list/grid switch, filtering,
 sorting and local pins. Its **Recently played** order remembers the last 100
 albums across restarts for the last connected server and account.

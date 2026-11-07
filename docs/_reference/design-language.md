@@ -18,8 +18,17 @@ new pattern. Do not create a second set of components with copied styling.
 
 - Keep the left library sidebar, top navigation/search bar and bottom player
   in their existing positions. Page changes do not replace the player.
-- Use the existing sidebar navigation row for a new destination: Lucide icon,
-  text label, shared hover treatment and keyboard accessibility.
+- The primary sidebar has exactly **Home**, **Playlists**, **Favorites** and
+  **Discover**, in that order. Reuse the existing Lucide icons, navigation row,
+  text, hover treatment and keyboard accessibility. Keep the Library shelf below.
+- Discover opens Albums and groups **Albums**, **Songs**, **Genres** and
+  **Listening stats** in a shared top row of the existing 32-pixel pills, with
+  8-pixel gaps and wrapping at narrow widths. The active pill uses the accent
+  treatment. Keep 20 pixels before the page heading and existing 24-pixel page
+  padding. All four destinations retain the pills; album-order and genre drill
+  downs keep their parent pill active. Album/playlist detail pages stay unchanged.
+  Navigation preserves playback, back/forward history and saved scroll positions.
+  Do not add each discovery feature back to the primary sidebar.
 - The top bar is 56 logical pixels high and the player bar is 88. Respect the
   platform titlebar inset and the user's zoom and sidebar width.
 - Ordinary page content has 24-pixel horizontal padding. Artist pages have a
@@ -45,7 +54,7 @@ inside search results and selection dialogs, not on the playlist browser.
 ## Home
 
 Home uses **Quick return**, option A approved for NAV-33. It is the startup page;
-Albums keeps its own sidebar destination. Preserve the existing sidebar, top bar,
+Albums is reached through Discover. Preserve the existing sidebar, top bar,
 player and paused session restoration.
 
 Use a 28-pixel bold welcome heading with a 14-pixel secondary subtitle. Show up
@@ -67,7 +76,7 @@ current server/account, never a claim about listening in other clients.
 
 ## Listening stats
 
-Use a standard sidebar destination, 28-pixel heading and the existing refresh
+Use the Listening stats pill in Discover, a 28-pixel heading and the existing refresh
 icon. Put source and last completed refresh in muted text, then quiet total-play
 and estimated-time metrics. Top songs, albums and artists use compact 58-pixel
 ranked rows with ordinary hover and keyboard focus. Show three columns when the
@@ -89,7 +98,7 @@ in muted text. Their results do not replace the sidebar's local listening histor
 
 ## Songs and genres
 
-Songs and Genres use standard sidebar destinations and 28-pixel bold headings.
+Songs and Genres use Discover pills and 28-pixel bold headings.
 Genres is a virtual list of the server's exact names with muted song counts and
 the existing hover/chevron treatment. Do not invent artwork or colors for genres.
 Inside a genre, Songs and Albums use the existing pill controls to switch views.

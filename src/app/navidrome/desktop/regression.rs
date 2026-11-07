@@ -240,7 +240,7 @@ fn home_navigation_keeps_restored_playback_and_opens_recent_collections() {
         assert!(rt.state.app.transport.paused);
         assert_eq!(rt.state.app.transport.position, position);
         assert_eq!(rt.state.app.transport.queue.current().unwrap().id, current);
-        click_label(&mut rt, "Albums", 0);
+        click_label(&mut rt, "Discover", 0);
         assert_eq!(rt.state.app.presentation.page(), &Page::Albums);
     }
 }
@@ -629,18 +629,14 @@ fn playlist_browser_reuses_album_card_geometry_and_virtualizes_large_grids() {
                     .unwrap()
                     .rect
             };
-            assert_eq!(
-                rect(&albums, "album-alb0"),
-                rect(&playlists, "playlist-list0")
-            );
-            assert_eq!(
-                rect(&albums, "album-alb1"),
-                rect(&playlists, "playlist-list1")
-            );
-            assert_eq!(
-                rect(&albums, "album-alb2"),
-                rect(&playlists, "playlist-list2")
-            );
+            // Discover adds only its pill row above Albums. Card size, column
+            // placement and row spacing must still match the playlist grid.
+            let navigation_height = rect(&albums, "discover-tabs")[3];
+            for index in 0..3 {
+                let mut album = rect(&albums, &format!("album-alb{index}"));
+                album[1] -= navigation_height;
+                assert_eq!(album, rect(&playlists, &format!("playlist-list{index}")));
+            }
             assert!(
                 playlists
                     .elements()
@@ -1281,6 +1277,101 @@ fn autoplay_controls_clear_suggestions_and_cancel_pending_reads_in_both_layouts(
             rt.frame(0.);
             assert!(!rt.state.app.autoplay.loading());
             assert!(rt.state.app.transport.paused);
+        }
+    }
+}
+
+#[test]
+fn discover_groups_navigation_without_interrupting_playback_or_back_history() {
+    for theme in ["restored", "restored,light"] {
+        for width in [1280., 760.] {
+            let mut rt = runtime("home", theme);
+            rt.set_viewport((width, 800.), 2.);
+            rt.frame(0.);
+            rt.settle_all();
+            let current = rt.state.app.transport.queue.current().unwrap().id;
+            let position = rt.state.app.transport.position;
+            let nav: Vec<_> = rt
+                .elements()
+                .iter()
+                .filter_map(|e| e.key.as_deref())
+                .filter(|k| k.starts_with("nav-"))
+                .map(str::to_owned)
+                .collect();
+            assert_eq!(
+                nav,
+                ["nav-Home", "nav-Playlists", "nav-Favorites", "nav-Discover"]
+            );
+            assert!(
+                !rt.elements()
+                    .iter()
+                    .any(|e| e.key.as_deref() == Some("discover-tabs"))
+            );
+            assert!(rt.accessibility_action("nav-Discover", rune::accesskit::Action::Click, None));
+            rt.frame(0.);
+            rt.settle_all();
+            assert_eq!(rt.state.app.presentation.page(), &Page::Albums);
+            for (title, target) in [
+                ("Songs", Page::Songs),
+                ("Genres", Page::Genres),
+                ("Listening stats", Page::Stats),
+                ("Albums", Page::Albums),
+            ] {
+                for title in ["Albums", "Songs", "Genres", "Listening stats"] {
+                    let key = format!("discover-{title}");
+                    let rect = rt
+                        .elements()
+                        .iter()
+                        .find(|e| e.key.as_deref() == Some(&key))
+                        .unwrap()
+                        .rect;
+                    assert!(
+                        rect[0] >= 0. && rect[0] + rect[2] <= width + 1.,
+                        "{title}: {rect:?}"
+                    );
+                }
+                assert!(rt.accessibility_action(
+                    &format!("discover-{title}"),
+                    rune::accesskit::Action::Click,
+                    None
+                ));
+                rt.frame(0.);
+                rt.settle_all();
+                assert_eq!(rt.state.app.presentation.page(), &target);
+                assert_eq!(rt.state.app.transport.queue.current().unwrap().id, current);
+                assert_eq!(rt.state.app.transport.position, position);
+                assert!(rt.state.app.transport.paused);
+            }
+            assert!(rt.accessibility_action(
+                "discover-Songs",
+                rune::accesskit::Action::Click,
+                None
+            ));
+            rt.frame(0.);
+            rt.update(|_, tx| tx.scroll_to_y("page", 400.));
+            rt.frame(0.);
+            rt.settle_all();
+            let offset = rt.state.offsets[&Page::Songs].get();
+            rt.update(|s, tx| s.dispatch(Action::Open(Page::Genres), tx));
+            rt.frame(0.);
+            rt.update(|s, tx| s.dispatch(Action::Back, tx));
+            rt.frame(0.);
+            rt.settle_all();
+            assert_eq!(rt.state.app.presentation.page(), &Page::Songs);
+            assert!((rt.state.offsets[&Page::Songs].get() - offset).abs() < 2.);
+            assert_eq!(
+                Page::Genre("Jazz".into()).discover_root(),
+                Some(Page::Genres)
+            );
+            assert_eq!(
+                Page::GenreAlbums("Jazz".into()).discover_root(),
+                Some(Page::Genres)
+            );
+            assert_eq!(
+                Page::AlbumList(crate::navidrome::albums::Order::Random).discover_root(),
+                Some(Page::Albums)
+            );
+            assert!(Page::Album("alb0".into()).discover_root().is_none());
         }
     }
 }

@@ -17,15 +17,17 @@ The current build supports:
 - Browsing recently added or alphabetically sorted albums, with pagination,
   artwork and album track lists. Recently viewed covers stay visible when
   scrolling back, with full images restored from a bounded session cache.
+- The primary menu is **Home**, **Playlists**, **Favorites**, and **Discover**.
+  Discover groups Albums, Songs, Genres, and Listening stats as top pills.
 - Choosing **Year range**, **Frequently played**, **Recently played on server**
   or **Random selection** from the Albums order menu. Year bounds are inclusive.
   Server history belongs to this account and stays separate from local sidebar
   history. Random offers up to 60 albums and stays fixed until Refresh or sign-out.
-- Opening **Listening stats** for account-wide plays, estimated listening time,
+- Opening **Discover → Listening stats** for account-wide plays, estimated listening time,
   and the ten most-played songs, albums and artists. Refresh scans the library
   on demand; missing server counts and incomplete metadata are labeled. Song
   entries open their album and select the track without starting playback.
-- Browsing **Songs** and **Genres** from the sidebar. Songs requires the server's
+- Browsing **Songs** and **Genres** from Discover. Songs requires the server's
   OpenSubsonic declaration; genres offer separate song and album views, including
   tracks on compilations. Pages load as you scroll, with retry and end-of-list
   feedback. Playing a row uses the currently loaded songs in their displayed

@@ -90,8 +90,12 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
         .pb(48.)
         .scroll(ScrollSpec {
             stick_bottom: false,
-        })
-        .child(content);
+        });
+    if page.discover_root().is_some() {
+        scroller = scroller.child(discover_tabs(v).pb(20.));
+    }
+    // Rune requires virtual lists to be direct children of their scroll viewport.
+    scroller = scroller.child(content);
     let scroll_enabled =
         crate::autoscroll::enabled(s.app.presentation.settings.middle_click_autoscroll);
     scroller = autoscroll::pane(scroller, Pane::Page, scroll_enabled);
@@ -651,6 +655,27 @@ fn sort_menu(v: &Paint<'_>) -> El {
     }
     menu
 }
+fn discover_tabs(v: &Paint<'_>) -> El {
+    let active = v.s.app.presentation.page().discover_root();
+    let mut tabs = row().key("discover-tabs").w_full().gap(8.).flex_wrap();
+    for (title, target) in [
+        (mark("Albums"), Page::Albums),
+        (mark("Songs"), Page::Songs),
+        (mark("Genres"), Page::Genres),
+        (mark("Listening stats"), Page::Stats),
+    ] {
+        let selected = active.as_ref() == Some(&target);
+        tabs = tabs.child(
+            v.button(&v.tr(title), selected, move |s, tx| {
+                s.dispatch(Action::Open(target.clone()), tx);
+            })
+            .key(format!("discover-{title}"))
+            .checked(selected),
+        );
+    }
+    tabs
+}
+
 fn sidebar(v: &Paint<'_>, width: f32) -> El {
     let app = &v.s.app;
     let mut side = col()
@@ -662,26 +687,20 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
         .pt(12. + v.s.titlebar_inset());
     for (name, icon, page) in [
         (mark("Home"), Icon::House, Page::Home),
-        (mark("Albums"), Icon::Disc, Page::Albums),
-        (mark("Songs"), Icon::Music, Page::Songs),
-        (mark("Genres"), Icon::LayoutGrid, Page::Genres),
-        (mark("Favorites"), Icon::Star, Page::LikedSongs),
         (mark("Playlists"), Icon::ListMusic, Page::Playlists),
-        (mark("Listening stats"), Icon::Clock, Page::Stats),
+        (mark("Favorites"), Icon::Star, Page::LikedSongs),
+        (mark("Discover"), Icon::LayoutGrid, Page::Albums),
     ] {
-        let ink = if &page == app.presentation.page()
-            || page == Page::Albums && matches!(app.presentation.page(), Page::AlbumList(_))
-            || page == Page::Genres
-                && matches!(
-                    app.presentation.page(),
-                    Page::Genre(_) | Page::GenreAlbums(_)
-                ) {
-            v.p.text
-        } else {
-            v.p.secondary
-        };
+        let current = app.presentation.page();
+        let active = &page == current
+            || page == Page::Albums && current.discover_root().is_some()
+            || page == Page::LikedSongs && current.is_favorites()
+            || page == Page::Playlists && matches!(current, Page::Playlist(_));
+        let ink = if active { v.p.text } else { v.p.secondary };
         side = side.child(
             row()
+                .key(format!("nav-{name}"))
+                .checked(active)
                 .h(46.)
                 .px(12.)
                 .gap(16.)

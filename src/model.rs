@@ -22,6 +22,17 @@ pub enum Page {
 }
 
 impl Page {
+    /// Discover groups existing routes without replacing their history or caches.
+    pub fn discover_root(&self) -> Option<Self> {
+        match self {
+            Self::Albums | Self::AlbumList(_) => Some(Self::Albums),
+            Self::Songs => Some(Self::Songs),
+            Self::Genres | Self::Genre(_) | Self::GenreAlbums(_) => Some(Self::Genres),
+            Self::Stats => Some(Self::Stats),
+            _ => None,
+        }
+    }
+
     pub fn is_browse(&self) -> bool {
         matches!(
             self,
