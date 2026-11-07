@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::{
     Arc, Condvar, Mutex,
-    atomic::{AtomicU64, Ordering},
+    atomic::{AtomicU8, AtomicU64, Ordering},
 };
 use std::time::Duration;
 
@@ -26,6 +26,7 @@ pub struct HttpSource {
     ahead: Arc<ReadAhead>,
     current: Arc<AtomicU64>,
     generation: u64,
+    guard: Option<Arc<AtomicU8>>,
 }
 
 #[derive(Default)]
@@ -44,12 +45,25 @@ struct DownloadState {
 }
 
 impl HttpSource {
+    #[cfg(test)]
     pub fn open(
         client: Client,
         http: reqwest::blocking::Client,
         id: String,
         current: Arc<AtomicU64>,
         generation: u64,
+    ) -> io::Result<Self> {
+        Self::open_guarded(client, http, id, current, generation, None)
+    }
+
+    /// A prepared occurrence can be invalidated without stopping the current one.
+    pub(crate) fn open_guarded(
+        client: Client,
+        http: reqwest::blocking::Client,
+        id: String,
+        current: Arc<AtomicU64>,
+        generation: u64,
+        guard: Option<Arc<AtomicU8>>,
     ) -> io::Result<Self> {
         let mut download = Download {
             client,
@@ -58,6 +72,7 @@ impl HttpSource {
             length: u64::MAX,
             current: current.clone(),
             generation,
+            guard: guard.clone(),
         };
         let bytes = download.fetch(0)?;
         let length = download.length;
@@ -81,11 +96,12 @@ impl HttpSource {
             ahead,
             current,
             generation,
+            guard,
         })
     }
 
     fn check(&self) -> io::Result<()> {
-        check_generation(&self.current, self.generation)
+        check_generation(&self.current, self.generation, self.guard.as_deref())
     }
 
     fn fetch(&mut self) -> io::Result<()> {
@@ -134,8 +150,14 @@ impl Drop for HttpSource {
     }
 }
 
-fn check_generation(current: &AtomicU64, generation: u64) -> io::Result<()> {
-    if current.load(Ordering::Acquire) != generation {
+fn check_generation(
+    current: &AtomicU64,
+    generation: u64,
+    guard: Option<&AtomicU8>,
+) -> io::Result<()> {
+    if current.load(Ordering::Acquire) != generation
+        || guard.is_some_and(|g| g.load(Ordering::Acquire) == 0)
+    {
         Err(io::Error::new(
             io::ErrorKind::Interrupted,
             "Playback was replaced.",
@@ -152,6 +174,7 @@ struct Download {
     length: u64,
     current: Arc<AtomicU64>,
     generation: u64,
+    guard: Option<Arc<AtomicU8>>,
 }
 
 impl Download {
@@ -195,7 +218,7 @@ impl Download {
     }
 
     fn check(&self) -> io::Result<()> {
-        check_generation(&self.current, self.generation)
+        check_generation(&self.current, self.generation, self.guard.as_deref())
     }
 
     fn fetch(&mut self, position: u64) -> io::Result<Vec<u8>> {
@@ -345,6 +368,7 @@ mod tests {
             ahead: Arc::new(ReadAhead::default()),
             current: current.clone(),
             generation: 1,
+            guard: None,
         };
         source.seek(SeekFrom::End(-3)).unwrap();
         let mut tail = Vec::new();
@@ -356,6 +380,24 @@ mod tests {
             source.read(&mut [0; 1]).unwrap_err().kind(),
             io::ErrorKind::Interrupted
         );
+    }
+    #[test]
+    fn prepared_read_cancellation_is_independent_of_playing_chain() {
+        let current = AtomicU64::new(9);
+        let prepared = AtomicU8::new(1);
+        assert!(check_generation(&current, 9, Some(&prepared)).is_ok());
+        prepared.store(0, Ordering::Release);
+        assert_eq!(
+            check_generation(&current, 9, Some(&prepared))
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::Interrupted
+        );
+        assert!(check_generation(&current, 9, None).is_ok());
+        prepared.store(2, Ordering::Release);
+        assert!(check_generation(&current, 9, Some(&prepared)).is_ok());
+        current.store(10, Ordering::Release);
+        assert!(check_generation(&current, 9, Some(&prepared)).is_err());
     }
     use crate::navidrome::test_server::{Server, response};
     use std::sync::mpsc;

@@ -10,6 +10,7 @@ pub mod autoplay;
 pub mod browse;
 pub mod desktop;
 pub mod favorites;
+mod gapless;
 pub mod home;
 mod host;
 pub mod lyrics;
@@ -133,7 +134,7 @@ impl Transport {
         self.paused = paused;
         self.loading = true;
         self.error = None;
-        self.generation = self.generation.wrapping_add(1);
+        self.generation = player::next_generation();
         Some(song)
     }
     fn event(&mut self, event: player::Event) -> bool {
@@ -202,6 +203,7 @@ pub struct App {
     pub autoplay: autoplay::State,
     pub ratings: ratings::State,
     pub scrobbles: scrobble::State,
+    gapless: gapless::State,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
@@ -332,6 +334,7 @@ impl App {
             autoplay: Default::default(),
             ratings: Default::default(),
             scrobbles: Default::default(),
+            gapless: Default::default(),
             transport: Transport {
                 paused: true,
                 ..Default::default()
@@ -441,7 +444,7 @@ impl App {
                 self.albums.clear();
                 self.album = None;
                 self.requested_covers.clear();
-                let generation = self.transport.generation.wrapping_add(1);
+                let generation = player::next_generation();
                 self.playing_album = None;
                 self.playing_playlist = None;
                 self.transport = Transport {
@@ -618,6 +621,7 @@ impl App {
                 }
             }
         }
+        self.prepare_next();
     }
 
     pub(crate) fn mark_dirty(&mut self) {
@@ -669,7 +673,7 @@ impl App {
             self.player.send(player::Command::Stop);
             self.transport = Transport {
                 paused: true,
-                generation: self.transport.generation.wrapping_add(1),
+                generation: player::next_generation(),
                 ..Default::default()
             };
             self.playing_album = None;
@@ -735,6 +739,7 @@ impl App {
     }
 
     fn load(&mut self, position: f64, paused: bool) {
+        self.cancel_preparation();
         self.autoplay.waiting = false;
         if !paused {
             self.remember_home_artists();
@@ -922,6 +927,16 @@ impl App {
             }
         }
         while let Ok(event) = self.player_events.try_recv() {
+            if let player::Event::Transition {
+                from,
+                generation,
+                occurrence,
+                listening,
+            } = event
+            {
+                changed |= self.gapless_transition(from, generation, occurrence, listening);
+                continue;
+            }
             if let player::Event::Scrobble { context, report } = event {
                 self.listening_report(context, report);
                 continue;
@@ -972,6 +987,7 @@ impl App {
         self.poll_playlists(host);
         changed |= self.poll_controls(host);
         changed |= self.poll_autoplay();
+        self.prepare_next();
         self.checkpoint_session(false);
         self.sync_media();
         changed

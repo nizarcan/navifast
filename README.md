@@ -93,10 +93,15 @@ currently uses English.
 Audio is decoded with Symphonia and converted to stereo 44.1 kHz for the
 existing DSP. MP3, FLAC, WAV, AAC/ALAC, AIFF and Vorbis codecs are enabled;
 individual container/codec combinations still need broader real-library testing.
-Multichannel conversion, gapless playback and bit-perfect output are not
-claimed. Original streaming requires a server/proxy that honors HTTP byte
+Queued tracks share a continuous output source with bounded preparation of the
+next occurrence. Gapless software output is regression-tested with 44.1 kHz WAV,
+FLAC and MP3 files carrying LAME delay/padding metadata, including conversion to
+48 kHz stereo output. Other source rates, codec/container combinations and physical
+device loopback are not certified. See the [validation fixtures](tests/fixtures/gapless/README.md).
+Multichannel conversion and bit-perfect output are not claimed. Original streaming requires a server/proxy that honors HTTP byte
 ranges. There is no whole-file download fallback or offline cache.
-Streaming downloads up to 4 MiB ahead in memory and prepares a 200 ms audio
+Streaming downloads up to 4 MiB ahead per occurrence, with at most the playing
+and next occurrence active, and prepares a 200 ms audio
 reserve before starting or recovering from an interruption. This cushions brief
 network delays, including with high-resolution originals. Prolonged stalls or
 a connection slower than the original file's bitrate can still pause playback.

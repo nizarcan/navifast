@@ -149,22 +149,34 @@ Credential-store operations run on a dedicated worker; a locked store
 does not delay playback or shutdown. Sign-out revokes restoration before
 deleting the secret. Demo mode never restores or saves a login.
 
-`navidrome::player` owns local transport. Output and decoding have separate
-workers. A download worker reads original audio using 256 KiB HTTP byte ranges
-and queues up to 4 MiB ahead independently of decoding. Including the current
-block and an in-flight request, audio input holds at most 4.5 MiB. Downloads stop
-at that bound even when playback is paused; audio is not cached to disk.
-The decoder
-converts mono/stereo input to stereo 44.1 kHz, then uses the existing EQ and
-limiter. It emits 20 ms PCM blocks into a 500 ms channel. Output gathers a 200 ms
-reserve at startup and after an underrun, so high sample rates or small codec
-packets do not shrink the playback buffer. A short end-of-file tail drains
-without filling the reserve. Buffering silence does not advance the position.
-Consumed PCM feeds the visualization tap before output volume; preparing the
-reserve does not advance the visualizer. Generation checks discard stale
-selections and canceled reads; seeks also retire queued and in-flight byte
-ranges from the old position. Cancellation wakes a waiting decoder without
-waiting for the HTTP request's deadline.
+`navidrome::player` owns local transport. Two fixed decoder workers serve the
+playing occurrence and one prepared successor. Each original-audio download uses
+256 KiB HTTP byte ranges with at most 4 MiB queued ahead, plus the current block
+and one in-flight request (4.5 MiB per occurrence). Preparation is bounded to one
+resolved next occurrence; it never skips a pending album. No audio is cached to disk.
+
+Decoders produce stereo 44.1 kHz PCM in 20 ms blocks, through a 500 ms channel per
+occurrence. One continuous device source gathers a 200 ms reserve at startup or
+after starvation and applies EQ and limiting across track boundaries. Limiter
+lookahead is removed once at startup and drained once at the end. Metadata and
+listening counters follow the valid samples through that delay. The visualizer
+taps consumed, shaped audio before output volume. Preparing audio does not move
+its clock or picture. A short EOF tail drains below the normal reserve.
+
+The next track becomes current when its first valid sample reaches the output
+source. Repeat One reserves a distinct listening occurrence. Queue edits and
+pauses cancel prepared audio atomically; seek, skip and sign-out cancel the whole
+chain. A new generation cannot reuse a reserved handoff token. Failed preparation
+finishes the current tail before reporting an error for the next track. Late
+preparation emits ordinary buffering silence without counting it or repeating
+samples. Network cancellation interrupts decoder waits without waiting for an
+in-flight HTTP request's deadline.
+
+Gapless regression coverage uses synthetic 44.1 kHz WAV, FLAC and LAME-tagged MP3
+references, plus rodio's 48 kHz stereo output conversion on macOS. Other source
+rates, codec/container combinations and physical device loopback are not certified.
+Symphonia's gapless option honors delay/padding in supported codec/container
+pairs; enabling a decoder alone does not certify gapless support.
 
 See [Privacy](/privacy/) for endpoints and storage and
 [Getting started](/getting-started/) for user-facing limitations.

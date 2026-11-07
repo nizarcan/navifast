@@ -41,6 +41,18 @@ impl State {
             enabled,
         }
     }
+    pub fn reserve(&mut self, session: u64, enabled: bool) -> Context {
+        self.next_play = self.next_play.wrapping_add(1);
+        Context {
+            session,
+            epoch: self.epoch,
+            occurrence: self.next_play,
+            enabled,
+        }
+    }
+    pub fn activate(&mut self, occurrence: u64, context: Context) {
+        self.play = Some((occurrence, context.occurrence));
+    }
     pub fn new_play(&mut self) {
         self.play = None;
     }
@@ -55,6 +67,7 @@ impl App {
     pub(super) fn scrobble_action(&mut self, action: Action) {
         match action {
             Action::Enabled(enabled) => {
+                self.cancel_preparation();
                 self.presentation.settings.scrobbling = enabled;
                 self.scrobbles.epoch = self.scrobbles.epoch.wrapping_add(1);
                 self.scrobbles.failures.clear();

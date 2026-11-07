@@ -18,6 +18,20 @@ remaining collection. An album is added in disc/track order, including duplicate
 Starting a different collection keeps manual additions and replaces the collection
 remainder. Playlist playback keeps its displayed sort order.
 
+## Continuous handoff
+
+The player prepares at most the next resolved occurrence, without changing the
+shown queue. Natural handoff advances the current track, position, visualization
+and listening occurrence at the output sample boundary. Repeat One gets a new
+listening occurrence while retaining the same queue entry. An unresolved album
+still holds its position; preparation never jumps over it.
+
+Pause and queue edits invalidate prepared audio. Seek, explicit Next, a new
+selection and sign-out invalidate the entire old output chain. A cancelled
+candidate cannot pop a newly edited queue head. If preparation is late, normal
+buffering holds the clock; if it fails, the current tail finishes before the next
+track shows its error. No overlapping or repeated samples conceal a delay.
+
 ## Editing
 
 Open **Queue** in the player. It appears beside browsing at normal widths and in

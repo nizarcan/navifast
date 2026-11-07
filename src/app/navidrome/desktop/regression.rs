@@ -1001,7 +1001,7 @@ fn timed_lyrics_seek_once_keep_pause_and_manual_scroll_stops_following() {
         rt.frame(0.);
         rt.settle_all();
         assert_eq!(rt.state.app.transport.position, 80.0);
-        assert_eq!(rt.state.app.transport.generation, generation + 1);
+        assert_ne!(rt.state.app.transport.generation, generation);
         assert_eq!(rt.state.app.transport.paused, paused);
         for _ in 0..2 {
             rt.update(|s, tx| {

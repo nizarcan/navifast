@@ -100,8 +100,10 @@ Upstream Spotify profiles and credentials are not migrated.
 Artwork is bounded in memory. Recently viewed covers retain downloaded bytes
 and small previews for local restoration when scrolling back; they are cleared
 on sign-out and are not written to disk. Stream input downloads up to 4 MiB ahead in
-256 KiB byte ranges, plus the current block and one in-flight request. Pausing
-allows that bounded reserve to fill; stopping or signing out cancels further
+256 KiB byte ranges per occurrence, plus the current block and one in-flight
+request. At most the playing occurrence and one queued successor are downloaded.
+Pausing cancels the prepared successor while allowing the playing track's bounded
+reserve to fill. Queue edits cancel obsolete preparation; stopping or signing out cancels further
 downloads and discards buffered audio. An in-flight request retains its existing
 15-second deadline.
 There is no offline audio cache. The local log records startup diagnostics,

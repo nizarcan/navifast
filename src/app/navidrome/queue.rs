@@ -149,7 +149,7 @@ impl App {
                 self.transport.loading = true;
                 self.transport.paused = paused;
                 self.transport.error = None;
-                self.transport.generation = self.transport.generation.wrapping_add(1);
+                self.transport.generation = player::next_generation();
                 self.player.send(player::Command::Stop);
                 self.tap.clear();
             }

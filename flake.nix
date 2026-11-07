@@ -119,7 +119,7 @@
                 pname = "navifast";
                 version = (pkgs.lib.importTOML ./Cargo.toml).package.version;
                 src = self;
-                hash = "sha256-vneICBrXzm+5dM3uBNuI5cQWIwRKq1kLcHURCfqoqr0=";
+                hash = "sha256-9vHKUiMMgBc3nhKZt3oXDtKw6DDMf9Kk1u+qrbuaYvk=";
               };
               nativeBuildInputs =
                 with pkgs;

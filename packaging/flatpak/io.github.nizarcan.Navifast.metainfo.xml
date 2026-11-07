@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.22" date="2026-11-07" type="development">
+      <description><p>Prepare queued tracks for continuous playback with precise track boundaries.</p></description>
+    </release>
     <release version="0.1.0-rc.21" date="2026-11-07" type="development">
       <description><p>Simplify navigation with Home, Playlists, Favorites and Discover.</p></description>
     </release>

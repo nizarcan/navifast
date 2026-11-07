@@ -39,6 +39,7 @@ impl App {
 
     /// A new playback/queue intent wins even while its own metadata is loading.
     pub(super) fn edit_session(&mut self) {
+        self.cancel_preparation();
         if self.listening_session.restoring {
             self.backend.send(Request::CancelSessionRestore);
         }
@@ -84,7 +85,7 @@ impl App {
         self.listening_session.restoring = false;
         match result {
             Ok(Some(saved)) => {
-                let generation = self.transport.generation.wrapping_add(1);
+                let generation = crate::navidrome::player::next_generation();
                 self.transport = Transport {
                     queue: saved.queue,
                     repeat: saved.repeat,
