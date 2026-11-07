@@ -2,6 +2,7 @@
 mod artwork;
 pub(crate) mod autoscroll;
 mod lyrics;
+pub(crate) mod lyrics_share;
 mod placement;
 #[cfg(all(test, feature = "navidrome-demo"))]
 mod regression;
@@ -114,6 +115,7 @@ pub(crate) struct State {
     pub(crate) favorite_menu: Option<ItemMenu>,
     pub(crate) menu: Option<&'static str>,
     pub(crate) lyrics_view: lyrics::View,
+    pub(crate) lyrics_share: lyrics_share::Share,
     pub(crate) queue_open: bool,
     pub(crate) queue_compact: Cell<bool>,
     pub(crate) queue_selected: Option<crate::navidrome::queue::Id>,
@@ -294,6 +296,7 @@ impl State {
             favorite_menu: None,
             menu: None,
             lyrics_view: Default::default(),
+            lyrics_share: Default::default(),
             queue_open: launch.demo && flags.iter().any(|flag| flag.starts_with("queue")),
             queue_compact: Cell::new(false),
             queue_selected: None,
@@ -330,6 +333,10 @@ impl State {
                         .toast_error("The album could not be loaded. Try adding it again.");
                 }
             }
+        }
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo {
+            state.populate_lyric_share_demo(&flags);
         }
         state.sync_tracks();
         state
@@ -461,6 +468,7 @@ impl State {
         if session != self.app.session {
             self.queue_open = false;
             self.lyrics_view = Default::default();
+            self.cancel_lyric_selection();
             self.queue_selected = None;
             self.queue_offset.set(0.);
             self.window.covers.replace(Default::default());
@@ -590,6 +598,7 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     }
     // Lyric highlighting does not change browsing rows or their sort order.
     changed |= s.poll_lyrics_view(tx);
+    changed |= s.poll_lyric_share();
     let (retry, deadline) = s
         .window
         .covers

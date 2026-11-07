@@ -15,6 +15,7 @@ pub(crate) mod artist;
 mod backdrop;
 mod library;
 mod lyrics;
+pub(crate) mod lyrics_card;
 mod playlists;
 mod preferences;
 mod queue;
@@ -492,6 +493,18 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
     }
     if !s.app.connected {
         return false;
+    }
+    if s.lyrics_share.draft.is_some() && k.key == Key::Escape {
+        if s.lyrics_share
+            .draft
+            .as_ref()
+            .is_some_and(|d| d.preview_open)
+        {
+            s.edit_lyric_selection();
+        } else {
+            s.cancel_lyric_selection();
+        }
+        return true;
     }
     let editing = matches!(
         tx.focused(),

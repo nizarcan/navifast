@@ -182,6 +182,7 @@ icons! {
     StarFilled => "star-filled",
     House => "house",
     Info => "info",
+    Image => "image",
     Library => "library",
     LayoutGrid => "layout-grid",
     ListMusic => "list-music",

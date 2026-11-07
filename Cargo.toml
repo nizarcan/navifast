@@ -1,7 +1,7 @@
 [package]
 name = "navifast"
 default-run = "navifast"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 edition = "2024"
 rust-version = "1.98"
 license = "MIT"
@@ -25,7 +25,8 @@ path = "src/main.rs"
 
 [dependencies]
 # Native window, renderer and accessible controls for the Navidrome presentation.
-rune = { git = "https://github.com/anomalyco/rune", rev = "7ead7d63fcf6f9dd9669385a8b90e2ae80015d7b", default-features = false, features = ["accessibility", "metal-backend", "dbus", "svg"] }
+# Rune's native file chooser provides local PNG export on all three platforms.
+rune = { git = "https://github.com/anomalyco/rune", rev = "7ead7d63fcf6f9dd9669385a8b90e2ae80015d7b", default-features = false, features = ["accessibility", "metal-backend", "dbus", "svg", "native-file-dialog"] }
 # Use Rune's existing GPU device for the dithered native backdrop.
 wgpu = { version = "~30.0.1", default-features = false, features = ["wgsl"] }
 anyhow = "1"

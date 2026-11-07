@@ -340,6 +340,13 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             crate::model::Dialog::DeletePlaylist => playlists::confirm_delete(v),
         });
     }
+    if s.lyrics_share
+        .draft
+        .as_ref()
+        .is_some_and(|d| d.preview_open)
+    {
+        shell = shell.child(lyrics_card::preview(v));
+    }
     autoscroll::shell(shell, s, v.zoom)
 }
 fn collection_queue_items(v: &Paint<'_>, mut menu: El, key: Option<String>) -> El {

@@ -41,6 +41,14 @@ are refused. No provider lookup runs for a server hit or server error. Disabling
 the setting cancels pending lookups and removes external lyrics immediately.
 Provider lyrics remain in memory only and are never uploaded or published by Navifast.
 
+Creating a lyric image holds the selected song's lyric document and cached cover
+in memory while you edit. Rendering uses the native text layout and makes no
+network requests. Copy writes the PNG to the system clipboard and reads it back
+to check that the copy succeeded. Save writes a PNG only to the path you choose.
+An already-open draft stays intact if playback changes or lyric lookup is disabled.
+Closing the selection or signing out discards the draft. Exported files and copied
+images remain under your control.
+
 It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.
 

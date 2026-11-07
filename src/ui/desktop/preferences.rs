@@ -28,7 +28,12 @@ fn section(v: &Paint<'_>, title: &str, rows: Vec<El>) -> El {
         .child(panel(v).children(rows))
 }
 
-fn switch(v: &Paint<'_>, name: &str, checked: bool, change: impl Fn(&mut State) + 'static) -> El {
+pub(super) fn switch(
+    v: &Paint<'_>,
+    name: &str,
+    checked: bool,
+    change: impl Fn(&mut State) + 'static,
+) -> El {
     el().size(40., 22.)
         .radius(11.)
         .role("switch")

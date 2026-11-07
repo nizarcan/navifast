@@ -141,4 +141,17 @@ Disable the provider through the same Settings switch. A mismatched recording is
 line-timed lyrics highlight the line, and genuine word timestamps highlight only
 the active words, including wrapped and mixed-direction text.
 
+Choose **Create lyric image** beside the Lyrics heading to select a passage.
+Select lines in any order; **Preview** puts them in song order with the title,
+artist and optional cached cover. Choose the current theme, a dark background or
+a light background. **Edit lines** returns to the selection. Playback can continue
+without changing the passage being edited.
+
+**Copy image** uses the native clipboard. **Save image** opens the native file
+chooser and writes a local PNG. Both use exactly the image shown in the preview;
+canceling the chooser keeps the selection. Export makes no network requests.
+The image is 1200 pixels wide and grows to fit the passage, up to 4096 pixels tall.
+Select up to 32 lines (16 KiB of text). If they cannot fit legibly, choose fewer
+or shorter lines; text is never clipped or reduced to fit.
+
 Scrobbling, transcoding and tray operation are still pending.

@@ -22,12 +22,35 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
             .key("lyrics-heading")
             .grow(1.),
     );
-    if !v.s.lyrics_view.following.get()
+    if v.s.lyrics_share.draft.is_none()
+        && !v.s.lyrics_view.following.get()
         && matches!(&v.s.app.lyrics.data, Loadable::Loaded(Outcome::Found(lyrics)) if lyrics.timed)
     {
         header = header.child(
             v.button(&v.tr(mark("Follow")), false, |s, tx| s.follow_lyrics(tx))
                 .key("lyrics-follow"),
+        );
+    }
+    if v.s.lyrics_share.draft.is_none()
+        && matches!(&v.s.app.lyrics.data, Loadable::Loaded(Outcome::Found(_)))
+    {
+        let palette = v.p;
+        header = header.child(
+            v.icon_button(
+                &v.tr(mark("Create lyric image")),
+                Icon::Image,
+                18.,
+                move |s, tx| {
+                    s.select_lyrics(palette);
+                    if let Some(index) = s.lyric_active() {
+                        tx.scroll_center_in_instant(
+                            "lyric-selection",
+                            format!("share-line-{index}"),
+                        );
+                    }
+                },
+            )
+            .key("lyrics-image"),
         );
     }
     header = header.child(
@@ -44,6 +67,9 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
             .mb(10.)
             .a11y_hidden(),
     );
+    if v.s.lyrics_share.draft.is_some() {
+        return body.child(lyrics_card::selection(v));
+    }
     if v.s.app.transport.song().is_none() {
         return body.child(v.empty(
             Icon::Mic,
@@ -93,15 +119,22 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                 );
             }
             let (p, scale, zoom, width, height) = (v.p, v.scale, v.zoom, v.width, v.height);
+            let count = lyrics.lines.len();
             let rows = col()
                 .key("lyrics-lines")
                 .w_full()
                 .py(16.)
                 .growth(rune::GrowthSpec::default())
                 .virtual_rows(
-                    lyrics.lines.len(),
+                    count + 1,
                     42.,
-                    |_: &State, i| format!("lyric-{i}").into(),
+                    move |_: &State, i| {
+                        if i == count {
+                            "lyrics-source".into()
+                        } else {
+                            format!("lyric-{i}").into()
+                        }
+                    },
                     move |s: &State, i| {
                         let v = Paint {
                             s,
@@ -111,7 +144,7 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                             width,
                             height,
                         };
-                        line(&v, i)
+                        if i == count { source(&v) } else { line(&v, i) }
                     },
                 )
                 .virtual_rows_version(v.s.app.lyrics.song.as_deref());
@@ -141,24 +174,27 @@ pub(super) fn panel(v: &Paint<'_>, wide: bool) -> El {
                     true
                 })
                 .on_scroll_offset(v.s.lyrics_scroll_observer())
-                .child(rows)
-                .child(
-                    label(
-                        v.tr(match v.s.app.lyrics.source {
-                            Source::Server => mark("Lyrics from Navidrome"),
-                            Source::Lrclib => mark("Lyrics from LRCLIB"),
-                        }),
-                        11.,
-                        400.,
-                        v.p.dim,
-                    )
-                    .key("lyrics-source")
-                    .wrap()
-                    .pb(12.),
-                );
+                .child(rows);
             body.child(scroller)
         }
     }
+}
+
+fn source(v: &Paint<'_>) -> El {
+    // Keep the footer in the virtual stack, so wrapped rows can grow without overlapping it.
+    label(
+        v.tr(match v.s.app.lyrics.source {
+            Source::Server => mark("Lyrics from Navidrome"),
+            Source::Lrclib => mark("Lyrics from LRCLIB"),
+        }),
+        11.,
+        400.,
+        v.p.dim,
+    )
+    .key("lyrics-source")
+    .wrap()
+    .pt(12.)
+    .pb(12.)
 }
 
 fn line(v: &Paint<'_>, index: usize) -> El {

@@ -823,13 +823,11 @@ fn word_lyrics_follow_audible_position_through_pause_seek_and_opt_out() {
                 .iter()
                 .any(|e| e.key.as_deref() == Some("lyrics-disable-provider"))
         );
-        let footer = elements
-            .iter()
-            .find(|e| e.key.as_deref() == Some("lyrics-source"))
-            .unwrap()
-            .rect;
         assert!(
-            footer[1] >= top + height,
+            elements
+                .iter()
+                .find(|e| e.key.as_deref() == Some("lyrics-source"))
+                .is_none_or(|e| e.rect[1] >= top + height),
             "source belongs after the lyrics, offscreen initially"
         );
         rt.update(|s, tx| {

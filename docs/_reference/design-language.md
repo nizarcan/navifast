@@ -168,3 +168,18 @@ visible at the end of the lyrics rather than beside the heading. Keep provider
 controls in Settings; the lyrics panel has no provider-disable button.
 Use the existing Settings section and switch components for provider opt-in, with
 the provider's destination and metadata disclosure visible before enabling it.
+
+### Lyric images
+
+The image icon beside the Lyrics heading opens line selection in the same panel.
+Use the existing checkbox, hover and selected surfaces. Freeze the selected song's
+words and metadata while editing. Selection order never changes the song's order.
+Keep Cancel and Preview below the scrolling list.
+
+Preview uses the existing rounded modal, border, shadow and pill buttons. Background
+choices use the current Palette, dark or light. Artwork is optional; a missing cover
+leaves a clean text credit. The card separates a compact artwork/title/artist header
+from the larger lyric passage with space and an outline divider. Use Inter and Rune's
+wrapping and bidi layout without reordering strings. Show the rendered PNG itself in
+the preview so Copy and Save cannot differ from it. Keep editing and export actions
+visible below the scrolling preview.

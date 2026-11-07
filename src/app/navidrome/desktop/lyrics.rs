@@ -77,6 +77,9 @@ impl State {
         } else if let Some(offset) = self.offsets.get(self.app.presentation.page()) {
             tx.scroll_to_y("page", offset.get());
         }
+        if !open {
+            self.cancel_lyric_selection();
+        }
         tx.instant();
     }
     pub(crate) fn lyric_active(&self) -> Option<usize> {

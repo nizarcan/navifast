@@ -51,6 +51,8 @@ The current build supports:
 - Lyrics from your Navidrome server, with timed-line highlighting, click-to-seek
   and a Follow control after reading ahead. Opt-in LRCLIB lookup can fill missing
   lyrics. Word highlighting uses genuine timestamps from either source.
+- Select lyric lines and preview a local image with optional cover art and a
+  choice of background. Copy it or save a PNG through the native file chooser.
 - Basic native media controls.
 
 This is an early playback build. Scrobbling, transcoding preferences,
