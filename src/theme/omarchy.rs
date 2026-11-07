@@ -1,7 +1,7 @@
-//! The part of the Omarchy set-up fastframe-theme leaves to Navifast:
-//! upgrading the theme hook a Fastpotify-era package installed.
+//! Omarchy theme setup and migration of the hook installed by older packages.
 
 use std::{
+    collections::BTreeMap,
     fs,
     io::{self, Read, Write},
     os::unix::fs::OpenOptionsExt,
@@ -11,7 +11,7 @@ use std::{
 
 /// Rewrites the user's Omarchy hook when it is exactly the one a
 /// Fastpotify-era package installed, which copied palettes into
-/// `fastpotify/themes`. fastframe-theme installs the packaged hook only
+/// `fastpotify/themes`. Setup installs the packaged hook only
 /// where none exists, so without this the old one would stay forever. A hook
 /// the user edited is left alone.
 pub(super) fn upgrade_legacy_hook() {

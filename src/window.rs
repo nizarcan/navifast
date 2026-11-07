@@ -13,7 +13,7 @@ pub fn on_top_unavailable(locale: crate::i18n::Locale) -> std::borrow::Cow<'stat
     )
 }
 
-#[cfg(any(target_os = "macos", test))]
+#[cfg(target_os = "macos")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MacosDoubleClickAction {
     Ignore,
@@ -21,7 +21,7 @@ enum MacosDoubleClickAction {
     Zoom,
 }
 
-#[cfg(any(target_os = "macos", test))]
+#[cfg(target_os = "macos")]
 fn macos_double_click_action(preference: Option<&str>) -> MacosDoubleClickAction {
     match preference {
         Some("Minimize") => MacosDoubleClickAction::Minimize,

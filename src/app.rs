@@ -3547,6 +3547,7 @@ impl App {
         if let Some(controls) = &mut self.media_controls {
             controls.update(state);
         }
+        #[cfg(any(feature = "demo", target_os = "macos"))]
         let playing = self.now_playing().is_some_and(|now| now.playing);
         #[cfg(feature = "demo")]
         if let Some(tray) = &mut self.tray
