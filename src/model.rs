@@ -253,6 +253,7 @@ pub enum Action {
     ToggleMute,
     ToggleSaved(String),
     Rating(crate::app::navidrome::ratings::Action),
+    Scrobble(crate::app::navidrome::scrobble::Action),
     ShowDialog(Dialog),
     CloseDialog,
     OpenUrl(String),

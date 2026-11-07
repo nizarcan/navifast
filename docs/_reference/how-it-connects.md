@@ -202,3 +202,31 @@ Automatic verification uses bounded backoff and stops after four reads, leaving
 Retry available. Closing a menu does not cancel a save. Sign-out cancels work
 and clears this account's ratings; late replies cannot affect the next account.
 Pending ratings are currently in memory only, not a durable offline edit queue.
+
+## Listening reports
+
+**Scrobble to Navidrome** is enabled by default and saved in the existing settings
+file. The player sends `scrobble(submission=false)` after the first consumed audio,
+and `submission=true` once a track of at least 30 seconds reaches 50% of its
+metadata duration in consumed PCM. The counter excludes buffering silence, pauses
+and skipped-over positions. Seeking preserves the play's count; a natural repeat
+or playing again after completion starts another occurrence. Reports carry the
+original playback start time in Unix milliseconds, including after seeks.
+
+The output worker uses its existing atomic sample counter. It checks at position
+updates and drains the last count on transitions, without network work in the
+audio callback. At most one play's counters and metadata are retained. The library
+worker serializes report requests and shares its four-request limit. At most 64
+reports wait in memory; a new now-playing announcement replaces unsent older
+announcements. Reports survive browsing, while disabling the preference or signing
+out cancels active and queued requests. Account and preference generations reject
+late audio events and responses. Disabling excludes subsequent samples; enabling
+again cannot count an already submitted occurrence twice.
+
+Up to eight reporting failures remain visible without pausing playback. A definite
+rejection of a completed submission offers Retry with its original timestamp.
+An uncertain result is not automatically retried because the server may already
+have counted it. Now-playing failures wait for the next genuine start. Reports
+and failures are not persisted across exit or disconnection yet; durable replay
+belongs to offline synchronization. Navifast contacts only the configured server,
+which may forward reports to scrobbling services configured on that server.

@@ -52,6 +52,11 @@ The current build supports:
 - Streaming original audio locally, with pause, resume, seeking, previous,
   next and automatic progression through an album. Scroll over the volume slider
   to adjust it in 5% steps. Expand the playing cover into the sidebar with its arrow.
+- Reporting now playing and completed listens to Navidrome. **Scrobble to Navidrome**
+  in Settings is enabled by default. Tracks at least 30 seconds long count after
+  50% of their duration has actually played; pauses, buffering and seek jumps
+  do not count. Repeat plays count separately. Failed reporting leaves playback
+  running and offers retry only when the server definitely rejected a submission.
 - A local queue with **Play next** and **Add to queue** for songs and albums.
   Open **Queue** in the player to play, move or remove upcoming occurrences.
   **Clear** removes manual additions while preserving the current song and collection.

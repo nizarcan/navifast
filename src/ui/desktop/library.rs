@@ -131,6 +131,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if !s.app.ratings.failures.is_empty() {
         center = center.child(ratings::errors(v));
     }
+    if !s.app.scrobbles.failures.is_empty() {
+        center = center.child(scrobble::errors(v));
+    }
     let center = if lyrics_page {
         center.child(lyrics::panel(v, false).grow(1.))
     } else if queue_page {

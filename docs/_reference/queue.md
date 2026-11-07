@@ -82,6 +82,14 @@ albums can resolve before the next cycle is prepared.
 The existing command and media interfaces report and set the same modes as the
 native controls.
 
+## Listening history
+
+With scrobbling enabled, audio consumed within one play accumulates across seeks
+and pause/resume. Seeking backward does not create another completed submission.
+A natural repeat, a different queue occurrence, or playing again after completion
+starts a new play. Restored paused audio sends no report until it actually starts.
+Reporting failures do not change the playing song, queue, position or pause state.
+
 ## Restarting
 
 `navidrome-session.json` in the state directory stores the playing occurrence,

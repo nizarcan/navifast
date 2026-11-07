@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.14" date="2026-11-07" type="development">
+      <description><p>Report now playing and qualifying listens to Navidrome using actual consumed audio.</p></description>
+    </release>
     <release version="0.1.0-rc.13" date="2026-11-07" type="development">
       <description><p>Rate songs and albums with shared account values and retry for failed saves.</p></description>
     </release>

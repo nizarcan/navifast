@@ -32,10 +32,15 @@ const PCM_PREBUFFER_SAMPLES: usize = PCM_BLOCK_SAMPLES * 10; // 200 ms
 pub enum Command {
     Load {
         generation: u64,
+        listening: super::scrobble::Context,
         client: Client,
         song: Box<Song>,
         position: f64,
         paused: bool,
+    },
+    Scrobbling {
+        epoch: u64,
+        enabled: bool,
     },
     Pause(bool),
     Volume(f32),
@@ -49,6 +54,10 @@ pub enum Command {
 
 #[derive(Clone, Debug)]
 pub enum Event {
+    Scrobble {
+        context: super::scrobble::Context,
+        report: super::scrobble::Report,
+    },
     Position {
         generation: u64,
         seconds: f64,
@@ -160,6 +169,26 @@ struct Playing {
     sink: rodio::Sink,
 }
 
+impl Playing {
+    fn report_listening(&self, listening: &mut super::scrobble::Listening, notify: &dyn Fn(Event)) {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            .min(u128::from(u64::MAX)) as u64;
+        for report in listening
+            .advance(self.samples.load(Ordering::Relaxed), now)
+            .into_iter()
+            .flatten()
+        {
+            notify(Event::Scrobble {
+                context: listening.context,
+                report,
+            });
+        }
+    }
+}
+
 fn output_loop(
     receive: mpsc::Receiver<Command>,
     jobs: mpsc::Sender<DecodeJob>,
@@ -171,10 +200,12 @@ fn output_loop(
     let mut playing: Option<Playing> = None;
     let mut volume = 0.7;
     let mut reported = Instant::now();
+    let mut listening = super::scrobble::Listening::default();
     loop {
         match receive.recv_timeout(Duration::from_millis(20)) {
             Ok(Command::Load {
                 generation,
+                listening: context,
                 client,
                 song,
                 position,
@@ -182,7 +213,9 @@ fn output_loop(
             }) => {
                 if let Some(old) = playing.take() {
                     old.sink.stop();
+                    old.report_listening(&mut listening, &*notify);
                 }
+                listening.begin(context, &song);
                 if output.is_none() {
                     match rodio::OutputStreamBuilder::open_default_stream() {
                         Ok(mut stream) => {
@@ -227,6 +260,12 @@ fn output_loop(
                     sink,
                 });
             }
+            Ok(Command::Scrobbling { epoch, enabled }) => {
+                if let Some(play) = &playing {
+                    play.report_listening(&mut listening, &*notify);
+                }
+                listening.configure(epoch, enabled);
+            }
             Ok(Command::Pause(paused)) => {
                 if let Some(play) = &playing {
                     if paused {
@@ -245,6 +284,7 @@ fn output_loop(
             Ok(Command::Stop) => {
                 if let Some(play) = playing.take() {
                     play.sink.stop();
+                    play.report_listening(&mut listening, &*notify);
                 }
             }
             Ok(Command::Failed {
@@ -254,6 +294,7 @@ fn output_loop(
                 if current.load(Ordering::Acquire) == generation {
                     if let Some(play) = playing.take() {
                         play.sink.stop();
+                        play.report_listening(&mut listening, &*notify);
                     }
                     notify(Event::Failed {
                         generation,
@@ -266,10 +307,12 @@ fn output_loop(
         }
         if let Some(play) = &playing {
             if play.sink.empty() && play.completed.load(Ordering::Acquire) {
+                play.report_listening(&mut listening, &*notify);
                 let generation = play.generation;
                 playing = None;
                 notify(Event::Finished(generation));
             } else if reported.elapsed() >= Duration::from_millis(100) {
+                play.report_listening(&mut listening, &*notify);
                 let samples = play.samples.load(Ordering::Relaxed);
                 notify(Event::Position {
                     generation: play.generation,
@@ -283,6 +326,7 @@ fn output_loop(
     }
     if let Some(play) = playing {
         play.sink.stop();
+        play.report_listening(&mut listening, &*notify);
     }
 }
 

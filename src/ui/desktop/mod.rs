@@ -23,6 +23,7 @@ mod playlists;
 mod preferences;
 mod queue;
 mod ratings;
+mod scrobble;
 pub(crate) mod spectrum;
 mod transport;
 

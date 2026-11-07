@@ -220,6 +220,26 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             );
         page = page.child(section(v, &account, vec![account_row]));
     }
+    let listening = v.tr(mark("Listening history"));
+    let name = v.tr(mark("Scrobble to Navidrome"));
+    let detail = v.tr(mark("Send now playing and qualifying listens to your server. Your server may forward reports to services you configured."));
+    if matches(&[&listening, &name, &detail]) {
+        visible = true;
+        page = page.child(section(
+            v,
+            &listening,
+            vec![setting(
+                v,
+                &name,
+                &detail,
+                switch(v, &name, settings.scrobbling, |s| {
+                    s.set_scrobbling(!s.app.presentation.settings.scrobbling);
+                })
+                .key("scrobbling-toggle"),
+                40.,
+            )],
+        ));
+    }
     let lyrics = v.tr(mark("Lyrics"));
     let name = v.tr(mark("Use LRCLIB for missing lyrics"));
     let detail = v.tr(mark("When Navidrome has no lyrics, send the song's artist, title, album and duration to lrclib.net. Off by default. You can disable this at any time."));

@@ -30,3 +30,4 @@ src/app/navidrome/desktop/lyrics_share.rs
 src/ui/desktop/browse.rs
 src/ui/desktop/albums.rs
 src/ui/desktop/ratings.rs
+src/ui/desktop/scrobble.rs

@@ -17,6 +17,13 @@ Navifast loads artist images through your server's `getCoverArt` endpoint.
 Navifast reads your favorites with `getStarred2` and sends `star` or `unstar`
 with the selected item ID to your server. Favorites and pending changes are
 held in memory for the signed-in session. Ratings are independent.
+**Scrobble to Navidrome** is enabled by default and can be switched off in Settings.
+It sends song IDs and playback start timestamps to your server's `scrobble` endpoint
+for now playing and qualifying listens. It counts consumed audio, excluding pauses,
+buffering and seek jumps. Your server may forward reports to external scrobbling
+services you configured there. Navifast makes no direct connection to those services.
+Disabling cancels queued requests and stops new reports. Pending reports and errors
+stay in memory only and are discarded at exit or sign-out.
 The local queue is checkpointed in `navidrome-session.json` in the state directory
 and deleted on sign-out. It contains opaque song/album/playlist IDs, occurrence
 order, playback position, modes and a hash identifying the server and username.

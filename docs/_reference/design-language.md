@@ -166,6 +166,15 @@ in collections, search and the queue share the same controls and account value;
 an album's rating is independent of its songs. Save failures use the existing
 inline notice and Retry pattern, naming the affected item.
 
+## Listening reports
+
+Use the existing Settings section and switch for **Scrobble to Navidrome**, under
+**Listening history**. Explain that the server may forward reports to configured
+services. Reporting errors reuse the bounded inline notice area with a named song,
+wrapped copy and Dismiss. Only definitely rejected completed submissions offer
+Retry; uncertain results explain why they are not automatically sent again.
+Playback remains usable while a notice is visible.
+
 ## Lists and feedback
 
 Use the shared artwork card grid for album and playlist browsers, and the track

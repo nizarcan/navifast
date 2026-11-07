@@ -9,6 +9,7 @@ pub mod player;
 pub mod playlists;
 pub mod queue;
 pub mod ratings;
+pub mod scrobble;
 pub mod session;
 pub mod stream;
 

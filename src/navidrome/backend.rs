@@ -9,6 +9,14 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Scrobble {
+        session: u64,
+        epoch: u64,
+        request: u64,
+        client: Client,
+        report: super::scrobble::Report,
+    },
+    CancelScrobbles,
     RatingWrite {
         session: u64,
         request: u64,
@@ -160,6 +168,13 @@ pub enum Request {
 }
 
 pub enum Event {
+    Scrobbled {
+        session: u64,
+        epoch: u64,
+        request: u64,
+        report: super::scrobble::Report,
+        result: Result<(), RequestError>,
+    },
     RatingWritten {
         session: u64,
         request: u64,
@@ -319,6 +334,8 @@ impl Backend {
                 let credentials = create_store();
                 let permits = Arc::new(tokio::sync::Semaphore::new(4));
                 let mut tasks = tokio::task::JoinSet::new();
+                let mut scrobbles = tokio::task::JoinSet::new();
+                let mut listening_reports = std::collections::VecDeque::new();
                 let mut collections = tokio::task::JoinSet::new();
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
@@ -337,6 +354,8 @@ impl Backend {
                                 Request::Shutdown => break,
                                 Request::Cancel => {
                                     credentials.invalidate(Slot::Navidrome);
+                                    scrobbles.abort_all();
+                                    listening_reports.clear();
                                     lyrics.abort_all();
                                     restores.abort_all();
                                     collections.abort_all();
@@ -346,6 +365,18 @@ impl Backend {
                                     browsing.abort_all();
                                     queue_reads.abort_all();
                                     queue_handles.clear();
+                                }
+                                Request::CancelScrobbles => { scrobbles.abort_all(); listening_reports.clear(); }
+                                request @ Request::Scrobble { .. } => {
+                                    // An unsent announcement is obsolete when a newer song starts.
+                                    if matches!(&request, Request::Scrobble { report, .. } if !report.submission) {
+                                        listening_reports.retain(|request| matches!(request, Request::Scrobble { report, .. } if report.submission));
+                                    }
+                                    if listening_reports.len() < 64 { listening_reports.push_back(request); }
+                                    else if let Request::Scrobble { session, epoch, request, report, .. } = request {
+                                        let _ = events.send(Event::Scrobbled { session, epoch, request, report, result: Err(RequestError::Rejected("Listening reports are waiting for the server. Try again when the connection recovers.".into())) });
+                                        wake();
+                                    }
                                 }
                                 Request::CancelLyrics => lyrics.abort_all(),
                                 Request::CancelSessionRestore => restores.abort_all(),
@@ -475,6 +506,7 @@ impl Backend {
                                 && queue_handles.get(&token).is_some_and(|handle| handle.id() == task)
                             { queue_handles.remove(&token); }
                         }
+                        _ = scrobbles.join_next(), if !scrobbles.is_empty() => {}
                         _ = lyrics.join_next(), if !lyrics.is_empty() => {}
                         _ = restores.join_next(), if !restores.is_empty() => {}
                         _ = collections.join_next(), if !collections.is_empty() => {}
@@ -483,6 +515,19 @@ impl Backend {
                         _ = browsing.join_next(), if !browsing.is_empty() => {}
                         _ = tasks.join_next(), if !tasks.is_empty() => {}
                         _ = deletions.join_next(), if !deletions.is_empty() => {}
+                    }
+                    // Reports keep their start/completion order, independently of navigation.
+                    if scrobbles.is_empty()
+                        && let Some(Request::Scrobble { session, epoch, request, client, report }) = listening_reports.pop_front() {
+                        let events = events.clone();
+                        let wake = wake.clone();
+                        let permits = permits.clone();
+                        scrobbles.spawn(async move {
+                            let Ok(_permit) = permits.acquire().await else { return; };
+                            let result = client.scrobble(&report).await;
+                            let _ = events.send(Event::Scrobbled { session, epoch, request, report, result });
+                            wake();
+                        });
                     }
                 }
                 tasks.abort_all();
@@ -769,6 +814,8 @@ async fn execute(
         | Request::CancelQueueAlbum(_)
         | Request::ClearQueueAlbums
         | Request::CancelBrowse
+        | Request::Scrobble { .. }
+        | Request::CancelScrobbles
         | Request::Shutdown => return None,
     })
 }
@@ -909,6 +956,108 @@ mod tests {
             Event::QueueAlbum {
                 token: 3,
                 result: Ok(_),
+                ..
+            }
+        ));
+        assert!(backend.events.try_recv().is_err());
+    }
+
+    #[test]
+    fn scrobbles_are_ordered_survive_navigation_and_cancel_with_pending_reports() {
+        let fixture = Fixture::new();
+        let (started, starts) = mpsc::channel();
+        let (release, releases) = mpsc::channel();
+        let server = crate::navidrome::test_server::Server::spawn(move |request| {
+            let url = reqwest::Url::parse(&format!(
+                "http://localhost{}",
+                request.split_whitespace().nth(1).unwrap()
+            ))
+            .unwrap();
+            assert!(url.path().ends_with("scrobble.view"));
+            let id = url
+                .query_pairs()
+                .find(|(k, _)| k == "id")
+                .unwrap()
+                .1
+                .into_owned();
+            started.send(id).unwrap();
+            releases
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap();
+            crate::navidrome::test_server::response(
+                "200 OK",
+                "",
+                br#"{"subsonic-response":{"status":"ok"}}"#,
+            )
+        });
+        let client = Client::new(
+            &server.url,
+            "listener",
+            "dummy".into(),
+            &crate::settings::ProxyConfig::Off,
+        )
+        .unwrap();
+        let backend = fixture.backend();
+        let request = |request| {
+            backend.send(Request::Scrobble {
+                session: 1,
+                epoch: 1,
+                request,
+                client: client.clone(),
+                report: super::super::scrobble::Report {
+                    id: request.to_string(),
+                    title: "Song".into(),
+                    time: 1234,
+                    occurrence: request,
+                    submission: true,
+                },
+            })
+        };
+        request(1);
+        assert_eq!(
+            starts
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap(),
+            "1"
+        );
+        request(2);
+        backend.send(Request::CancelCollection);
+        release.send(()).unwrap();
+        assert!(matches!(
+            receive(&backend),
+            Event::Scrobbled {
+                request: 1,
+                result: Ok(()),
+                ..
+            }
+        ));
+        assert_eq!(
+            starts
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap(),
+            "2"
+        );
+        request(3);
+        backend.send(Request::CancelScrobbles);
+        backend.send(Request::Restore { session: 9 });
+        assert!(matches!(
+            receive(&backend),
+            Event::Restored { session: 9, .. }
+        ));
+        release.send(()).unwrap();
+        request(4);
+        assert_eq!(
+            starts
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap(),
+            "4"
+        );
+        release.send(()).unwrap();
+        assert!(matches!(
+            receive(&backend),
+            Event::Scrobbled {
+                request: 4,
+                result: Ok(()),
                 ..
             }
         ));

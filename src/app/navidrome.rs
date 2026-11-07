@@ -15,6 +15,7 @@ pub mod lyrics;
 pub mod playlists;
 pub mod queue;
 pub mod ratings;
+pub mod scrobble;
 mod session;
 use host::Host;
 mod presentation;
@@ -194,6 +195,7 @@ pub struct App {
     pub lyrics: lyrics::State,
     pub browse: browse::State,
     pub ratings: ratings::State,
+    pub scrobbles: scrobble::State,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
@@ -321,6 +323,7 @@ impl App {
             lyrics: Default::default(),
             browse: Default::default(),
             ratings: Default::default(),
+            scrobbles: Default::default(),
             transport: Transport {
                 paused: true,
                 ..Default::default()
@@ -402,6 +405,7 @@ impl App {
             Action::SignOut => {
                 self.browse = Default::default();
                 self.ratings = Default::default();
+                self.scrobbles.reset();
                 self.forget_session();
                 self.lyrics = Default::default();
                 self.session = self.session.wrapping_add(1);
@@ -506,6 +510,9 @@ impl App {
                     } else {
                         0.0
                     };
+                    if self.transport.error.is_none() {
+                        self.scrobbles.new_play();
+                    }
                     self.load(position, false);
                 } else {
                     self.apply(Action::Pause(!self.transport.paused));
@@ -638,6 +645,7 @@ impl App {
     fn set_client(&mut self, client: Client) {
         self.browse = Default::default();
         self.ratings = Default::default();
+        self.scrobbles.reset();
         self.lyrics = Default::default();
         if self
             .client
@@ -723,9 +731,16 @@ impl App {
             return;
         };
         self.tap.clear();
+        let occurrence = self.transport.queue.current().map_or(0, |entry| entry.id);
+        let listening = self.scrobbles.context(
+            self.session,
+            occurrence,
+            self.presentation.settings.scrobbling,
+        );
         if let Some(client) = &self.client {
             self.player.send(player::Command::Load {
                 generation: self.transport.generation,
+                listening,
                 client: client.clone(),
                 song: Box::new(song),
                 position: self.transport.position,
@@ -782,6 +797,7 @@ impl App {
                 event @ (Event::PlaylistLibrary { .. }
                 | Event::PlaylistDestinations { .. }
                 | Event::PlaylistEdited { .. }) => self.playlists_event(event),
+                event @ Event::Scrobbled { .. } => self.scrobble_event(event),
                 event @ (Event::RatingWritten { .. } | Event::RatingRead { .. }) => self.rating_event(event),
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {
                     self.favorite_event(event)
@@ -889,6 +905,10 @@ impl App {
             }
         }
         while let Ok(event) = self.player_events.try_recv() {
+            if let player::Event::Scrobble { context, report } = event {
+                self.listening_report(context, report);
+                continue;
+            }
             let previous = (
                 self.transport.queue.current().map(|entry| entry.id),
                 self.transport.loading,
@@ -937,6 +957,7 @@ impl App {
 
     fn finish_track(&mut self) {
         if self.transport.repeat == crate::player::RepeatMode::Track {
+            self.scrobbles.new_play();
             self.load(0.0, self.transport.paused);
         } else {
             self.apply(Action::Next);

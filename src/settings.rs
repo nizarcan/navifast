@@ -224,6 +224,8 @@ pub struct Settings {
     pub check_for_updates: bool,
     /// Explicit opt-in to sending recording metadata to LRCLIB for missing lyrics.
     pub lrclib_lyrics: bool,
+    /// Report local listening to the signed-in Navidrome account.
+    pub scrobbling: bool,
     /// Explicit order per Library shelf. Missing shelves keep their previous
     /// behaviour; selecting another order never deletes the local arrangement.
     pub library_sort: std::collections::BTreeMap<LibraryShelf, LibrarySort>,
@@ -308,6 +310,7 @@ impl Default for Settings {
             search_history: Vec::new(),
             check_for_updates: true,
             lrclib_lyrics: false,
+            scrobbling: true,
             library_sort: std::collections::BTreeMap::new(),
             zoom: 1.0,
             eq_on: false,
@@ -874,6 +877,16 @@ mod tests {
         let restored: Settings =
             serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
         assert!(restored.lrclib_lyrics);
+    }
+
+    #[test]
+    fn listening_reporting_defaults_on_and_the_disabled_preference_round_trips() {
+        let mut settings: Settings = serde_json::from_str("{}").unwrap();
+        assert!(settings.scrobbling);
+        settings.scrobbling = false;
+        let restored: Settings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert!(!restored.scrobbling);
     }
 
     #[test]

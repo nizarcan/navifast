@@ -1211,3 +1211,30 @@ fn rating_menus_are_labelled_keyboard_controls_shared_across_views() {
         assert_eq!(rt.state.app.ratings.value(&uri), Some(0));
     }
 }
+
+#[test]
+fn scrobbling_switch_cancels_reports_and_failures_do_not_interrupt_playback() {
+    let mut rt = runtime("settings", "restored,scrobble-error");
+    let position = rt.state.app.transport.position;
+    let paused = rt.state.app.transport.paused;
+    assert!(rt.accessibility_action("scrobble-retry-1", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert!(rt.state.app.scrobbles.failures.is_empty());
+    assert_eq!(rt.state.app.transport.position, position);
+    assert_eq!(rt.state.app.transport.paused, paused);
+    assert!(rt.accessibility_action("scrobbling-toggle", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert!(!rt.state.app.presentation.settings.scrobbling);
+    assert!(rt.accessibility_action("scrobbling-toggle", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert!(rt.state.app.presentation.settings.scrobbling);
+    let mut rt = runtime("settings", "restored,scrobble-uncertain");
+    assert!(
+        !rt.elements()
+            .iter()
+            .any(|e| e.key.as_deref() == Some("scrobble-retry-1"))
+    );
+    assert!(rt.accessibility_action("scrobble-dismiss-1", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert!(rt.state.app.scrobbles.failures.is_empty());
+}

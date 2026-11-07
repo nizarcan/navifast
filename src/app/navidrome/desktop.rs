@@ -147,6 +147,10 @@ impl App {
     }
 }
 impl State {
+    pub(crate) fn set_scrobbling(&mut self, enabled: bool) {
+        self.app
+            .scrobble_action(super::scrobble::Action::Enabled(enabled));
+    }
     pub(crate) fn open_item_menu(&mut self, menu: ItemMenu) {
         self.app.prepare_rating(&menu.uri);
         self.favorite_menu = Some(menu);
@@ -448,6 +452,17 @@ impl State {
                 at: None,
                 anchor: None,
             });
+        }
+        #[cfg(feature = "navidrome-demo")]
+        if launch.demo {
+            if flags.contains(&"scrobbling-off") {
+                state.set_scrobbling(false);
+            }
+            if flags.contains(&"scrobble-error") || flags.contains(&"scrobble-uncertain") {
+                state
+                    .app
+                    .demo_scrobble_error(flags.contains(&"scrobble-uncertain"));
+            }
         }
         state
     }
