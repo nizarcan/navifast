@@ -257,6 +257,13 @@ pub struct Client {
     password: Arc<String>,
     http: reqwest::Client,
     pub scope: String,
+    extensions: Arc<tokio::sync::OnceCell<Vec<Extension>>>,
+}
+
+#[derive(Deserialize)]
+struct Extension {
+    name: String,
+    versions: Vec<u32>,
 }
 
 pub fn server_url(value: &str) -> Result<reqwest::Url, String> {
@@ -308,6 +315,7 @@ impl Client {
                 .build()
                 .map_err(network_error)?,
             scope,
+            extensions: Arc::new(tokio::sync::OnceCell::new()),
         })
     }
 
@@ -396,6 +404,27 @@ impl Client {
             bytes.extend_from_slice(&chunk);
         }
         envelope(&bytes)
+    }
+
+    /// Discover once per authenticated client; canceled/failed requests may retry.
+    pub async fn supports_extension(&self, name: &str, version: u32) -> Result<bool, String> {
+        let extensions = self
+            .extensions
+            .get_or_try_init(|| async {
+                match self.checked_request("getOpenSubsonicExtensions", &[]).await {
+                    Ok(body) => serde_json::from_value::<Vec<Extension>>(
+                        body["openSubsonicExtensions"].clone(),
+                    )
+                    .map_err(|_| "The server returned invalid extension information.".to_owned()),
+                    // Legacy Subsonic servers can reject an unknown endpoint.
+                    Err(RequestError::Rejected(_) | RequestError::Missing) => Ok(Vec::new()),
+                    Err(error) => Err(error.to_string()),
+                }
+            })
+            .await?;
+        Ok(extensions
+            .iter()
+            .any(|extension| extension.name == name && extension.versions.contains(&version)))
     }
 
     pub async fn ping(&self) -> Result<(), String> {

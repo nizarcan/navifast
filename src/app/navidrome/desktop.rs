@@ -1,6 +1,7 @@
 //! The Rune window for the active Navidrome controller.
 mod artwork;
 pub(crate) mod autoscroll;
+mod lyrics;
 mod placement;
 #[cfg(all(test, feature = "navidrome-demo"))]
 mod regression;
@@ -112,6 +113,7 @@ pub(crate) struct State {
     pub(crate) artist_views: HashMap<Page, views::artist::Options>,
     pub(crate) favorite_menu: Option<ItemMenu>,
     pub(crate) menu: Option<&'static str>,
+    pub(crate) lyrics_view: lyrics::View,
     pub(crate) queue_open: bool,
     pub(crate) queue_compact: Cell<bool>,
     pub(crate) queue_selected: Option<crate::navidrome::queue::Id>,
@@ -135,6 +137,9 @@ impl App {
 impl State {
     pub(crate) fn toggle_queue(&mut self, tx: &mut Tx) {
         self.queue_open = !self.queue_open;
+        if self.queue_open {
+            self.app.enable_lyrics(false);
+        }
         self.queue_menu = None;
         self.menu = None;
         self.favorite_menu = None;
@@ -288,6 +293,7 @@ impl State {
             artist_views: Default::default(),
             favorite_menu: None,
             menu: None,
+            lyrics_view: Default::default(),
             queue_open: launch.demo && flags.iter().any(|flag| flag.starts_with("queue")),
             queue_compact: Cell::new(false),
             queue_selected: None,
@@ -445,6 +451,7 @@ impl State {
             )
         {
             self.queue_open = false;
+            self.app.enable_lyrics(false);
         }
         let session = self.app.session;
         self.app.ui_action(action, &self.window);
@@ -453,6 +460,7 @@ impl State {
         self.queue_menu = None;
         if session != self.app.session {
             self.queue_open = false;
+            self.lyrics_view = Default::default();
             self.queue_selected = None;
             self.queue_offset.set(0.);
             self.window.covers.replace(Default::default());
@@ -580,6 +588,8 @@ fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
             tx.scroll_to_y("page", y);
         }
     }
+    // Lyric highlighting does not change browsing rows or their sort order.
+    changed |= s.poll_lyrics_view(tx);
     let (retry, deadline) = s
         .window
         .covers

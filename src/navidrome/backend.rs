@@ -9,6 +9,13 @@ use super::api::{
 use crate::credentials::{Grant, Lease, NavidromePassword, Slot, Store};
 
 pub enum Request {
+    Lyrics {
+        session: u64,
+        request: u64,
+        client: Client,
+        song: Box<super::api::Song>,
+    },
+    CancelLyrics,
     RestoreSession {
         session: u64,
         token: u64,
@@ -129,6 +136,12 @@ pub enum Request {
 }
 
 pub enum Event {
+    Lyrics {
+        session: u64,
+        request: u64,
+        song: String,
+        result: Result<super::lyrics::Outcome, String>,
+    },
     SessionRestored {
         session: u64,
         token: u64,
@@ -265,6 +278,7 @@ impl Backend {
                 let mut searches = tokio::task::JoinSet::new();
                 let mut playlists = tokio::task::JoinSet::new();
                 let mut deletions = tokio::task::JoinSet::new();
+                let mut lyrics = tokio::task::JoinSet::new();
                 let mut restores = tokio::task::JoinSet::new();
                 let mut queue_reads = tokio::task::JoinSet::new();
                 let mut queue_handles: std::collections::HashMap<u64, tokio::task::AbortHandle> = std::collections::HashMap::new();
@@ -276,6 +290,7 @@ impl Backend {
                                 Request::Shutdown => break,
                                 Request::Cancel => {
                                     credentials.invalidate(Slot::Navidrome);
+                                    lyrics.abort_all();
                                     restores.abort_all();
                                     collections.abort_all();
                                     tasks.abort_all();
@@ -284,6 +299,7 @@ impl Backend {
                                     queue_reads.abort_all();
                                     queue_handles.clear();
                                 }
+                                Request::CancelLyrics => lyrics.abort_all(),
                                 Request::CancelSessionRestore => restores.abort_all(),
                                 Request::RestoreSession { session, token, path, client } => {
                                     restores.abort_all();
@@ -374,6 +390,7 @@ impl Backend {
                                     let permits = permits.clone();
                                     let lease = credentials.lease(Slot::Navidrome);
                                     let group = match request {
+                                        Request::Lyrics { .. } => &mut lyrics,
                                         Request::Search { .. } => &mut searches,
                                         Request::PlaylistLibrary { .. } => &mut playlists,
                                         Request::Collection { .. } | Request::ArtistInfo { .. } | Request::Appearances { .. } => &mut collections,
@@ -407,6 +424,7 @@ impl Backend {
                                 && queue_handles.get(&token).is_some_and(|handle| handle.id() == task)
                             { queue_handles.remove(&token); }
                         }
+                        _ = lyrics.join_next(), if !lyrics.is_empty() => {}
                         _ = restores.join_next(), if !restores.is_empty() => {}
                         _ = collections.join_next(), if !collections.is_empty() => {}
                         _ = searches.join_next(), if !searches.is_empty() => {}
@@ -442,6 +460,20 @@ impl Drop for Backend {
 
 async fn execute(request: Request, lease: &Lease) -> Option<Event> {
     Some(match request {
+        Request::Lyrics {
+            session,
+            request,
+            client,
+            song,
+        } => {
+            let result = super::lyrics::fetch(&client, &song).await;
+            Event::Lyrics {
+                session,
+                request,
+                song: song.id,
+                result,
+            }
+        }
         Request::Restore { session } => Event::Restored {
             session,
             result: lease
@@ -615,7 +647,8 @@ async fn execute(request: Request, lease: &Lease) -> Option<Event> {
                 result,
             }
         }
-        Request::RestoreSession { .. }
+        Request::CancelLyrics
+        | Request::RestoreSession { .. }
         | Request::CancelSessionRestore
         | Request::SaveSession { .. }
         | Request::Save { .. }

@@ -689,3 +689,97 @@ fn restored_player_uses_the_existing_play_control_and_preserves_position_on_resu
         );
     }
 }
+
+#[test]
+fn timed_lyrics_seek_once_keep_pause_and_manual_scroll_stops_following() {
+    for flags in ["lyrics", "lyrics,light", "lyrics,restored"] {
+        let mut rt = runtime("album:alb0", flags);
+        for _ in 0..3 {
+            rt.update(|s, tx| {
+                s.poll_lyrics_view(tx);
+            });
+            rt.frame(0.);
+            rt.settle_all();
+        }
+        assert!(rt.state.lyrics_view.following.get());
+        let generation = rt.state.app.transport.generation;
+        let paused = rt.state.app.transport.paused;
+        assert!(rt.accessibility_action("lyric-8", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(rt.state.app.transport.position, 80.0);
+        assert_eq!(rt.state.app.transport.generation, generation + 1);
+        assert_eq!(rt.state.app.transport.paused, paused);
+        for _ in 0..2 {
+            rt.update(|s, tx| {
+                s.poll_lyrics_view(tx);
+            });
+            rt.frame(0.);
+        }
+        let [x, y, w, h] = rt
+            .elements()
+            .iter()
+            .find(|e| e.key.as_deref() == Some("lyrics-scroll"))
+            .unwrap()
+            .rect;
+        rt.wheel(x + w / 2., y + h / 2., 150.);
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(!rt.state.lyrics_view.following.get());
+        let offset = rt.state.lyrics_view.viewport.get().offset[1];
+        rt.update(|s, tx| {
+            s.app.transport.position = 95.;
+            s.poll_lyrics_view(tx);
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(rt.state.lyrics_view.viewport.get().offset[1], offset);
+        assert!(rt.accessibility_action("lyrics-follow", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(rt.state.lyrics_view.following.get());
+    }
+}
+
+#[test]
+fn lyric_states_and_large_mixed_direction_text_use_the_same_native_panel() {
+    for flags in [
+        "lyrics-plain",
+        "lyrics-loading",
+        "lyrics-error",
+        "lyrics-missing",
+        "lyrics-instrumental",
+        "lyrics-malformed",
+        "lyrics-rtl",
+        "lyrics-long",
+    ] {
+        let mut rt = runtime("album:alb0", flags);
+        rt.update(|s, tx| {
+            s.poll_lyrics_view(tx);
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.key.as_deref() == Some("lyrics-panel"))
+        );
+        if flags == "lyrics-long" {
+            assert!(
+                rt.elements()
+                    .iter()
+                    .filter(|e| e.key.as_deref().is_some_and(|k| k.starts_with("lyric-")))
+                    .count()
+                    < 100
+            );
+        }
+        assert!(rt.accessibility_action("queue-toggle", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(!rt.state.app.lyrics.enabled);
+        assert!(rt.state.queue_open);
+        assert!(rt.accessibility_action("lyrics-toggle", rune::accesskit::Action::Click, None));
+        rt.frame(0.);
+        assert!(rt.state.app.lyrics.enabled);
+        assert!(!rt.state.queue_open);
+    }
+}

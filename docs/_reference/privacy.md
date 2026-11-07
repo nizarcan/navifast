@@ -24,6 +24,14 @@ It contains no passwords, signed URLs or audio. After that account signs in,
 `getSong` validates saved songs and `getAlbum` resolves pending additions.
 Playback restores paused. Adding an album also reads `getAlbum`; no server play
 queue is read or saved.
+Opening Lyrics checks `getOpenSubsonicExtensions` once for the authenticated client.
+When `songLyrics` version 1 is supported, `getLyricsBySongId` receives the opaque
+song ID. Legacy servers use `getLyrics` with the artist and title instead. All
+requests go to the configured server. Its administrator controls any server-side
+external lyric integrations. The current song's lyrics stay only in memory; closing
+the panel cancels its lookup, and sign-out clears the document and capability cache.
+Navifast does not contact an external lyric provider directly.
+
 It does not contact Spotify, download
 web fonts, fetch external emoji or check for updates.
 

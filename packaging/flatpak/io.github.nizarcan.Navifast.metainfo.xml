@@ -32,6 +32,9 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.1.0-rc.7" date="2026-11-07" type="development">
+      <description><p>Read server lyrics, follow timed lines and click a verse to seek without losing your pause state.</p></description>
+    </release>
     <release version="0.1.0-rc.6" date="2026-11-07" type="development">
       <description><p>Restore the local queue and playback position after restart, paused until you choose to play.</p></description>
     </release>

@@ -110,3 +110,22 @@ waiting for the HTTP request's deadline.
 
 See [Privacy](/privacy/) for endpoints and storage and
 [Getting started](/getting-started/) for user-facing limitations.
+
+## Server lyrics
+
+`src/navidrome/lyrics.rs` discovers the
+[songLyrics extension](https://opensubsonic.netlify.app/docs/extensions/songlyrics/)
+through the client's shared capability cache. Version 1 uses `getLyricsBySongId`;
+a legacy server that rejects capability discovery falls back to `getLyrics`.
+Transport failures remain retryable. There is no direct external-provider lookup.
+Responses stay scoped to the account, request generation and playing song ID.
+Changing songs clears the previous text immediately. Seeks and pause changes keep
+the current document; opening the panel starts a lookup only when needed.
+
+The first valid timed document is used, falling back to the first readable plain
+version. Positive server offsets make lines appear sooner. Invalid, missing or
+out-of-order timestamps disable all seek/highlight actions for that document while
+preserving logical text order. Empty responses mean missing lyrics; an explicit
+instrumental flag or musical-note-only document has its own state. Documents are
+limited to 10,000 lines and 1 MiB of text. Rune virtualizes the lines and uses a
+binary search of timestamps, updating active-line highlighting from audible position.

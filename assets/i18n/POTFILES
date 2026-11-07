@@ -23,3 +23,4 @@ src/ui/topbar.rs
 src/ui/widgets.rs
 src/util.rs
 src/window.rs
+src/ui/desktop/lyrics.rs

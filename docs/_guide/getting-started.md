@@ -126,4 +126,12 @@ server are skipped; starting new playback takes precedence over restoration.
 Sign-out clears the saved session. Position is checkpointed every ten seconds
 while playing, and on pause and orderly exit.
 
-Lyrics, scrobbling, transcoding and tray operation are still pending.
+Open **Lyrics** in the player to read the playing song's words from your server.
+The lyrics and queue share the right panel; at narrow widths they use the content
+area. Timed lyrics highlight the current line. Click one to seek while keeping the
+current pause state. Scrolling suspends automatic following; **Follow** returns to
+the current line. Plain lyrics have no seek actions. Invalid timing keeps the words
+readable and shows a notice. Missing lyrics, instrumental markers and request errors
+have separate states. **Try again** retries a failed lookup.
+
+External lyric providers, scrobbling, transcoding and tray operation are still pending.

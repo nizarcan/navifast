@@ -14,6 +14,7 @@ use rune::{Cx, El, Tx};
 pub(crate) mod artist;
 mod backdrop;
 mod library;
+mod lyrics;
 mod playlists;
 mod preferences;
 mod queue;
@@ -65,7 +66,10 @@ impl Paint<'_> {
         } else {
             0.
         };
-        if self.s.queue_open && self.width >= 1060. && self.width - sidebar >= 660. {
+        if (self.s.queue_open || self.s.app.lyrics.enabled)
+            && self.width >= 1060.
+            && self.width - sidebar >= 660.
+        {
             320.
         } else {
             0.
@@ -554,6 +558,10 @@ pub(crate) fn keys(s: &mut State, k: &rune::KeyEvent, tx: &mut Tx) -> bool {
         Key::Escape if s.app.presentation.dialog.is_some() => Action::CloseDialog,
         Key::Escape if s.queue_menu.is_some() => {
             s.queue_menu = None;
+            return true;
+        }
+        Key::Escape if s.app.lyrics.enabled => {
+            s.toggle_lyrics(tx);
             return true;
         }
         Key::Escape if s.queue_open => {

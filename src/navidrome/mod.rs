@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod backend;
+pub mod lyrics;
 pub mod player;
 pub mod playlists;
 pub mod queue;

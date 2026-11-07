@@ -15,6 +15,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     let queue_width = v.queue_width();
     s.queue_compact.set(queue_width == 0.);
     let queue_page = s.queue_open && queue_width == 0.;
+    let lyrics_page = s.app.lyrics.enabled && queue_width == 0.;
     let side = if s.app.presentation.settings.sidebar_visible {
         s.app
             .presentation
@@ -125,7 +126,9 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if !s.app.presentation.navidrome_favorites.failures.is_empty() {
         center = center.child(favorite_write_errors(v));
     }
-    let center = if queue_page {
+    let center = if lyrics_page {
+        center.child(lyrics::panel(v, false).grow(1.))
+    } else if queue_page {
         center.child(queue::panel(v, false).grow(1.))
     } else {
         center.child(scroller)
@@ -145,7 +148,11 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     // library surface while it draws the transport, until the page itself changes.
     let mut body = body.child(center).fill(color(v.p.window));
     if queue_width > 0. {
-        body = body.child(queue::panel(v, true).w(queue_width));
+        body = body.child(if s.app.lyrics.enabled {
+            lyrics::panel(v, true).w(queue_width)
+        } else {
+            queue::panel(v, true).w(queue_width)
+        });
     }
     let body = if !s.app.transport.paused
         && s.app.presentation.settings.player_bar_vis == crate::settings::PlayerBarVis::Spectrum

@@ -351,8 +351,18 @@ pub(super) fn player(v: &Paint<'_>) -> El {
         .justify_end()
         .gap(6.)
         .child(
-            v.icon_button(&v.tr(mark("Lyrics")), Icon::Mic, 18., |_, _| {})
-                .disabled(true),
+            v.tinted_button(
+                &v.tr(mark("Lyrics")),
+                Icon::Mic,
+                18.,
+                if v.s.app.lyrics.enabled {
+                    v.p.accent
+                } else {
+                    v.p.secondary
+                },
+                |s, tx| s.toggle_lyrics(tx),
+            )
+            .key("lyrics-toggle"),
         )
         .child(
             v.tinted_button(

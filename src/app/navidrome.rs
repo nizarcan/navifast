@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub mod desktop;
 pub mod favorites;
 mod host;
+pub mod lyrics;
 pub mod playlists;
 pub mod queue;
 mod session;
@@ -185,6 +186,7 @@ pub struct App {
     pub newest: bool,
     pub error: Option<String>,
     pub transport: Transport,
+    pub lyrics: lyrics::State,
     pub requested_covers: HashSet<String>,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
@@ -308,6 +310,7 @@ impl App {
             has_more: false,
             newest,
             error: None,
+            lyrics: Default::default(),
             transport: Transport {
                 paused: true,
                 ..Default::default()
@@ -388,6 +391,7 @@ impl App {
             }
             Action::SignOut => {
                 self.forget_session();
+                self.lyrics = Default::default();
                 self.session = self.session.wrapping_add(1);
                 self.backend.send(Request::Cancel);
                 if !self.demo {
@@ -619,6 +623,7 @@ impl App {
     }
 
     fn set_client(&mut self, client: Client) {
+        self.lyrics = Default::default();
         if self
             .client
             .as_ref()
@@ -691,6 +696,7 @@ impl App {
     }
 
     fn load(&mut self, position: f64, paused: bool) {
+        self.sync_lyrics();
         self.dirty_session();
         self.pending_play = None;
         let Some(song) = self.transport.prepare(position, paused) else {
@@ -742,6 +748,7 @@ impl App {
         while let Ok(event) = self.backend.events.try_recv() {
             changed = true;
             match event {
+                Event::Lyrics { session, request, song, result } => self.lyrics_result(session, request, &song, result),
                 Event::SessionRestored { session, token, result } => self.session_restored(session, token, result),
                 Event::SessionSaveFailed => self.presentation.toast_error("Your listening session could not be saved. Check the state directory permissions."),
                 Event::QueueAlbum {
@@ -1218,6 +1225,7 @@ impl App {
         if flags.contains(&"playlist-delete") {
             self.playlist_action(playlists::Action::ConfirmDelete);
         }
+        self.populate_demo_lyrics(&flags);
         if self.restoring_login {
             self.presentation.history = vec![crate::model::Page::Albums];
             self.presentation.history_index = 0;

@@ -140,3 +140,17 @@ A restored listening session uses the existing paused player and queue. Preserve
 the saved occurrence, position and visible order. Do not add a separate resume
 screen or start audio automatically. Normal playback actions take precedence over
 a restoration still in flight.
+
+## Lyrics
+
+The player bar's existing microphone control opens Lyrics. It swaps with Queue in
+the same 320-pixel side panel and uses the same content-area fallback at narrow
+widths. Reuse the panel padding, heading, Close control, Palette and Inter. Closing
+returns to browsing without replacing the player. This carries forward the previous
+lyrics panel's ownership and the approved queue pattern.
+
+Lyrics use wrapping 19-pixel text. The active timed line uses bold accent text;
+other lines use the secondary text color. Automatic follow brings the active line
+into view. Manual scrolling suspends following, with the existing pill-shaped
+**Follow** control to return. Plain lines are text, timed lines are accessible seek
+buttons. Do not reorder mixed-direction strings. Virtualize long documents.
