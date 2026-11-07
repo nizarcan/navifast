@@ -55,6 +55,7 @@ pub struct Preferences {
     pub volume: f32,
     pub autoplay: bool,
     pub streaming_quality: crate::navidrome::quality::Quality,
+    pub audio_cache: crate::navidrome::cache::Config,
     pub eq_on: bool,
     pub bands: [f32; 10],
     pub preamp: f32,
@@ -72,6 +73,7 @@ impl Default for Preferences {
             volume: 0.7,
             autoplay: false,
             streaming_quality: Default::default(),
+            audio_cache: Default::default(),
             eq_on: false,
             bands: [0.0; 10],
             preamp: 0.0,
@@ -229,6 +231,9 @@ pub struct App {
     pub requested_covers: HashSet<String>,
     pub downloads: downloads::State,
     pub sync: sync::State,
+    pub audio_cache: crate::navidrome::cache::Summary,
+    pub cache_pending: bool,
+    cache_revision: u64,
     pub show_eq: bool,
     pub palette: crate::theme::Palette,
     backend: Backend,
@@ -274,6 +279,7 @@ impl App {
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
         preferences.volume = preferences.volume.clamp(0.0, 1.0);
+        preferences.audio_cache = preferences.audio_cache.normalized();
         preferences.home_history.sanitize();
         let mut settings = crate::settings::Settings::load(&dirs.settings_file());
         if !dirs.settings_file().exists() {
@@ -308,6 +314,11 @@ impl App {
         let tap = crate::vis::AudioTap::new();
         let backend = Backend::spawn(wake.clone(), dirs.clone());
         if !demo {
+            backend.send(Request::Cache {
+                root: dirs.cache.join("streams"),
+                config: preferences.audio_cache,
+                clear: false,
+            });
             backend.send(Request::Restore { session: 0 });
         }
         // System proxy honors the existing native desktop configuration.
@@ -376,6 +387,9 @@ impl App {
             requested_covers: HashSet::new(),
             downloads: Default::default(),
             sync: Default::default(),
+            audio_cache: Default::default(),
+            cache_pending: !demo,
+            cache_revision: u64::from(!demo),
             show_eq: false,
             palette: crate::theme::Palette::dark(),
             backend,
@@ -889,6 +903,9 @@ impl App {
                 | Event::PlaylistDestinations { .. }
                 | Event::PlaylistEdited { .. }) => self.playlists_event(event),
                 event @ Event::Scrobbled { .. } => self.scrobble_event(event),
+                Event::Cache(summary) => {
+                    if summary.revision >= self.cache_revision { self.audio_cache = summary; self.cache_pending = false; }
+                },
                 Event::Sync { session, revision, update } => self.sync_update(session, revision, update),
                 event @ (Event::RatingWritten { .. } | Event::RatingRead { .. }) => self.rating_event(event),
                 event @ (Event::Favorites { .. } | Event::FavoriteWritten { .. }) => {

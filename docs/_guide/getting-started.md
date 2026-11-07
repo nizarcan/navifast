@@ -163,3 +163,10 @@ Select up to 32 lines (16 KiB of text). If they cannot fit legibly, choose fewer
 or shorter lines; text is never clipped or reduced to fit.
 
 Scrobbling, transcoding and tray operation are still pending.
+
+Enable **Cache streamed audio** under **Settings → Audio cache** to reuse recent
+streams. Choose a size limit, see current usage or select **Clear audio cache**.
+Clearing and lowering the limit keep files needed by active playback until the
+player releases them. Cached streams expire after seven days when next accessed
+or on startup. This setting is off by default. For dependable offline listening,
+use explicit downloads, which have separate storage and remain until removed.

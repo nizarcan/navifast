@@ -15,15 +15,17 @@ for a biography and similar artists with `getArtistInfo2`. Navidrome may use
 the external metadata integrations configured by your server administrator.
 Navifast loads artist images through your server's `getCoverArt` endpoint.
 Navifast reads your favorites with `getStarred2` and sends `star` or `unstar`
-with the selected item ID to your server. Favorites and pending changes are
-held in memory for the signed-in session. Ratings are independent.
+with the selected item ID to your server. Favorites and ratings are independent. Their latest intended values and completed
+listens are saved in an account-scoped local sync journal, then sent on reconnect.
+Settings > Sync shows pending changes and offers Retry or Dismiss.
 **Scrobble to Navidrome** is enabled by default and can be switched off in Settings.
 It sends song IDs and playback start timestamps to your server's `scrobble` endpoint
 for now playing and qualifying listens. It counts consumed audio, excluding pauses,
 buffering and seek jumps. Your server may forward reports to external scrobbling
 services you configured there. Navifast makes no direct connection to those services.
-Disabling cancels queued requests and stops new reports. Pending reports and errors
-stay in memory only and are discarded at exit or sign-out.
+Disabling stops new reports and pauses pending completed listens. Now-playing
+notices stay ephemeral. An uncertain completed listen is retained for review and
+never automatically resent, since the server may already have counted it.
 The local queue is checkpointed in `navidrome-session.json` in the state directory
 and deleted on sign-out. It contains opaque song/album/playlist IDs, occurrence
 order, playback position, modes and a hash identifying the server and username.
@@ -119,5 +121,23 @@ Pausing cancels the prepared successor while allowing the playing track's bounde
 reserve to fill. Queue edits cancel obsolete preparation; stopping or signing out cancels further
 downloads and discards buffered audio. An in-flight request retains its existing
 15-second deadline.
-There is no offline audio cache. The local log records startup diagnostics,
+Audio cache in Settings is off by default. When enabled, streamed bytes and
+range/digest metadata remain in the cache directory under hashed account, server,
+song, format and quality keys. No signed URLs, credentials or tokens are saved.
+The default limit is 1 GiB, adjustable from 128 MiB to 8 GiB. Least recently used
+inactive entries leave first; entries expire after seven days when next accessed
+or on startup. Clear and disabling remove inactive entries immediately and active
+files when playback releases them, preserving play and seek. Sign-out retains
+cached bytes, but other accounts cannot reuse them. Cache hits avoid audio requests;
+server capability and transcoding negotiation can still contact the server.
+
+Explicit downloads use separate state storage, persist until removed and never
+count toward this cache budget. Download manifests contain song and collection
+metadata. Offline playback uses only verified downloads, never partial cache data.
+Both stores contain unencrypted media protected by your OS account. The sync journal
+also persists across sign-out and holds item metadata, intended edits and original
+listen timestamps without credentials. See [How it connects](/reference/how-it-connects/)
+for bounds and cleanup details.
+
+The local log records startup diagnostics,
 not passwords or authentication responses. Local development tools and QA artifacts are not part of the distributed app.

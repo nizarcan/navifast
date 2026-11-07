@@ -338,3 +338,10 @@ explain why they will not be resent and offer only Dismiss. Render at most eight
 failures at once; resolving them reveals later entries. A compact inline banner
 below the top bar links to this section when attention is needed. Do not add a
 sidebar destination or change the collection layout.
+
+## Audio cache
+
+Keep Audio cache in Settings after Playback, with the existing outlined section,
+switch, size dropdown and ordinary Clear/Retry pills. Show usage in muted 13-pixel
+text. Explain retained active files and failures inline with wrapping text. Use the
+same controls and spacing at narrow widths; do not add a navigation destination.

@@ -164,7 +164,8 @@ deleting the secret. Demo mode never restores or saves a login.
 playing occurrence and one prepared successor. Each original-audio download uses
 256 KiB HTTP byte ranges with at most 4 MiB queued ahead, plus the current block
 and one in-flight request (4.5 MiB per occurrence). Preparation is bounded to one
-resolved next occurrence; it never skips a pending album. No audio is cached to disk.
+resolved next occurrence; it never skips a pending album. Streamed audio stays in
+memory unless Audio cache is enabled in Settings.
 
 Streaming quality is saved per current account in `navidrome.json`, defaulting to
 Original. On sign-in, the shared `getOpenSubsonicExtensions` cache discovers
@@ -212,6 +213,35 @@ pairs; enabling a decoder alone does not certify gapless support.
 
 See [Privacy](/privacy/) for endpoints and storage and
 [Getting started](/getting-started/) for user-facing limitations.
+
+## Stream cache
+
+Audio cache is opt-in, with a default 1 GiB budget adjustable from 128 MiB to
+8 GiB. `navidrome::cache` stores disposable 256 KiB blocks under `streams/` in
+the cache directory. Keys hash the account/server scope, song ID, source format,
+size/duration, selected quality and converted source offset. They contain no
+credentials, authenticated URLs or transcoding tokens. An atomic versioned index
+records exact byte ranges, lengths and SHA-256 digests. Range gaps remain gaps;
+converted bodies become reusable only after EOF and complete coverage. Cache hits
+avoid audio requests; streaming capability negotiation may still contact the server.
+
+One control worker handles configuration and cleanup; decoder workers read/write
+bounded blocks. No cache I/O runs on the UI or audio callback. Index checkpoints
+are batched at 1 MiB, completion and release, with usage updates limited to four
+per second. Incomplete files from interrupted writes are collected on restart.
+Read-time checks reject damaged blocks. Disk errors leave network streaming usable
+and expose Retry in Settings. Metadata is bounded to 4,096 entries and 32,768
+blocks per entry, with a 4 MiB index limit per entry.
+
+Least recently used inactive entries leave first when space is needed or the limit
+shrinks. Clear and disabling retire all entries; active leases keep their files
+readable for play and seek until released, and stop saving new bytes. Usage can
+temporarily exceed a reduced limit while those leases remain. Entries older than
+seven days are discarded when the cache next opens or uses them. No timer or
+background download fills the cache. Explicit downloads are outside this budget.
+Sign-out retains cached bytes, but another account cannot reuse their keys. These
+are unencrypted local media protected by the OS account. This disposable cache is
+not offered as an offline library; use explicit downloads for offline playback.
 
 ## Track details
 

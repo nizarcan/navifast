@@ -71,6 +71,7 @@ impl HttpSource {
         Self::open_url(http, client.stream_url(&id), current, generation, guard)
     }
 
+    #[cfg(test)]
     pub(crate) fn open_url(
         http: reqwest::blocking::Client,
         url: reqwest::Url,
@@ -78,10 +79,24 @@ impl HttpSource {
         generation: u64,
         guard: Option<Arc<AtomicU8>>,
     ) -> io::Result<Self> {
+        Self::open_cached(http, url, current, generation, guard, None)
+    }
+    pub(crate) fn open_cached(
+        http: reqwest::blocking::Client,
+        url: reqwest::Url,
+        current: Arc<AtomicU64>,
+        generation: u64,
+        guard: Option<Arc<AtomicU8>>,
+        cache: Option<super::cache::Lease>,
+    ) -> io::Result<Self> {
         let mut download = Download {
             url,
             http,
-            length: u64::MAX,
+            length: cache
+                .as_ref()
+                .and_then(super::cache::Lease::length)
+                .unwrap_or(u64::MAX),
+            cache,
             current: current.clone(),
             generation,
             guard: guard.clone(),
@@ -180,6 +195,7 @@ fn check_generation(
 }
 
 struct Download {
+    cache: Option<super::cache::Lease>,
     url: reqwest::Url,
     http: reqwest::blocking::Client,
     length: u64,
@@ -234,6 +250,13 @@ impl Download {
 
     fn fetch(&mut self, position: u64) -> io::Result<Vec<u8>> {
         self.check()?;
+        if let Some(bytes) = self
+            .cache
+            .as_ref()
+            .and_then(|cache| cache.read(position, BLOCK as usize))
+        {
+            return Ok(bytes);
+        }
         let end = position
             .saturating_add(BLOCK - 1)
             .min(self.length.saturating_sub(1));
@@ -299,6 +322,9 @@ impl Download {
             return Err(io::Error::other("The server returned incomplete audio."));
         }
         self.check()?;
+        if let Some(cache) = &self.cache {
+            cache.store(position, &bytes, Some(self.length));
+        }
         Ok(bytes)
     }
 }

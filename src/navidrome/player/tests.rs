@@ -707,7 +707,8 @@ fn downloaded_audio_decodes_and_seeks_without_any_network_or_output_device() {
         songs: [(song.id.clone(), song.clone())].into(),
     };
     let (requests, mut received) = tokio::sync::mpsc::unbounded_channel();
-    let resolver = super::super::backend::StreamResolver::new(requests, available.clone());
+    let resolver =
+        super::super::backend::StreamResolver::new(requests, available.clone(), Default::default());
     for offset in [0., 0.1, 0.5] {
         let mut next = track(1, 1);
         let details = Arc::get_mut(&mut next).unwrap();

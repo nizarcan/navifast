@@ -333,7 +333,9 @@ impl State {
             .unwrap_or("")
             .split(',')
             .collect::<Vec<_>>();
-        let filter = if flags.contains(&"sync") {
+        let filter = if flags.contains(&"cache") {
+            "Audio cache"
+        } else if flags.contains(&"sync") {
             "Sync"
         } else if flags.contains(&"quality") {
             "Streaming quality"
@@ -534,6 +536,23 @@ impl State {
                 ));
             }
             state.app.demo_sync(&flags);
+            if flags.contains(&"cache") {
+                state.app.preferences.audio_cache.enabled = flags.contains(&"cache-on");
+                state.app.audio_cache.bytes = if flags.contains(&"cache-on") {
+                    384 * 1024 * 1024
+                } else {
+                    0
+                };
+            }
+            if flags.contains(&"cache-menu") {
+                state.menu = Some("audio-cache-limit");
+            }
+            if flags.contains(&"cache-clearing") {
+                state.app.audio_cache.retiring = state.app.audio_cache.bytes;
+            }
+            if flags.contains(&"cache-error") {
+                state.app.audio_cache.error = Some("Audio could not be cached. Streaming continues. Free disk space or check folder permissions, then retry.".into());
+            }
             if flags.contains(&"quality-menu") {
                 state.menu = Some("streaming-quality");
             }

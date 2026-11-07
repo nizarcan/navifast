@@ -2,12 +2,18 @@
 use super::*;
 
 pub(crate) struct ForwardSource {
-    response: reqwest::blocking::Response,
+    response: Option<reqwest::blocking::Response>,
+    cache: Option<super::super::cache::Lease>,
+    cached_length: Option<u64>,
+    position: u64,
+    pending: Vec<u8>,
+    cached_start: u64,
     current: Arc<AtomicU64>,
     generation: u64,
     guard: Option<Arc<AtomicU8>>,
 }
 impl ForwardSource {
+    #[cfg(test)]
     pub fn open(
         http: reqwest::blocking::Client,
         url: reqwest::Url,
@@ -15,7 +21,33 @@ impl ForwardSource {
         generation: u64,
         guard: Option<Arc<AtomicU8>>,
     ) -> io::Result<Self> {
+        Self::open_cached(http, url, current, generation, guard, None)
+    }
+    pub(crate) fn open_cached(
+        http: reqwest::blocking::Client,
+        url: reqwest::Url,
+        current: Arc<AtomicU64>,
+        generation: u64,
+        guard: Option<Arc<AtomicU8>>,
+        cache: Option<super::super::cache::Lease>,
+    ) -> io::Result<Self> {
         check_generation(&current, generation, guard.as_deref())?;
+        if let Some(length) = cache
+            .as_ref()
+            .and_then(super::super::cache::Lease::complete_length)
+        {
+            return Ok(Self {
+                response: None,
+                cache,
+                cached_length: Some(length),
+                position: 0,
+                pending: Vec::new(),
+                cached_start: 0,
+                current,
+                generation,
+                guard,
+            });
+        }
         let response = http
             .get(url)
             .send()
@@ -28,7 +60,12 @@ impl ForwardSource {
             ));
         }
         Ok(Self {
-            response,
+            response: Some(response),
+            cache,
+            cached_length: None,
+            position: 0,
+            pending: Vec::new(),
+            cached_start: 0,
             current,
             generation,
             guard,
@@ -38,13 +75,69 @@ impl ForwardSource {
 impl Read for ForwardSource {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
         check_generation(&self.current, self.generation, self.guard.as_deref())?;
-        let count = self.response.read(buffer).map_err(|error| {
-            io::Error::new(
-                error.kind(),
-                "The converted audio stream was interrupted. Retry or choose another quality.",
-            )
-        })?;
+        if buffer.is_empty() {
+            return Ok(0);
+        }
+        if let Some(length) = self.cached_length {
+            if self.position >= length {
+                return Ok(0);
+            }
+            // Decode reads can be tiny. Verify each disk block once and reuse it.
+            if self.position >= self.cached_start + self.pending.len() as u64 {
+                self.pending = self.cache.as_ref().and_then(|cache| cache.read(self.position, BLOCK as usize))
+                    .ok_or_else(|| io::Error::other("Cached audio is unavailable. Clear the audio cache in Settings and try again."))?;
+                self.cached_start = self.position;
+            }
+            let offset = (self.position - self.cached_start) as usize;
+            let count = (self.pending.len() - offset)
+                .min(buffer.len())
+                .min((length - self.position) as usize);
+            buffer[..count].copy_from_slice(&self.pending[offset..offset + count]);
+            self.position += count as u64;
+            return Ok(count);
+        }
+        let count = self
+            .response
+            .as_mut()
+            .expect("network source")
+            .read(buffer)
+            .map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    "The converted audio stream was interrupted. Retry or choose another quality.",
+                )
+            })?;
         check_generation(&self.current, self.generation, self.guard.as_deref())?;
+        if let Some(cache) = &self.cache {
+            let mut bytes = &buffer[..count];
+            while !bytes.is_empty() {
+                let take = bytes.len().min(BLOCK as usize - self.pending.len());
+                self.pending.extend_from_slice(&bytes[..take]);
+                bytes = &bytes[take..];
+                self.position += take as u64;
+                if self.pending.len() == BLOCK as usize {
+                    cache.store(
+                        self.position - self.pending.len() as u64,
+                        &self.pending,
+                        None,
+                    );
+                    self.pending.clear();
+                }
+            }
+            if count == 0 {
+                if !self.pending.is_empty() {
+                    cache.store(
+                        self.position - self.pending.len() as u64,
+                        &self.pending,
+                        None,
+                    );
+                    self.pending.clear();
+                }
+                cache.finish(self.position);
+            }
+        } else {
+            self.position += count as u64;
+        }
         Ok(count)
     }
 }
@@ -61,7 +154,7 @@ impl MediaSource for ForwardSource {
         false
     }
     fn byte_len(&self) -> Option<u64> {
-        None
+        self.cached_length
     }
 }
 

@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 23:56+0300\n"
+"POT-Creation-Date: 2026-11-08 00:18+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Traditional Chinese\n"
@@ -69,8 +69,8 @@ msgctxt "theme"
 msgid "Light"
 msgstr "淺色"
 
-#: src/settings.rs:118 src/ui/desktop/preferences.rs:129
-#: src/ui/desktop/preferences.rs:376
+#: src/settings.rs:118 src/ui/desktop/preferences.rs:153
+#: src/ui/desktop/preferences.rs:464
 msgid "Follow system"
 msgstr "跟隨系統"
 
@@ -143,10 +143,10 @@ msgstr "查看更多"
 #: src/ui/desktop/library.rs:1879 src/ui/desktop/library.rs:2215
 #: src/ui/desktop/library.rs:2341 src/ui/desktop/library.rs:2370
 #: src/ui/desktop/playlists.rs:160 src/ui/desktop/playlists.rs:267
-#: src/ui/desktop/preferences.rs:293 src/ui/desktop/ratings.rs:106
-#: src/ui/desktop/scrobble.rs:36 src/ui/desktop/artwork.rs:39
-#: src/ui/desktop/downloads.rs:49 src/ui/desktop/downloads.rs:100
-#: src/ui/desktop/sync.rs:128
+#: src/ui/desktop/preferences.rs:317 src/ui/desktop/preferences.rs:384
+#: src/ui/desktop/ratings.rs:106 src/ui/desktop/scrobble.rs:36
+#: src/ui/desktop/artwork.rs:39 src/ui/desktop/downloads.rs:49
+#: src/ui/desktop/downloads.rs:100 src/ui/desktop/sync.rs:128
 msgid "Retry"
 msgstr "重試"
 
@@ -184,7 +184,7 @@ msgstr "專輯"
 msgid "Singles & EPs"
 msgstr "單曲和 EP"
 
-#: src/ui/desktop/artist.rs:349 src/ui/desktop/preferences.rs:563
+#: src/ui/desktop/artist.rs:349 src/ui/desktop/preferences.rs:651
 msgid "About"
 msgstr "關於"
 
@@ -273,21 +273,21 @@ msgid "What do you want to play?"
 msgstr "想播放什麼？"
 
 #: src/ui/desktop/library.rs:593 src/ui/desktop/library.rs:640
-#: src/ui/desktop/preferences.rs:214 src/ui/keys.rs:55
+#: src/ui/desktop/preferences.rs:238 src/ui/keys.rs:55
 #: src/ui/desktop/sync.rs:23
 msgid "Settings"
 msgstr "設定"
 
-#: src/ui/desktop/library.rs:605 src/ui/desktop/preferences.rs:217
+#: src/ui/desktop/library.rs:605 src/ui/desktop/preferences.rs:241
 msgid "Account"
 msgstr "帳戶"
 
-#: src/ui/desktop/library.rs:646 src/ui/desktop/preferences.rs:564
-#: src/ui/desktop/preferences.rs:767 src/ui/desktop/preferences.rs:768
+#: src/ui/desktop/library.rs:646 src/ui/desktop/preferences.rs:652
+#: src/ui/desktop/preferences.rs:855 src/ui/desktop/preferences.rs:856
 msgid "Keyboard shortcuts"
 msgstr "鍵盤快捷鍵"
 
-#: src/ui/desktop/library.rs:654 src/ui/desktop/preferences.rs:218
+#: src/ui/desktop/library.rs:654 src/ui/desktop/preferences.rs:242
 msgid "Sign out"
 msgstr "登出"
 
@@ -564,7 +564,7 @@ msgstr "建立"
 msgid "Read-only"
 msgstr "唯讀"
 
-#: src/ui/desktop/playlists.rs:169 src/ui/desktop/preferences.rs:754
+#: src/ui/desktop/playlists.rs:169 src/ui/desktop/preferences.rs:842
 msgid "Done"
 msgstr "完成"
 
@@ -656,61 +656,98 @@ msgstr "原始音質"
 msgid "MP3 · {bitrate} kbps"
 msgstr "MP3 · {bitrate} kbps"
 
-#: src/ui/desktop/preferences.rs:143 src/ui/desktop/preferences.rs:410
+#: src/ui/desktop/preferences.rs:167 src/ui/desktop/preferences.rs:498
 msgctxt "language"
 msgid "System"
 msgstr "系統"
 
-#: src/ui/desktop/preferences.rs:200
+#: src/ui/desktop/preferences.rs:224
 msgid "Search settings"
 msgstr "搜尋設定"
 
-#: src/ui/desktop/preferences.rs:241
+#: src/ui/desktop/preferences.rs:265
 #, rust-format
 msgid "Connected as {username}"
 msgstr "已以 {username} 身分連線"
 
-#: src/ui/desktop/preferences.rs:254
+#: src/ui/desktop/preferences.rs:278
 msgid "Sync"
 msgstr "同步"
 
-#: src/ui/desktop/preferences.rs:259
+#: src/ui/desktop/preferences.rs:283
 msgid "Playback"
 msgstr "播放"
 
-#: src/ui/desktop/preferences.rs:260
+#: src/ui/desktop/preferences.rs:284
 msgid "Streaming quality"
 msgstr "串流音質"
 
-#: src/ui/desktop/preferences.rs:262
+#: src/ui/desktop/preferences.rs:286
 msgid "Original keeps the server file. Choose MP3 to limit the audio bitrate."
 msgstr "原始音質保留伺服器檔案。選擇 MP3 可限制音訊位元率。"
 
-#: src/ui/desktop/preferences.rs:281
+#: src/ui/desktop/preferences.rs:305
 msgid "Checking streaming support…"
 msgstr "正在檢查串流支援…"
 
-#: src/ui/desktop/preferences.rs:298
+#: src/ui/desktop/preferences.rs:322
 msgid ""
 "Seeking is unavailable for converted audio on this server. Choose Original "
 "to seek."
 msgstr "此伺服器不支援在轉換後的音訊中跳轉。請選擇原始音質以調整播放位置。"
 
-#: src/ui/desktop/preferences.rs:303
+#: src/ui/desktop/preferences.rs:327
 msgid ""
 "The new quality applies to the next track. The current track keeps its "
 "position and quality."
 msgstr "新音質將從下一首歌曲開始套用。目前歌曲的播放位置和音質保持不變。"
 
-#: src/ui/desktop/preferences.rs:307
+#: src/ui/desktop/preferences.rs:331
+msgid "Audio cache"
+msgstr "音訊快取"
+
+#: src/ui/desktop/preferences.rs:333
+msgid ""
+"Keep recently streamed audio on this device for replay. Downloads have their "
+"own storage."
+msgstr "在此裝置上保留最近播放的串流音訊，以便再次播放。下載內容使用獨立儲存空間。"
+
+#: src/ui/desktop/preferences.rs:340
+msgid "Cache streamed audio"
+msgstr "快取串流音訊"
+
+#: src/ui/desktop/preferences.rs:350
+msgid "Cache limit"
+msgstr "快取上限"
+
+#: src/ui/desktop/preferences.rs:350
+msgid ""
+"Least recently used audio is removed first. Files in use are kept until "
+"playback releases them."
+msgstr "優先移除最久未使用的音訊。使用中的檔案會保留到播放器釋放它們。"
+
+#: src/ui/desktop/preferences.rs:354
+#, rust-format
+msgid "Cached audio: {size} MiB"
+msgstr "已快取音訊：{size} MiB"
+
+#: src/ui/desktop/preferences.rs:373
+msgid "Files in use will be removed after playback releases them."
+msgstr "使用中的檔案將在播放器釋放後移除。"
+
+#: src/ui/desktop/preferences.rs:389
+msgid "Clear audio cache"
+msgstr "清除音訊快取"
+
+#: src/ui/desktop/preferences.rs:395
 msgid "Listening history"
 msgstr "聆聽紀錄"
 
-#: src/ui/desktop/preferences.rs:308
+#: src/ui/desktop/preferences.rs:396
 msgid "Scrobble to Navidrome"
 msgstr "向 Navidrome 回報聆聽紀錄"
 
-#: src/ui/desktop/preferences.rs:309
+#: src/ui/desktop/preferences.rs:397
 msgid ""
 "Send now playing and qualifying listens to your server. Your server may "
 "forward reports to services you configured."
@@ -718,16 +755,16 @@ msgstr ""
 "將正在播放的歌曲和符合條件的聆聽紀錄傳送至伺服器。伺服器可能會將報告轉送至你"
 "設定的服務。"
 
-#: src/ui/desktop/preferences.rs:327 src/ui/desktop/transport.rs:369
+#: src/ui/desktop/preferences.rs:415 src/ui/desktop/transport.rs:369
 #: src/ui/desktop/lyrics.rs:21 src/ui/desktop/lyrics.rs:158
 msgid "Lyrics"
 msgstr "歌詞"
 
-#: src/ui/desktop/preferences.rs:328
+#: src/ui/desktop/preferences.rs:416
 msgid "Use LRCLIB for missing lyrics"
 msgstr "使用 LRCLIB 補充缺少的歌詞"
 
-#: src/ui/desktop/preferences.rs:329
+#: src/ui/desktop/preferences.rs:417
 msgid ""
 "When Navidrome has no lyrics, send the song's artist, title, album and "
 "duration to lrclib.net. Off by default. You can disable this at any time."
@@ -735,101 +772,101 @@ msgstr ""
 "當 Navidrome 沒有歌詞時，將歌曲的演出者、標題、專輯和長度傳送至 lrclib.net。"
 "預設關閉，可隨時停用。"
 
-#: src/ui/desktop/preferences.rs:347
+#: src/ui/desktop/preferences.rs:435
 msgid "Appearance"
 msgstr "外觀"
 
-#: src/ui/desktop/preferences.rs:354
+#: src/ui/desktop/preferences.rs:442
 msgid "Follow system uses your Omarchy colours."
 msgstr "「跟隨系統」會使用你的 Omarchy 色彩。"
 
-#: src/ui/desktop/preferences.rs:357
+#: src/ui/desktop/preferences.rs:445
 msgid "Follow system uses your desktop's light or dark appearance."
 msgstr "「跟隨系統」會使用桌面的淺色或深色外觀。"
 
-#: src/ui/desktop/preferences.rs:360 src/ui/desktop/lyrics_card.rs:250
+#: src/ui/desktop/preferences.rs:448 src/ui/desktop/lyrics_card.rs:250
 msgid "Theme"
 msgstr "主題"
 
-#: src/ui/desktop/preferences.rs:365 src/ui/desktop/preferences.rs:388
+#: src/ui/desktop/preferences.rs:453 src/ui/desktop/preferences.rs:476
 msgid "Open themes folder"
 msgstr "開啟主題資料夾"
 
-#: src/ui/desktop/preferences.rs:366 src/ui/desktop/preferences.rs:394
+#: src/ui/desktop/preferences.rs:454 src/ui/desktop/preferences.rs:482
 msgid "How to make a theme"
 msgstr "如何製作主題"
 
-#: src/ui/desktop/preferences.rs:405
+#: src/ui/desktop/preferences.rs:493
 msgid "Language"
 msgstr "語言"
 
-#: src/ui/desktop/preferences.rs:407
+#: src/ui/desktop/preferences.rs:495
 msgid ""
 "System follows your computer's language. Untranslated text stays in English."
 msgstr "「系統」會跟隨電腦的語言。未翻譯的文字會以英文顯示。"
 
-#: src/ui/desktop/preferences.rs:439
+#: src/ui/desktop/preferences.rs:527
 msgid "Colour from album art"
 msgstr "使用專輯封面顏色"
 
-#: src/ui/desktop/preferences.rs:440
+#: src/ui/desktop/preferences.rs:528
 msgid "Use the current cover's colour on pages and the player bar."
 msgstr "在頁面和播放列中使用目前封面的顏色。"
 
-#: src/ui/desktop/preferences.rs:444 src/ui/desktop/transport.rs:470
+#: src/ui/desktop/preferences.rs:532 src/ui/desktop/transport.rs:470
 msgid "Player bar visualizer"
 msgstr "播放列視覺效果"
 
-#: src/ui/desktop/preferences.rs:446
+#: src/ui/desktop/preferences.rs:534
 msgid ""
 "Show the song moving behind the player bar's controls while it plays here."
 msgstr "歌曲在本機播放時，在播放列控制項後方顯示它的律動。"
 
-#: src/ui/desktop/preferences.rs:451
+#: src/ui/desktop/preferences.rs:539
 msgid "Off"
 msgstr "關閉"
 
-#: src/ui/desktop/preferences.rs:452
+#: src/ui/desktop/preferences.rs:540
 msgid "Spectrum"
 msgstr "頻譜"
 
-#: src/ui/desktop/preferences.rs:453
+#: src/ui/desktop/preferences.rs:541
 msgid "Waveform"
 msgstr "波形"
 
-#: src/ui/desktop/preferences.rs:466
+#: src/ui/desktop/preferences.rs:554
 msgid "Compact library sidebar"
 msgstr "精簡的音樂庫側邊欄"
 
-#: src/ui/desktop/preferences.rs:467
+#: src/ui/desktop/preferences.rs:555
 msgid "Show names without covers in the sidebar."
 msgstr "在側邊欄中只顯示名稱，不顯示封面。"
 
-#: src/ui/desktop/preferences.rs:472
+#: src/ui/desktop/preferences.rs:560
 msgid "Compact track list"
 msgstr "精簡的歌曲清單"
 
-#: src/ui/desktop/preferences.rs:473
+#: src/ui/desktop/preferences.rs:561
 msgid "Show each track on one line without a cover."
 msgstr "每首歌曲顯示為一行，不顯示封面。"
 
-#: src/ui/desktop/preferences.rs:477
+#: src/ui/desktop/preferences.rs:565
 msgid "Interface zoom"
 msgstr "介面縮放"
 
-#: src/ui/desktop/preferences.rs:479
+#: src/ui/desktop/preferences.rs:567
 msgid "Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets."
 msgstr "Ctrl+加號和 Ctrl+減號隨處可用，Ctrl+0 可重設。"
 
-#: src/ui/desktop/preferences.rs:480
+#: src/ui/desktop/preferences.rs:568
 msgid "Cmd+Plus and Cmd+Minus work anywhere; Cmd+0 resets."
 msgstr "Cmd+加號和 Cmd+減號隨處可用，Cmd+0 可重設。"
 
-#: src/ui/desktop/preferences.rs:497
+#: src/ui/desktop/preferences.rs:585
 msgid "Middle-click autoscroll"
 msgstr "中鍵自動捲動"
 
-#: src/ui/desktop/preferences.rs:497
+#: src/ui/desktop/preferences.rs:585
 msgid ""
 "Middle-click a list, then move the pointer to scroll it. Off by default, "
 "because a middle click usually pastes on Linux."
@@ -837,43 +874,43 @@ msgstr ""
 "在清單上按一下滑鼠中鍵，然後移動指標即可捲動。預設為關閉，因為在 Linux 上按中"
 "鍵通常會貼上。"
 
-#: src/ui/desktop/preferences.rs:502
+#: src/ui/desktop/preferences.rs:590
 msgid "Equalizer"
 msgstr "等化器"
 
-#: src/ui/desktop/preferences.rs:504
+#: src/ui/desktop/preferences.rs:592
 msgid ""
 "A ten-band equalizer for playback on this computer. It does not affect other "
 "devices."
 msgstr "用於這台電腦播放的十段等化器，不會影響其他裝置。"
 
-#: src/ui/desktop/preferences.rs:520
+#: src/ui/desktop/preferences.rs:608
 msgid "Presets"
 msgstr "預設集"
 
-#: src/ui/desktop/preferences.rs:521
+#: src/ui/desktop/preferences.rs:609
 msgid "Preamp"
 msgstr "前級放大"
 
-#: src/ui/desktop/preferences.rs:522
+#: src/ui/desktop/preferences.rs:610
 msgid "Bands"
 msgstr "頻段"
 
-#: src/ui/desktop/preferences.rs:551
+#: src/ui/desktop/preferences.rs:639
 msgctxt "equalizer"
 msgid "Pre"
 msgstr "前級"
 
-#: src/ui/desktop/preferences.rs:565
+#: src/ui/desktop/preferences.rs:653
 msgid "Source code"
 msgstr "原始碼"
 
-#: src/ui/desktop/preferences.rs:594
+#: src/ui/desktop/preferences.rs:682
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "沒有與「{query}」相關的設定"
 
-#: src/ui/desktop/preferences.rs:601
+#: src/ui/desktop/preferences.rs:689
 msgid "Try fewer words, or check the spelling."
 msgstr "請減少字詞，或檢查拼字。"
 

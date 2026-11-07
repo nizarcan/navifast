@@ -101,6 +101,30 @@ fn quality_name(v: &Paint<'_>, quality: crate::navidrome::quality::Quality) -> S
 
 pub(super) fn choice_menu(v: &Paint<'_>, key: &'static str) -> El {
     let p = &v.s.app.presentation;
+    if key == "audio-cache-limit" {
+        return v
+            .menu(key)
+            .children(
+                crate::navidrome::cache::Config::LIMITS
+                    .into_iter()
+                    .map(|mib| {
+                        v.button(
+                            &format!("{mib} MiB"),
+                            mib == v.s.app.preferences.audio_cache.limit_mib,
+                            move |s, _| {
+                                s.app.configure_audio_cache(
+                                    s.app.preferences.audio_cache.enabled,
+                                    mib,
+                                    false,
+                                );
+                                s.menu = None;
+                            },
+                        )
+                        .role("menuitemradio")
+                        .checked(mib == v.s.app.preferences.audio_cache.limit_mib)
+                    }),
+            );
+    }
     if key == "streaming-quality" {
         return v.menu(key).children(
             crate::navidrome::quality::Quality::ALL
@@ -303,6 +327,70 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
             rows.push(label(v.tr(mark("The new quality applies to the next track. The current track keeps its position and quality.")), 13., 400., v.p.secondary).wrap());
         }
         page = page.child(section(v, &playback, rows));
+    }
+    let cache = v.tr(mark("Audio cache"));
+    let cache_detail = v.tr(mark(
+        "Keep recently streamed audio on this device for replay. Downloads have their own storage.",
+    ));
+    if matches(&[&cache, &cache_detail, "cache", "storage"]) {
+        visible = true;
+        let config = a.preferences.audio_cache;
+        let mut rows = vec![setting(
+            v,
+            &v.tr(mark("Cache streamed audio")),
+            &cache_detail,
+            switch(v, &cache, config.enabled, |s| {
+                let config = s.app.preferences.audio_cache;
+                s.app
+                    .configure_audio_cache(!config.enabled, config.limit_mib, false);
+            })
+            .key("audio-cache-toggle"),
+            40.,
+        )];
+        rows.push(setting(v, &v.tr(mark("Cache limit")), &v.tr(mark("Least recently used audio is removed first. Files in use are kept until playback releases them.")),
+            choice(v, "audio-cache-limit", &cache, &format!("{} MiB", config.limit_mib)), 200.));
+        rows.push(
+            label(
+                v.tr(mark("Cached audio: {size} MiB")).replace(
+                    "{size}",
+                    &format!("{:.1}", a.audio_cache.bytes as f64 / (1024. * 1024.)),
+                ),
+                13.,
+                400.,
+                v.p.secondary,
+            )
+            .wrap(),
+        );
+        if a.cache_pending {
+            rows.push(v.loading());
+        }
+        if a.audio_cache.retiring > 0
+            || a.audio_cache.bytes > u64::from(config.limit_mib) * 1024 * 1024
+        {
+            rows.push(
+                label(
+                    v.tr(mark(
+                        "Files in use will be removed after playback releases them.",
+                    )),
+                    13.,
+                    400.,
+                    v.p.secondary,
+                )
+                .wrap(),
+            );
+        }
+        if let Some(error) = &a.audio_cache.error {
+            rows.push(label(error, 13., 400., v.p.secondary).wrap());
+            rows.push(v.button(&v.tr(mark("Retry")), false, |s, _| {
+                let c = s.app.preferences.audio_cache;
+                s.app.configure_audio_cache(c.enabled, c.limit_mib, false);
+            }));
+        }
+        rows.push(v.button(&v.tr(mark("Clear audio cache")), false, |s, _| {
+            let c = s.app.preferences.audio_cache;
+            s.app.configure_audio_cache(c.enabled, c.limit_mib, true);
+        }));
+        page = page.child(section(v, &cache, rows));
     }
     let listening = v.tr(mark("Listening history"));
     let name = v.tr(mark("Scrobble to Navidrome"));

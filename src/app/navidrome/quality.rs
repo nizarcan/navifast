@@ -9,6 +9,23 @@ pub struct State {
     pub deferred: bool,
 }
 impl App {
+    pub(crate) fn configure_audio_cache(&mut self, enabled: bool, limit_mib: u32, clear: bool) {
+        self.preferences.audio_cache =
+            crate::navidrome::cache::Config { enabled, limit_mib }.normalized();
+        self.mark_dirty();
+        if !self.demo {
+            self.cache_revision = self.cache_revision.wrapping_add(1);
+            self.cache_pending = true;
+            self.audio_cache.error = None;
+            self.backend.send(Request::Cache {
+                root: self.dirs.cache.join("streams"),
+                config: self.preferences.audio_cache,
+                clear,
+            });
+        } else if clear || !enabled {
+            self.audio_cache = Default::default();
+        }
+    }
     pub(crate) fn can_seek(&self) -> bool {
         self.quality.active == Quality::Original || self.transport.seekable
     }

@@ -268,7 +268,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             }
             Some(menu)
         }
-        Some(key @ ("themes" | "languages" | "streaming-quality")) => {
+        Some(key @ ("themes" | "languages" | "streaming-quality" | "audio-cache-limit")) => {
             Some(preferences::choice_menu(v, key))
         }
         _ => None,

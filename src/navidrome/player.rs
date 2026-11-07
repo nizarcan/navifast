@@ -308,31 +308,43 @@ fn decode_job(
             }
         }
     };
+    let mut cache_lease = None;
     let source: Box<dyn symphonia::core::io::MediaSource> = if let Some(path) = local {
         Box::new(std::fs::File::open(path).map_err(
             |_| "The downloaded file is unavailable. Download it again or remove its local copy.",
         )?)
     } else {
+        let key = super::cache::key(
+            &job.client.scope,
+            &job.track.song,
+            job.track.quality,
+            plan.ranged,
+            job.track.offset,
+        );
+        let cache = resolver.cached(key, !plan.ranged);
+        cache_lease = cache.clone();
         let http = Client::stream_client(proxy)?;
         if plan.ranged {
             Box::new(
-                HttpSource::open_url(
+                HttpSource::open_cached(
                     http,
                     plan.url,
                     current.clone(),
                     job.chain,
                     Some(job.track.gate.clone()),
+                    cache,
                 )
                 .map_err(|e| e.to_string())?,
             )
         } else {
             Box::new(
-                super::stream::forward::ForwardSource::open(
+                super::stream::forward::ForwardSource::open_cached(
                     http,
                     plan.url,
                     current.clone(),
                     job.chain,
                     Some(job.track.gate.clone()),
+                    cache,
                 )
                 .map_err(|e| e.to_string())?,
             )
@@ -374,6 +386,11 @@ fn decode_job(
         consume,
     )
     .map_err(|message| {
+        if job.valid(current)
+            && let Some(cache) = cache_lease
+        {
+            cache.invalidate();
+        }
         if let Some(bitrate) = job.track.quality.kbps() {
             format!("MP3 at up to {bitrate} kbps could not play: {message}")
         } else {

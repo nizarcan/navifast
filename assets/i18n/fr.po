@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-07 23:56+0300\n"
+"POT-Creation-Date: 2026-11-08 00:18+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: French\n"
@@ -73,8 +73,8 @@ msgctxt "theme"
 msgid "Light"
 msgstr "Clair"
 
-#: src/settings.rs:118 src/ui/desktop/preferences.rs:129
-#: src/ui/desktop/preferences.rs:376
+#: src/settings.rs:118 src/ui/desktop/preferences.rs:153
+#: src/ui/desktop/preferences.rs:464
 msgid "Follow system"
 msgstr "Suivre le système"
 
@@ -158,10 +158,10 @@ msgstr "Afficher plus"
 #: src/ui/desktop/library.rs:1879 src/ui/desktop/library.rs:2215
 #: src/ui/desktop/library.rs:2341 src/ui/desktop/library.rs:2370
 #: src/ui/desktop/playlists.rs:160 src/ui/desktop/playlists.rs:267
-#: src/ui/desktop/preferences.rs:293 src/ui/desktop/ratings.rs:106
-#: src/ui/desktop/scrobble.rs:36 src/ui/desktop/artwork.rs:39
-#: src/ui/desktop/downloads.rs:49 src/ui/desktop/downloads.rs:100
-#: src/ui/desktop/sync.rs:128
+#: src/ui/desktop/preferences.rs:317 src/ui/desktop/preferences.rs:384
+#: src/ui/desktop/ratings.rs:106 src/ui/desktop/scrobble.rs:36
+#: src/ui/desktop/artwork.rs:39 src/ui/desktop/downloads.rs:49
+#: src/ui/desktop/downloads.rs:100 src/ui/desktop/sync.rs:128
 msgid "Retry"
 msgstr "Réessayer"
 
@@ -199,7 +199,7 @@ msgstr "Albums"
 msgid "Singles & EPs"
 msgstr "Singles et EP"
 
-#: src/ui/desktop/artist.rs:349 src/ui/desktop/preferences.rs:563
+#: src/ui/desktop/artist.rs:349 src/ui/desktop/preferences.rs:651
 msgid "About"
 msgstr "À propos"
 
@@ -288,21 +288,21 @@ msgid "What do you want to play?"
 msgstr "Que souhaitez-vous écouter ?"
 
 #: src/ui/desktop/library.rs:593 src/ui/desktop/library.rs:640
-#: src/ui/desktop/preferences.rs:214 src/ui/keys.rs:55
+#: src/ui/desktop/preferences.rs:238 src/ui/keys.rs:55
 #: src/ui/desktop/sync.rs:23
 msgid "Settings"
 msgstr "Paramètres"
 
-#: src/ui/desktop/library.rs:605 src/ui/desktop/preferences.rs:217
+#: src/ui/desktop/library.rs:605 src/ui/desktop/preferences.rs:241
 msgid "Account"
 msgstr "Compte"
 
-#: src/ui/desktop/library.rs:646 src/ui/desktop/preferences.rs:564
-#: src/ui/desktop/preferences.rs:767 src/ui/desktop/preferences.rs:768
+#: src/ui/desktop/library.rs:646 src/ui/desktop/preferences.rs:652
+#: src/ui/desktop/preferences.rs:855 src/ui/desktop/preferences.rs:856
 msgid "Keyboard shortcuts"
 msgstr "Raccourcis clavier"
 
-#: src/ui/desktop/library.rs:654 src/ui/desktop/preferences.rs:218
+#: src/ui/desktop/library.rs:654 src/ui/desktop/preferences.rs:242
 msgid "Sign out"
 msgstr "Se déconnecter"
 
@@ -579,7 +579,7 @@ msgstr "Créer"
 msgid "Read-only"
 msgstr "Lecture seule"
 
-#: src/ui/desktop/playlists.rs:169 src/ui/desktop/preferences.rs:754
+#: src/ui/desktop/playlists.rs:169 src/ui/desktop/preferences.rs:842
 msgid "Done"
 msgstr "Terminé"
 
@@ -673,43 +673,43 @@ msgstr "Original"
 msgid "MP3 · {bitrate} kbps"
 msgstr "MP3 · {bitrate} kbps"
 
-#: src/ui/desktop/preferences.rs:143 src/ui/desktop/preferences.rs:410
+#: src/ui/desktop/preferences.rs:167 src/ui/desktop/preferences.rs:498
 msgctxt "language"
 msgid "System"
 msgstr "Système"
 
-#: src/ui/desktop/preferences.rs:200
+#: src/ui/desktop/preferences.rs:224
 msgid "Search settings"
 msgstr "Rechercher dans les paramètres"
 
-#: src/ui/desktop/preferences.rs:241
+#: src/ui/desktop/preferences.rs:265
 #, rust-format
 msgid "Connected as {username}"
 msgstr "Connecté en tant que {username}"
 
-#: src/ui/desktop/preferences.rs:254
+#: src/ui/desktop/preferences.rs:278
 msgid "Sync"
 msgstr "Synchronisation"
 
-#: src/ui/desktop/preferences.rs:259
+#: src/ui/desktop/preferences.rs:283
 msgid "Playback"
 msgstr "Lecture"
 
-#: src/ui/desktop/preferences.rs:260
+#: src/ui/desktop/preferences.rs:284
 msgid "Streaming quality"
 msgstr "Qualité de diffusion"
 
-#: src/ui/desktop/preferences.rs:262
+#: src/ui/desktop/preferences.rs:286
 msgid "Original keeps the server file. Choose MP3 to limit the audio bitrate."
 msgstr ""
 "Original conserve le fichier du serveur. Choisissez MP3 pour limiter le "
 "débit audio."
 
-#: src/ui/desktop/preferences.rs:281
+#: src/ui/desktop/preferences.rs:305
 msgid "Checking streaming support…"
 msgstr "Vérification de la prise en charge de la diffusion…"
 
-#: src/ui/desktop/preferences.rs:298
+#: src/ui/desktop/preferences.rs:322
 msgid ""
 "Seeking is unavailable for converted audio on this server. Choose Original "
 "to seek."
@@ -717,7 +717,7 @@ msgstr ""
 "Ce serveur ne permet pas de se déplacer dans un fichier audio converti. "
 "Choisissez Original pour le faire."
 
-#: src/ui/desktop/preferences.rs:303
+#: src/ui/desktop/preferences.rs:327
 msgid ""
 "The new quality applies to the next track. The current track keeps its "
 "position and quality."
@@ -725,15 +725,52 @@ msgstr ""
 "La nouvelle qualité s’applique au titre suivant. Le titre actuel conserve sa "
 "position et sa qualité."
 
-#: src/ui/desktop/preferences.rs:307
+#: src/ui/desktop/preferences.rs:331
+msgid "Audio cache"
+msgstr "Cache audio"
+
+#: src/ui/desktop/preferences.rs:333
+msgid ""
+"Keep recently streamed audio on this device for replay. Downloads have their "
+"own storage."
+msgstr "Conservez sur cet appareil les morceaux récemment diffusés pour les réécouter. Les téléchargements ont leur propre stockage."
+
+#: src/ui/desktop/preferences.rs:340
+msgid "Cache streamed audio"
+msgstr "Mettre le son diffusé en cache"
+
+#: src/ui/desktop/preferences.rs:350
+msgid "Cache limit"
+msgstr "Limite du cache"
+
+#: src/ui/desktop/preferences.rs:350
+msgid ""
+"Least recently used audio is removed first. Files in use are kept until "
+"playback releases them."
+msgstr "Les morceaux utilisés le moins récemment sont supprimés en premier. Les fichiers en cours de lecture sont conservés jusqu’à leur libération."
+
+#: src/ui/desktop/preferences.rs:354
+#, rust-format
+msgid "Cached audio: {size} MiB"
+msgstr "Audio en cache : {size} MiB"
+
+#: src/ui/desktop/preferences.rs:373
+msgid "Files in use will be removed after playback releases them."
+msgstr "Les fichiers utilisés seront supprimés lorsque le lecteur les libérera."
+
+#: src/ui/desktop/preferences.rs:389
+msgid "Clear audio cache"
+msgstr "Vider le cache audio"
+
+#: src/ui/desktop/preferences.rs:395
 msgid "Listening history"
 msgstr "Historique d’écoute"
 
-#: src/ui/desktop/preferences.rs:308
+#: src/ui/desktop/preferences.rs:396
 msgid "Scrobble to Navidrome"
 msgstr "Envoyer les écoutes à Navidrome"
 
-#: src/ui/desktop/preferences.rs:309
+#: src/ui/desktop/preferences.rs:397
 msgid ""
 "Send now playing and qualifying listens to your server. Your server may "
 "forward reports to services you configured."
@@ -741,16 +778,16 @@ msgstr ""
 "Envoyez le titre en cours et les écoutes admissibles à votre serveur. Votre "
 "serveur peut les transmettre aux services que vous avez configurés."
 
-#: src/ui/desktop/preferences.rs:327 src/ui/desktop/transport.rs:369
+#: src/ui/desktop/preferences.rs:415 src/ui/desktop/transport.rs:369
 #: src/ui/desktop/lyrics.rs:21 src/ui/desktop/lyrics.rs:158
 msgid "Lyrics"
 msgstr "Paroles"
 
-#: src/ui/desktop/preferences.rs:328
+#: src/ui/desktop/preferences.rs:416
 msgid "Use LRCLIB for missing lyrics"
 msgstr "Utiliser LRCLIB pour les paroles manquantes"
 
-#: src/ui/desktop/preferences.rs:329
+#: src/ui/desktop/preferences.rs:417
 msgid ""
 "When Navidrome has no lyrics, send the song's artist, title, album and "
 "duration to lrclib.net. Off by default. You can disable this at any time."
@@ -759,108 +796,108 @@ msgstr ""
 "et la durée du morceau à lrclib.net. Désactivé par défaut. Vous pouvez "
 "désactiver cette option à tout moment."
 
-#: src/ui/desktop/preferences.rs:347
+#: src/ui/desktop/preferences.rs:435
 msgid "Appearance"
 msgstr "Apparence"
 
-#: src/ui/desktop/preferences.rs:354
+#: src/ui/desktop/preferences.rs:442
 msgid "Follow system uses your Omarchy colours."
 msgstr "Suivre le système utilise vos couleurs Omarchy."
 
-#: src/ui/desktop/preferences.rs:357
+#: src/ui/desktop/preferences.rs:445
 msgid "Follow system uses your desktop's light or dark appearance."
 msgstr ""
 "Suivre le système utilise l’apparence claire ou sombre de votre bureau."
 
-#: src/ui/desktop/preferences.rs:360 src/ui/desktop/lyrics_card.rs:250
+#: src/ui/desktop/preferences.rs:448 src/ui/desktop/lyrics_card.rs:250
 msgid "Theme"
 msgstr "Thème"
 
-#: src/ui/desktop/preferences.rs:365 src/ui/desktop/preferences.rs:388
+#: src/ui/desktop/preferences.rs:453 src/ui/desktop/preferences.rs:476
 msgid "Open themes folder"
 msgstr "Ouvrir le dossier des thèmes"
 
-#: src/ui/desktop/preferences.rs:366 src/ui/desktop/preferences.rs:394
+#: src/ui/desktop/preferences.rs:454 src/ui/desktop/preferences.rs:482
 msgid "How to make a theme"
 msgstr "Créer un thème"
 
-#: src/ui/desktop/preferences.rs:405
+#: src/ui/desktop/preferences.rs:493
 msgid "Language"
 msgstr "Langue"
 
-#: src/ui/desktop/preferences.rs:407
+#: src/ui/desktop/preferences.rs:495
 msgid ""
 "System follows your computer's language. Untranslated text stays in English."
 msgstr ""
 "Système suit la langue de votre ordinateur. Le texte non traduit reste en "
 "anglais."
 
-#: src/ui/desktop/preferences.rs:439
+#: src/ui/desktop/preferences.rs:527
 msgid "Colour from album art"
 msgstr "Couleur de la pochette"
 
-#: src/ui/desktop/preferences.rs:440
+#: src/ui/desktop/preferences.rs:528
 msgid "Use the current cover's colour on pages and the player bar."
 msgstr ""
 "Utilise la couleur de la pochette en cours sur les pages et la barre de "
 "lecture."
 
-#: src/ui/desktop/preferences.rs:444 src/ui/desktop/transport.rs:470
+#: src/ui/desktop/preferences.rs:532 src/ui/desktop/transport.rs:470
 msgid "Player bar visualizer"
 msgstr "Visualiseur dans la barre de lecture"
 
-#: src/ui/desktop/preferences.rs:446
+#: src/ui/desktop/preferences.rs:534
 msgid ""
 "Show the song moving behind the player bar's controls while it plays here."
 msgstr ""
 "Montre le titre en mouvement derrière les commandes de la barre de lecture "
 "pendant qu’il est lu ici."
 
-#: src/ui/desktop/preferences.rs:451
+#: src/ui/desktop/preferences.rs:539
 msgid "Off"
 msgstr "Désactivé"
 
-#: src/ui/desktop/preferences.rs:452
+#: src/ui/desktop/preferences.rs:540
 msgid "Spectrum"
 msgstr "Spectre"
 
-#: src/ui/desktop/preferences.rs:453
+#: src/ui/desktop/preferences.rs:541
 msgid "Waveform"
 msgstr "Forme d’onde"
 
-#: src/ui/desktop/preferences.rs:466
+#: src/ui/desktop/preferences.rs:554
 msgid "Compact library sidebar"
 msgstr "Barre latérale compacte"
 
-#: src/ui/desktop/preferences.rs:467
+#: src/ui/desktop/preferences.rs:555
 msgid "Show names without covers in the sidebar."
 msgstr "Affiche les noms sans pochette dans la barre latérale."
 
-#: src/ui/desktop/preferences.rs:472
+#: src/ui/desktop/preferences.rs:560
 msgid "Compact track list"
 msgstr "Liste de titres compacte"
 
-#: src/ui/desktop/preferences.rs:473
+#: src/ui/desktop/preferences.rs:561
 msgid "Show each track on one line without a cover."
 msgstr "Affiche chaque titre sur une ligne, sans pochette."
 
-#: src/ui/desktop/preferences.rs:477
+#: src/ui/desktop/preferences.rs:565
 msgid "Interface zoom"
 msgstr "Zoom de l’interface"
 
-#: src/ui/desktop/preferences.rs:479
+#: src/ui/desktop/preferences.rs:567
 msgid "Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets."
 msgstr "Ctrl+Plus et Ctrl+Moins fonctionnent partout ; Ctrl+0 réinitialise."
 
-#: src/ui/desktop/preferences.rs:480
+#: src/ui/desktop/preferences.rs:568
 msgid "Cmd+Plus and Cmd+Minus work anywhere; Cmd+0 resets."
 msgstr "Cmd+Plus et Cmd+Moins fonctionnent partout ; Cmd+0 réinitialise."
 
-#: src/ui/desktop/preferences.rs:497
+#: src/ui/desktop/preferences.rs:585
 msgid "Middle-click autoscroll"
 msgstr "Défilement automatique au clic du milieu"
 
-#: src/ui/desktop/preferences.rs:497
+#: src/ui/desktop/preferences.rs:585
 msgid ""
 "Middle-click a list, then move the pointer to scroll it. Off by default, "
 "because a middle click usually pastes on Linux."
@@ -869,11 +906,11 @@ msgstr ""
 "pour la faire défiler. Désactivé par défaut, car le clic du milieu colle "
 "généralement sous Linux."
 
-#: src/ui/desktop/preferences.rs:502
+#: src/ui/desktop/preferences.rs:590
 msgid "Equalizer"
 msgstr "Égaliseur"
 
-#: src/ui/desktop/preferences.rs:504
+#: src/ui/desktop/preferences.rs:592
 msgid ""
 "A ten-band equalizer for playback on this computer. It does not affect other "
 "devices."
@@ -881,33 +918,33 @@ msgstr ""
 "Un égaliseur à dix bandes pour la lecture sur cet ordinateur. Il n’affecte "
 "pas les autres appareils."
 
-#: src/ui/desktop/preferences.rs:520
+#: src/ui/desktop/preferences.rs:608
 msgid "Presets"
 msgstr "Presets"
 
-#: src/ui/desktop/preferences.rs:521
+#: src/ui/desktop/preferences.rs:609
 msgid "Preamp"
 msgstr "Préampli"
 
-#: src/ui/desktop/preferences.rs:522
+#: src/ui/desktop/preferences.rs:610
 msgid "Bands"
 msgstr "Bandes"
 
-#: src/ui/desktop/preferences.rs:551
+#: src/ui/desktop/preferences.rs:639
 msgctxt "equalizer"
 msgid "Pre"
 msgstr "Pré"
 
-#: src/ui/desktop/preferences.rs:565
+#: src/ui/desktop/preferences.rs:653
 msgid "Source code"
 msgstr "Code source"
 
-#: src/ui/desktop/preferences.rs:594
+#: src/ui/desktop/preferences.rs:682
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "Aucun paramètre pour « {query} »"
 
-#: src/ui/desktop/preferences.rs:601
+#: src/ui/desktop/preferences.rs:689
 msgid "Try fewer words, or check the spelling."
 msgstr "Essayez avec moins de mots ou vérifiez l’orthographe."
 
