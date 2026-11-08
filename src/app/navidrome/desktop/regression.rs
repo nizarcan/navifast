@@ -24,6 +24,184 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn library_options_switch_views_and_restore_the_hidden_sidebar() {
+    let click = rune::accesskit::Action::Click;
+    for flags in ["restored", "restored,light"] {
+        let mut rt = runtime("home", flags);
+        rt.set_viewport((760., 800.), 2.);
+        rt.frame(0.);
+        rt.settle_all();
+        let width = rt.state.app.presentation.settings.sidebar_width;
+        let song = rt.state.app.transport.song().unwrap().id.clone();
+        for (key, grid) in [("library-grid", true), ("library-list", false)] {
+            assert!(rt.accessibility_action("library-options", click, None));
+            rt.frame(0.);
+            rt.settle_all();
+            assert!(rt.accessibility_action(key, click, None));
+            rt.frame(0.);
+            rt.settle_all();
+            assert_eq!(rt.state.app.presentation.settings.sidebar_grid, grid);
+            assert!(rt.state.menu.is_none());
+            assert_eq!(rt.state.app.presentation.page(), &Page::Home);
+            assert_eq!(rt.state.app.transport.song().unwrap().id, song);
+        }
+        assert!(rt.accessibility_action("library-options", click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        rt.key(rune::KeyEvent {
+            key: rune::Key::Escape,
+            mods: Default::default(),
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(rt.state.menu.is_none());
+        assert!(
+            rt.elements()
+                .iter()
+                .any(|e| e.key.as_deref() == Some("library-options") && e.focused)
+        );
+
+        assert!(rt.accessibility_action("library-options", click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(rt.accessibility_action("library-hide", click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(!rt.state.app.presentation.settings.sidebar_visible);
+        assert!(rt.state.menu.is_none());
+        click_label(&mut rt, "Show sidebar", 0);
+        assert!(rt.state.app.presentation.settings.sidebar_visible);
+        assert_eq!(rt.state.app.presentation.settings.sidebar_width, width);
+        assert!(rt.accessibility_action(
+            "resize-sidebar",
+            rune::accesskit::Action::Increment,
+            None
+        ));
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(
+            rt.state.app.presentation.settings.sidebar_width,
+            width + 10.
+        );
+    }
+}
+
+#[test]
+fn library_search_filters_and_clears_without_moving_primary_navigation() {
+    let click = rune::accesskit::Action::Click;
+    let mut rt = runtime("home", "restored");
+    let nav = |rt: &Runtime<State>| {
+        rt.elements()
+            .into_iter()
+            .filter(|e| e.key.as_deref().is_some_and(|k| k.starts_with("nav-")))
+            .map(|e| (e.key, e.rect))
+            .collect::<Vec<_>>()
+    };
+    let before = nav(&rt);
+    assert_eq!(before.len(), 4);
+    assert!(
+        !rt.elements()
+            .iter()
+            .any(|e| e.role == "button" && e.label.as_deref() == Some("Albums"))
+    );
+    assert!(rt.accessibility_action("library-search", click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.state.library_search && rt.state.library_filter.focused);
+    rt.update(|s, _| s.library_filter.replace_text("bOnObO"));
+    rt.frame(0.);
+    rt.settle_all();
+    let shelf = |rt: &Runtime<State>| {
+        rt.elements()
+            .into_iter()
+            .filter_map(|e| e.key.filter(|key| key.starts_with("shelf-")))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(shelf(&rt), ["shelf-alb0"]);
+    rt.update(|s, _| s.library_filter.replace_text("no matching album"));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(shelf(&rt).is_empty());
+    assert!(rt.accessibility_action("clear-library-filter", click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.state.library_filter.text.is_empty() && rt.state.library_filter.focused);
+    assert!(shelf(&rt).len() > 1);
+    rt.update(|s, _| s.library_filter.replace_text("Bonobo"));
+    assert!(rt.accessibility_action("library-search", click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(!rt.state.library_search);
+    assert!(rt.state.library_filter.text.is_empty());
+    assert!(
+        !rt.elements()
+            .iter()
+            .any(|e| e.key.as_deref() == Some("library-filter"))
+    );
+    assert_eq!(nav(&rt), before);
+}
+
+#[test]
+fn library_sort_controls_fit_narrow_and_normal_sidebars() {
+    use crate::settings::{LibraryShelf, LibrarySort};
+    let click = rune::accesskit::Action::Click;
+    for (viewport, sidebar) in [(760., 210.), (1280., 378.)] {
+        for flags in ["restored", "restored,light"] {
+            let mut rt = runtime("home", flags);
+            rt.set_viewport((viewport, 800.), 2.);
+            rt.update(|s, _| s.app.presentation.settings.sidebar_width = sidebar);
+            for (name, sort) in [
+                ("Name", LibrarySort::Name),
+                ("Recently played", LibrarySort::RecentlyPlayed),
+                ("Recently added", LibrarySort::RecentlyAdded),
+                ("Library order", LibrarySort::Library),
+            ] {
+                rt.frame(0.);
+                rt.settle_all();
+                assert!(rt.accessibility_action("sort", click, None));
+                click_label(&mut rt, name, 0);
+                assert_eq!(
+                    rt.state
+                        .app
+                        .presentation
+                        .settings
+                        .library_sort
+                        .get(&LibraryShelf::Albums),
+                    Some(&sort)
+                );
+                let elements = rt.elements();
+                let rect = |key| {
+                    elements
+                        .iter()
+                        .find(|e| e.key.as_deref() == Some(key))
+                        .unwrap()
+                        .rect
+                };
+                let [x, _, width, _] = rect("sort");
+                let [label_x, _, label_width, _] = rect("library-albums-heading");
+                assert!(
+                    x >= label_x + label_width,
+                    "sort overlaps Albums at {sidebar}"
+                );
+                assert!(
+                    x + width <= sidebar - 12.,
+                    "sort overflows sidebar at {sidebar}"
+                );
+                assert_eq!(
+                    elements
+                        .iter()
+                        .find(|e| e.key.as_deref() == Some("sort"))
+                        .unwrap()
+                        .label
+                        .as_deref(),
+                    Some(name)
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn album_discovery_menu_preserves_local_history_and_random_back_navigation() {
     use crate::navidrome::albums::Order;
     let mut rt = runtime("albums", "restored");

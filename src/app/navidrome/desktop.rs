@@ -475,6 +475,26 @@ impl State {
         }
         state.sync_tracks();
         #[cfg(feature = "navidrome-demo")]
+        if launch.demo {
+            state.library_search = flags.iter().any(|flag| {
+                matches!(
+                    *flag,
+                    "library-search" | "library-filtered" | "library-empty"
+                )
+            });
+            if flags.contains(&"library-filtered") {
+                state.library_filter.replace_text("Bonobo");
+            } else if flags.contains(&"library-empty") {
+                state.library_filter.replace_text("No matching album");
+            }
+            state.app.presentation.settings.sidebar_grid = flags.contains(&"library-grid");
+            if flags.contains(&"library-sort") {
+                state.menu = Some("sort");
+            } else if flags.contains(&"library-options") {
+                state.menu = Some("library-options");
+            }
+        }
+        #[cfg(feature = "navidrome-demo")]
         if launch.demo
             && flags.contains(&"exclusions-artist-menu")
             && let Page::Artist(id) = state.app.presentation.page()

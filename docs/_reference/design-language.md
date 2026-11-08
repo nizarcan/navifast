@@ -35,6 +35,19 @@ new pattern. Do not create a second set of components with copied styling.
   deliberate full-width portrait treatment; do not copy that treatment to
   albums or playlists.
 
+The Library shelf uses the approved **Quiet shelf** layout. Below the existing
+divider, use a muted 12-pixel Library heading with Search and Library options
+icons. Keep the 48-pixel header and align its label with the navigation's left
+inset. Search opens the existing search field above the album controls; closing
+search clears its filter. The next 36-pixel row has a plain 13-pixel Albums label
+and a quiet, right-aligned sort control. Albums is a label, not a single-option
+filter. Keep the selected sort's full accessible name when its text truncates.
+
+Library options uses the shared anchored menu with checked **List view** and
+**Grid view** choices, then **Hide sidebar**. The existing top-bar control
+restores the sidebar. Keep the four navigation rows, album rows and artwork,
+compact layout preference, resizing, and sorting behavior intact.
+
 ## Collection browsers
 
 **The Albums and Playlists screens use the same artwork card grid.** A playlist

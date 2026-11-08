@@ -221,6 +221,7 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
     if let Some(menu) = match s.menu {
         Some("account") => Some(account_menu(v)),
         Some("sort") => Some(sort_menu(v)),
+        Some("library-options") => Some(library_options_menu(v)),
         Some("album-order") => Some(albums::menu(v)),
         Some("album") => s.app.album.as_ref().map(|a| {
             let uri = FavoriteKind::Album.uri(&a.id);
@@ -675,9 +676,7 @@ const SORTS: [(crate::settings::LibrarySort, &str); 4] = [
 fn sort_menu(v: &Paint<'_>) -> El {
     use crate::settings::LibraryShelf;
     let selected = crate::ui::sidebar::selected_sort(&v.s.app.presentation, LibraryShelf::Albums);
-    let mut menu = v
-        .menu("sort")
-        .anchored_fit("sort", rune::Side::Bottom, rune::Align::Start, 4.);
+    let mut menu = v.menu("sort");
     for (sort, title) in SORTS {
         menu = menu.child(v.menu_item(
             &v.tr(title),
@@ -694,6 +693,34 @@ fn sort_menu(v: &Paint<'_>) -> El {
         ));
     }
     menu
+}
+fn library_options_menu(v: &Paint<'_>) -> El {
+    let grid = v.s.app.presentation.settings.sidebar_grid;
+    let mut menu = v.menu("library-options");
+    for (name, value) in [(mark("List view"), false), (mark("Grid view"), true)] {
+        menu = menu.child(
+            v.menu_item(
+                &v.tr(name),
+                (grid == value).then_some(Icon::Check),
+                move |s, tx| s.dispatch(Action::SetLibraryGrid(value), tx),
+            )
+            .key(if value {
+                "library-grid"
+            } else {
+                "library-list"
+            })
+            .checked(grid == value),
+        );
+    }
+    menu.child(el().h(1.).my(4.).fill(color(v.p.outline)))
+        .child(
+            v.menu_item(
+                &v.tr(mark("Hide sidebar")),
+                Some(Icon::PanelLeft),
+                |s, tx| s.dispatch(Action::ToggleSidebar, tx),
+            )
+            .key("library-hide"),
+        )
 }
 fn discover_tabs(v: &Paint<'_>) -> El {
     let active = v.s.app.presentation.page().discover_root();
@@ -759,96 +786,113 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
         .child(el().w_full().h(1.).mt(12.).fill(color(v.p.outline)))
         .child(
             row()
+                .mt(6.)
                 .h(48.)
+                .pl(12.)
+                .pr(8.)
                 .items_center()
-                .gap(8.)
-                .child(v.icon(Icon::Library, 20., v.p.secondary))
-                .child(label(v.tr(mark("Library")), 16., 650., v.p.text).grow(1.))
-                .child(v.icon_button(
-                    &v.tr(mark("Search in Your Library")),
-                    Icon::Search,
-                    16.,
-                    |s, _| {
-                        s.library_search = !s.library_search;
-                        if s.library_search {
-                            s.library_filter.focused = true;
-                        } else {
-                            s.library_filter.clear();
-                        }
-                    },
-                ))
+                .gap(4.)
                 .child(
-                    v.icon_button(&v.tr("Grid"), Icon::LayoutGrid, 16., |s, tx| {
-                        s.dispatch(
-                            Action::SetLibraryGrid(!s.app.presentation.settings.sidebar_grid),
-                            tx,
-                        )
-                    }),
+                    label(v.tr(mark("Library")), 12., 600., v.p.secondary)
+                        .key("library-heading")
+                        .grow(1.)
+                        .min_w(0.)
+                        .truncate(),
                 )
-                .child(v.icon_button(
-                    &v.tr(mark("Show or hide the sidebar")),
-                    Icon::PanelLeft,
-                    16.,
-                    |s, tx| s.dispatch(Action::ToggleSidebar, tx),
-                )),
-        )
-        .child(
-            row().mt(6.).child(
-                row()
-                    .h(30.)
-                    .px(12.)
-                    .center()
-                    .radius(15.)
-                    .fill(color(v.p.text))
-                    .role("button")
-                    .label(v.tr(mark("Albums")))
-                    .focusable(true)
-                    .child(label(v.tr(mark("Albums")), 13., 500., v.p.window))
-                    .on_press_tx(|_: &mut State, _| {}),
-            ),
+                .child(
+                    v.icon_button(
+                        &v.tr(mark("Search in Your Library")),
+                        Icon::Search,
+                        16.,
+                        |s, _| {
+                            s.library_search = !s.library_search;
+                            if s.library_search {
+                                s.library_filter.focused = true;
+                            } else {
+                                s.library_filter.clear();
+                            }
+                        },
+                    )
+                    .key("library-search")
+                    .expanded(v.s.library_search),
+                )
+                .child(
+                    v.icon_button(
+                        &v.tr(mark("Library options")),
+                        Icon::Ellipsis,
+                        16.,
+                        |s, _| {
+                            s.menu = Some("library-options");
+                        },
+                    )
+                    .key("library-options")
+                    .expanded(v.s.menu == Some("library-options")),
+                ),
         );
     let selected = crate::ui::sidebar::selected_sort(&app.presentation, LibraryShelf::Albums);
     let name = SORTS
         .iter()
         .find(|(sort, _)| *sort == selected)
         .map_or(mark("Library order"), |(_, name)| *name);
-    side = side.child(
-        row().mt(6.).mb(8.).child(
-            row()
-                .key("sort")
-                .h(28.)
-                .px(8.)
-                .gap(4.)
-                .items_center()
-                .radius(12.)
-                .fill(color(v.p.surface))
-                .hover(color(v.p.surface_hover))
-                .role("button")
-                .label(v.tr(name))
-                .focusable(true)
-                .child(v.icon(Icon::ChevronDown, 15., v.p.text))
-                .child(label(v.tr(name), 13., 500., v.p.text))
-                .on_press_tx(|s: &mut State, _| s.menu = Some("sort")),
-        ),
-    );
     if v.s.library_search {
         let editor = text_input(&v.s.library_filter, TextStyle::new(14., 400.))
             .on_edit(|s: &mut State| &mut s.library_filter);
         side = side.child(
-            v.search_field(
-                "library-filter",
-                &v.tr(mark("Search in Your Library")),
-                &v.s.library_filter,
-                editor,
-                |s, _| {
-                    s.library_filter.clear();
-                    s.library_filter.focused = true;
-                },
-            )
-            .key("library-search-field")
-            .w((width - 28.).max(0.)),
+            row().w_full().px(8.).pb(8.).child(
+                v.search_field(
+                    "library-filter",
+                    &v.tr(mark("Search in Your Library")),
+                    &v.s.library_filter,
+                    editor,
+                    |s, _| {
+                        s.library_filter.clear();
+                        s.library_filter.focused = true;
+                    },
+                )
+                .key("library-search-field")
+                .w_full(),
+            ),
         );
     }
+    side = side.child(
+        row()
+            .w_full()
+            .h(36.)
+            .pl(12.)
+            .pr(8.)
+            .mb(4.)
+            .gap(8.)
+            .items_center()
+            .child(
+                label(v.tr(mark("Albums")), 13., 600., v.p.text)
+                    .key("library-albums-heading")
+                    .grow(1.)
+                    .min_w(0.)
+                    .truncate(),
+            )
+            .child(
+                row()
+                    .key("sort")
+                    .h(30.)
+                    .max_w((width - 104.).max(0.))
+                    .px(6.)
+                    .gap(4.)
+                    .items_center()
+                    .radius(6.)
+                    .hover(color(v.p.surface_hover))
+                    .role("button")
+                    .label(v.tr(name))
+                    .focusable(true)
+                    .expanded(v.s.menu == Some("sort"))
+                    .child(
+                        label(v.tr(name), 12., 400., v.p.secondary)
+                            .min_w(0.)
+                            .truncate(),
+                    )
+                    .child(v.icon(Icon::ChevronDown, 13., v.p.secondary))
+                    .on_press_tx(|s: &mut State, _| s.menu = Some("sort")),
+            ),
+    );
     let filter = v.s.library_filter.text.to_lowercase();
     let mut order: Vec<_> = app
         .albums
