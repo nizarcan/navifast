@@ -246,6 +246,51 @@ fn render_seed(template: &str, colors: &str) -> io::Result<String> {
     Ok(output)
 }
 
+pub(super) struct ThemeWatch {
+    _watcher: notify::RecommendedWatcher,
+    changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl ThemeWatch {
+    pub(super) fn start(local: &Path, setup: Option<&Setup>, wake: rune::Waker) -> Option<Self> {
+        use notify::{RecursiveMode, Watcher};
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+        let changed = Arc::new(AtomicBool::new(false));
+        let dirty = changed.clone();
+        let mut watcher =
+            notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
+                if event
+                    .is_ok_and(|e| e.kind.is_create() || e.kind.is_modify() || e.kind.is_remove())
+                    && !dirty.swap(true, Ordering::AcqRel)
+                {
+                    wake();
+                }
+            })
+            .ok()?;
+        watcher.watch(local, RecursiveMode::NonRecursive).ok()?;
+        if let Some(setup) = setup.filter(|s| s.available()) {
+            watcher
+                .watch(
+                    &setup.home.join(".local/state/omarchy/current"),
+                    RecursiveMode::Recursive,
+                )
+                .ok()?;
+        }
+        Some(Self {
+            _watcher: watcher,
+            changed,
+        })
+    }
+
+    pub(super) fn take_changed(&self) -> bool {
+        self.changed
+            .swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -305,50 +350,5 @@ mod tests {
         fs::write(&hook, "user hook").unwrap();
         upgrade(&assets, &home).unwrap();
         assert_eq!(fs::read_to_string(&hook).unwrap(), "user hook");
-    }
-}
-
-pub(super) struct ThemeWatch {
-    _watcher: notify::RecommendedWatcher,
-    changed: std::sync::Arc<std::sync::atomic::AtomicBool>,
-}
-
-impl ThemeWatch {
-    pub(super) fn start(local: &Path, setup: Option<&Setup>, wake: rune::Waker) -> Option<Self> {
-        use notify::{RecursiveMode, Watcher};
-        use std::sync::{
-            Arc,
-            atomic::{AtomicBool, Ordering},
-        };
-        let changed = Arc::new(AtomicBool::new(false));
-        let dirty = changed.clone();
-        let mut watcher =
-            notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-                if event
-                    .is_ok_and(|e| e.kind.is_create() || e.kind.is_modify() || e.kind.is_remove())
-                    && !dirty.swap(true, Ordering::AcqRel)
-                {
-                    wake();
-                }
-            })
-            .ok()?;
-        watcher.watch(local, RecursiveMode::NonRecursive).ok()?;
-        if let Some(setup) = setup.filter(|s| s.available()) {
-            watcher
-                .watch(
-                    &setup.home.join(".local/state/omarchy/current"),
-                    RecursiveMode::Recursive,
-                )
-                .ok()?;
-        }
-        Some(Self {
-            _watcher: watcher,
-            changed,
-        })
-    }
-
-    pub(super) fn take_changed(&self) -> bool {
-        self.changed
-            .swap(false, std::sync::atomic::Ordering::AcqRel)
     }
 }
