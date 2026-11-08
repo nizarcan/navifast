@@ -10,9 +10,8 @@ fn an_unavailable_display_leaves_a_useful_log_without_a_console() {
     ));
     std::fs::create_dir(&directory).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_navifast"))
-        .args(["--demo", "--demo-shot"])
-        .arg(directory.join("unused.png"))
-        .arg("--demo-data")
+        // Screenshots render headlessly and do not require a display.
+        .args(["--demo", "--demo-data"])
         .arg(&directory)
         .env_remove("RUST_LOG")
         .env("DISPLAY", "")

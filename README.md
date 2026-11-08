@@ -172,6 +172,10 @@ Quit and reopen Navifast to use the new build. To install for your user only,
 run `make install APPLICATIONS_DIR="$HOME/Applications"`. See
 [local Mac installation](PACKAGING.md#local-macos-installation) for details.
 
+If the window cannot open, check `navifast.log` in the app's state directory
+for the startup error. See [settings and files](docs/_reference/settings-and-files.md)
+for platform locations.
+
 Enter your server's final base URL, username and password. Open an album and
 press **Play**, or double-click a song. Space toggles playback when a text
 field is not focused. Use the transport bar to seek and adjust volume.

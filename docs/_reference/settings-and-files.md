@@ -14,7 +14,8 @@ legacy light/dark preference, volume, EQ enablement, preamp and ten band levels.
 no password or authenticated stream/artwork URL. It also keeps up to ten recent submitted searches per server
 and username. Changes are written atomically
 on a background worker. Window geometry is stored by the native shell in its
-own Navifast profile. Logs use the state directory's `navifast.log`.
+own Navifast profile. Logs use the state directory's `navifast.log`, including
+window startup errors when a display or graphics device is unavailable.
 
 `settings.json` keeps the original interface preferences: system/light/dark or
 custom theme, language, zoom, sidebar layout, player-bar visualization,

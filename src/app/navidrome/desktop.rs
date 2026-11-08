@@ -1203,6 +1203,7 @@ pub fn run(mut launch: Launch, prepare: impl FnOnce(&crate::paths::AppDirs)) -> 
             state
         })
         .try_run()
+        .inspect_err(|error| log::error!("Native window failed: {error}"))
 }
 
 #[cfg(all(test, feature = "navidrome-demo"))]
