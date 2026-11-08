@@ -53,7 +53,9 @@ jobs:
       - name: Linux launcher packaging regressions
         run: python3 packaging/test-launchers.py
       - name: Local macOS installer regressions
-        run: python3 packaging/macos/test-install.py
+        run: |
+          python3 packaging/macos/test-install.py
+          python3 packaging/macos/test-signing.py
       - name: Release metadata and download checks
         run: |
           python3 packaging/test-release-names.py

@@ -37,6 +37,8 @@ elif tool == "sips":
 elif tool == "iconutil":
     Path(args[args.index("-o") + 1]).write_bytes(b"fixture icon")
 elif tool == "codesign":
+    if "--sign" in args:
+        Path(os.environ["SIGN_LOG"]).write_text(json.dumps(args))
     if "--sign" in args and os.environ.get("SIGN_FAIL"):
         sys.exit(1)
     if "--verify" in args and os.environ.get("VERIFY_FAIL"):
@@ -70,6 +72,7 @@ class InstallTest(unittest.TestCase):
         self.binary.write_text('#!/bin/bash\necho "navifast 1.2.3-rc.4"\n')
         self.binary.chmod(0o755)
         self.log = self.base / "cargo-args.json"
+        self.sign_log = self.base / "sign-args.json"
         tools = self.base / "tools"
         tools.mkdir()
         for name in ["uname", "cargo", "sips", "iconutil", "codesign", "mv"]:
@@ -81,9 +84,21 @@ class InstallTest(unittest.TestCase):
             "PATH": str(tools) + os.pathsep + os.environ["PATH"],
             "ARTIFACT": str(self.binary),
             "BUILD_LOG": str(self.log),
+            "SIGN_LOG": str(self.sign_log),
         }
         # Do not use a developer's signing identity in a fixture.
         self.env.pop("CODESIGN_IDENTITY", None)
+        self.env.pop("CODESIGN_KEYCHAIN", None)
+        self.env.pop("CI", None)
+
+    def local_identity(self, value="A" * 40):
+        directory = self.project / ".release-secrets"
+        directory.mkdir(exist_ok=True)
+        (directory / "macos-signing-identity").write_text(value + "\n")
+
+    def signed_with(self):
+        args = json.loads(self.sign_log.read_text())
+        return args[args.index("--sign") + 1]
 
     def old_app(self):
         self.app.mkdir()
@@ -126,6 +141,53 @@ class InstallTest(unittest.TestCase):
         result = self.install()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.check_installed()
+
+    def test_remembered_local_identity_signs_every_install(self):
+        self.local_identity()
+        for _ in range(2):
+            result = self.install()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.signed_with(), "A" * 40)
+            self.check_installed()
+
+    def test_explicit_identity_overrides_local_choice(self):
+        self.local_identity()
+        for identity, expected in [("B" * 40, "B" * 40), ("-", "-"), ("", "-")]:
+            with self.subTest(identity=identity):
+                result = self.install(CODESIGN_IDENTITY=identity)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.signed_with(), expected)
+
+    def test_ci_ignores_local_configuration(self):
+        self.local_identity("invalid local configuration")
+        result = self.install(CI="true")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.signed_with(), "-")
+
+    def test_invalid_local_identity_preserves_existing_app(self):
+        self.old_app()
+        self.local_identity("invalid local configuration")
+        result = self.install()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("fingerprint", result.stderr)
+        self.assertTrue((self.app / "old-build").is_file())
+        self.assertFalse(self.sign_log.exists())
+        self.assert_clean()
+
+    def test_explicit_keychain_is_passed_to_codesign(self):
+        result = self.install(CODESIGN_IDENTITY="A" * 40, CODESIGN_KEYCHAIN="/fixture keychain")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = json.loads(self.sign_log.read_text())
+        self.assertEqual(args[args.index("--keychain") + 1], "/fixture keychain")
+
+    def test_failed_certificate_signing_never_falls_back_to_ad_hoc(self):
+        self.old_app()
+        self.local_identity()
+        result = self.install(SIGN_FAIL="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.signed_with(), "A" * 40)
+        self.assertTrue((self.app / "old-build").is_file())
+        self.assert_clean()
 
     def test_build_signing_and_verification_failures_preserve_the_installed_app(self):
         self.old_app()

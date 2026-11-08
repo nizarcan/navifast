@@ -3,8 +3,9 @@
 #
 #   packaging/macos/bundle.sh <binary> <output.app> <version>
 #
-# Set CODESIGN_IDENTITY to sign with a Developer ID; the default is an ad-hoc
-# signature, which arm64 requires before the app will launch at all.
+# Set CODESIGN_IDENTITY to select a certificate, or - for ad-hoc signing.
+# Local checkouts can remember a certificate fingerprint in the ignored
+# .release-secrets/macos-signing-identity file. CI uses explicit configuration.
 #
 # The .icns is generated here from the committed 1024px PNG, because iconutil
 # only exists on macOS. The Info.plist template lives next to this script.
@@ -14,6 +15,15 @@ binary="$1"
 app="$2"
 version="$3"
 here="$(cd "$(dirname "$0")" && pwd)"
+
+identity_file="$here/../../.release-secrets/macos-signing-identity"
+if [[ ! ${CODESIGN_IDENTITY+x} && ${CI:-} != true && -f "$identity_file" ]]; then
+    CODESIGN_IDENTITY="$(cat "$identity_file")"
+    if [[ ! "$CODESIGN_IDENTITY" =~ ^[[:xdigit:]]{40}$ ]]; then
+        echo "Expected a certificate SHA-1 fingerprint in $identity_file." >&2
+        exit 1
+    fi
+fi
 
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -42,9 +52,12 @@ done
 iconutil -c icns "$iconset" -o "$app/Contents/Resources/navifast.icns"
 
 # arm64 refuses to launch an unsigned bundle, so sign one way or another.
-if [ -n "${CODESIGN_IDENTITY:-}" ]; then
-    codesign --force --timestamp --options runtime \
-        --sign "$CODESIGN_IDENTITY" "$app"
+if [[ -n ${CODESIGN_IDENTITY:-} && "$CODESIGN_IDENTITY" != - ]]; then
+    signing=(--force --timestamp --options runtime --sign "$CODESIGN_IDENTITY")
+    if [[ -n ${CODESIGN_KEYCHAIN:-} ]]; then
+        signing+=(--keychain "$CODESIGN_KEYCHAIN")
+    fi
+    codesign "${signing[@]}" "$app"
 else
     codesign --force --sign - "$app"
 fi

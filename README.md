@@ -255,6 +255,11 @@ from the DMG to Applications and trying to open it, macOS may require
 For an optimized binary, run `cargo build --locked --release --bin navifast`.
 See [PACKAGING.md](PACKAGING.md) for app bundles and
 [the release checklist](packaging/RELEASING.md) for signing and publication.
+Local installations can remember a signing certificate in the ignored
+`.release-secrets/macos-signing-identity` file. Using that same certificate for
+local and remote preview builds keeps the signing identity stable across reinstalls.
+Self-signed updates can still trigger macOS Keychain authorization prompts.
+See [macOS signing setup](PACKAGING.md#self-signed-macos-remote-builds).
 
 ---
 

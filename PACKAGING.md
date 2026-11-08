@@ -150,13 +150,54 @@ with the previous app restored if the final move fails. Temporary staging files
 are removed afterward. Preferences and caches are unaffected. Quit and reopen
 Navifast to use the new executable; the installer does not stop playback.
 
-Local bundles use an ad-hoc signature by default. `CODESIGN_IDENTITY` can select
-an installed signing identity through the existing bundler. This command does
-not notarize, publish a release or change the package version.
+Local bundles use an ad-hoc signature unless a certificate is configured.
+`CODESIGN_IDENTITY` selects an installed signing identity. To remember a local
+choice for `make install` and `bundle.sh`, put its 40-character SHA-1 fingerprint
+in `.release-secrets/macos-signing-identity` (one line). This directory is ignored
+by Git. Find fingerprints with `security find-identity -v -p codesigning`.
+An explicit `CODESIGN_IDENTITY` overrides the file; `CODESIGN_IDENTITY=-` selects
+ad-hoc signing. CI ignores the local file. A configured identity that cannot sign
+fails the build instead of silently changing the app's identity.
+
+Using the same certificate and bundle identifier keeps the code-signing identity
+stable across builds. A self-signed certificate does not guarantee persistent
+Keychain approval: macOS can also restrict the saved item to the executable's
+changing code hash, so an update may still prompt. It does not provide Developer
+ID recognition or notarization. Test saved-login upgrades when moving to Developer ID.
+Plain `cargo build` produces an unbundled executable; use `make install` for the
+signed app. Installation does not notarize, publish or change the package version.
 
 Run `python3 packaging/macos/test-install.py` for installer failure and replacement
 regressions. These use isolated build and platform-tool fixtures; a real Mac build
 and signature check are still required when changing the bundler.
+
+## Self-signed macOS remote builds
+
+The release job uses the `macos-signing` GitHub environment. Set its variable
+`MACOS_SIGNING_MODE` to `self-signed` and configure these environment secrets:
+
+- `MACOS_SIGNING_CERTIFICATE_P12`: base64 PKCS#12 containing only the selected certificate and private key.
+- `MACOS_SIGNING_CERTIFICATE_PASSWORD`: the PKCS#12 export password.
+- `MACOS_SIGNING_IDENTITY`: the certificate's 40-character SHA-1 fingerprint.
+
+Restrict environment deployments to the `main` branch and `v*` release tags.
+Protect those refs and review workflow changes before allowing them access to
+signing keys. Never expose these secrets to pull-request builds. Export only the
+intended identity, not every private key in the login Keychain.
+
+`with-signing-keychain.sh` imports the identity into a temporary Keychain on the
+disposable GitHub-hosted Mac. It checks the certificate fingerprint, grants
+code-signing trust, signs using that explicit Keychain, and removes the temporary
+trust and Keychain on success or failure. Missing or mismatched secrets fail.
+The self-signed path does not invoke notarization, and macOS may still require
+Open Anyway for downloaded previews.
+
+Run `gh workflow run macos-signing.yml --ref main` to build and validate an app
+without publishing a release. The workflow checks the final signature and
+certificate, runs `--version`, and retains a ZIP artifact for seven days. It
+uses the same certificate as the release job in self-signed mode.
+`python3 packaging/macos/test-signing.py` covers import failure, missing secrets,
+credential isolation and cleanup without accessing a real Keychain.
 
 ## Automatic macOS notarization
 
@@ -175,8 +216,13 @@ secrets, which the job exposes as environment variables:
 - `APPLE_SIGNING_IDENTITY`: exact `Developer ID Application: Name (TEAMID)` identity.
 - `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`: Apple email, Team ID and app-specific password.
 
-A complete set enables notarization automatically. An incomplete set fails;
-no values retain local builds without Developer ID signing. Application inputs
+For a production release, set `MACOS_SIGNING_MODE=developer-id` in the
+`macos-signing` environment after configuring all six Apple secrets. This mode
+requires every Apple credential and bypasses the self-signed identity. An unset
+mode preserves the existing automatic behavior: a complete set enables
+notarization, an incomplete set fails, and no values retain builds without
+Developer ID signing. Explicit self-signed mode ignores Apple credentials.
+Application inputs
 and the user's normal keychains remain unchanged. See the shared
 [Apple setup and phase contract](https://github.com/crmne/native-packages/blob/v0.8.1/docs/apple-notarization.md).
 

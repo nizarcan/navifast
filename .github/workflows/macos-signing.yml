@@ -1,0 +1,40 @@
+name: macOS signing validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-build:
+    # Signing keys must never be exposed to an unreviewed branch or PR.
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    environment: macos-signing
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build the native app
+        run: cargo build --locked --release --bin navifast
+      - name: Sign and verify the bundle
+        env:
+          MACOS_SIGNING_CERTIFICATE_P12: ${{ secrets.MACOS_SIGNING_CERTIFICATE_P12 }}
+          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          version="$(target/release/navifast --version)"
+          version="${version#navifast }"
+          mkdir -p dist
+          bash packaging/macos/with-signing-keychain.sh \
+            bash packaging/macos/bundle.sh target/release/navifast dist/Navifast.app "$version"
+          codesign --verify --deep --strict dist/Navifast.app
+          codesign -v -R="certificate leaf = H\"$MACOS_SIGNING_IDENTITY\"" dist/Navifast.app
+          dist/Navifast.app/Contents/MacOS/Navifast --version
+          ditto -c -k --keepParent dist/Navifast.app dist/Navifast-self-signed.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Navifast-self-signed
+          path: dist/Navifast-self-signed.zip
+          retention-days: 7
+          if-no-files-found: error

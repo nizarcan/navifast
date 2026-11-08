@@ -151,14 +151,9 @@ jobs:
     needs: preflight
     name: macOS universal app
     runs-on: macos-latest
+    environment: macos-signing
     env:
-      # Complete Apple credentials enable native-packages signing/notarization.
-      APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      MACOS_SIGNING_MODE: ${{ vars.MACOS_SIGNING_MODE }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -186,14 +181,47 @@ jobs:
         run: gem install native-packages --version 0.8.1 --no-document
 
       - name: App bundle
+        env:
+          MACOS_SIGNING_CERTIFICATE_P12: ${{ secrets.MACOS_SIGNING_CERTIFICATE_P12 }}
+          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           mkdir -p dist/macos-input
-          bash packaging/macos/bundle.sh universal/navifast dist/macos-input/Navifast.app "$version"
+          case "$MACOS_SIGNING_MODE" in
+            self-signed)
+              bash packaging/macos/with-signing-keychain.sh \
+                bash packaging/macos/bundle.sh universal/navifast dist/macos-input/Navifast.app "$version"
+              ;;
+            developer-id|'')
+              CODESIGN_IDENTITY=- bash packaging/macos/bundle.sh \
+                universal/navifast dist/macos-input/Navifast.app "$version"
+              ;;
+            *) echo "Unknown MACOS_SIGNING_MODE." >&2; exit 1 ;;
+          esac
           cp README.md LICENSE dist/macos-input/
 
       - name: Package, sign and notarize macOS app
+        env:
+          # Developer ID signing/notarization is owned by native-packages.
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
+          if [[ "$MACOS_SIGNING_MODE" == self-signed ]]; then
+            unset APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
+            unset APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD
+          elif [[ "$MACOS_SIGNING_MODE" == developer-id ]]; then
+            for name in APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do
+              if [[ -z ${!name} ]]; then
+                echo "Missing $name for Developer ID signing." >&2
+                exit 1
+              fi
+            done
+          fi
           native-packages build \
             --version "${GITHUB_REF_NAME#v}" --target macos-universal --defer-recipes \
             --output "$RUNNER_TEMP/macos-packages"

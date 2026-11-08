@@ -46,6 +46,7 @@ jobs:
         run: |
           python3 packaging/test-launchers.py
           python3 packaging/test-release-names.py
+          python3 packaging/macos/test-signing.py
           python3 packaging/flatpak/test-metainfo.py
           bash -n packaging/test-install.sh
 
