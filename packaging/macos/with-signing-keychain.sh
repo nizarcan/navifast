@@ -8,7 +8,7 @@ if [[ $# == 0 ]]; then
     echo "Usage: bash packaging/macos/with-signing-keychain.sh COMMAND [ARG ...]" >&2
     exit 1
 fi
-if [[ ${GITHUB_ACTIONS:-} != true || $(uname -s) != Darwin || -z ${RUNNER_TEMP:-} ]]; then
+if [[ ${GITHUB_ACTIONS:-} != true || ${RUNNER_ENVIRONMENT:-} != github-hosted || $(uname -s) != Darwin || -z ${RUNNER_TEMP:-} ]]; then
     echo "This helper requires a disposable GitHub-hosted macOS runner." >&2
     exit 1
 fi
@@ -30,7 +30,7 @@ trusted=false
 cleanup() {
     local status=$?
     if [[ "$trusted" == true ]]; then
-        security remove-trusted-cert "$certificate" >/dev/null 2>&1 || true
+        sudo -n security remove-trusted-cert -d "$certificate" >/dev/null 2>&1 || true
     fi
     security delete-keychain "$keychain" >/dev/null 2>&1 || true
     rm -rf "$work"
@@ -42,9 +42,11 @@ trap 'exit 143' TERM
 
 printf '%s' "$MACOS_SIGNING_CERTIFICATE_P12" | base64 --decode > "$work/identity.p12"
 keychain_password="$(openssl rand -hex 32)"
+echo "Creating the temporary signing Keychain."
 security create-keychain -p "$keychain_password" "$keychain" >/dev/null
 security set-keychain-settings -lut 3600 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
+echo "Importing the signing identity."
 security import "$work/identity.p12" -k "$keychain" \
     -P "$MACOS_SIGNING_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null
 # Let Security.framework decode PKCS#12. Apple exports can use algorithms that
@@ -59,12 +61,16 @@ if [[ "$fingerprint" != "$(printf '%s' "$MACOS_SIGNING_IDENTITY" | tr '[:lower:]
     echo "The exported certificate does not match MACOS_SIGNING_IDENTITY." >&2
     exit 1
 fi
+echo "Authorizing codesign to use the imported key."
 security set-key-partition-list -S apple-tool:,apple: -s \
     -k "$keychain_password" "$keychain" >/dev/null
-# Trust only code signing, only on this disposable runner. Always remove it.
+# User-domain trust asks for GUI authorization. Use the administrator domain
+# non-interactively, only on this disposable runner, and always remove it.
 trusted=true
-security add-trusted-cert -r trustRoot -p codeSign -k "$keychain" "$certificate"
+echo "Temporarily trusting the certificate for code signing."
+sudo -n security add-trusted-cert -d -r trustRoot -p codeSign -k "$keychain" "$certificate"
 export CODESIGN_IDENTITY="$MACOS_SIGNING_IDENTITY"
 export CODESIGN_KEYCHAIN="$keychain"
 unset MACOS_SIGNING_CERTIFICATE_P12 MACOS_SIGNING_CERTIFICATE_PASSWORD keychain_password
+echo "Signing with the verified certificate."
 "$@"

@@ -15,9 +15,27 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check unattended signing before compiling
+        timeout-minutes: 2
+        env:
+          MACOS_SIGNING_CERTIFICATE_P12: ${{ secrets.MACOS_SIGNING_CERTIFICATE_P12 }}
+          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          cc -x c -o "$RUNNER_TEMP/navifast-signing-probe" - <<<'int main(void) { return 0; }'
+          bash packaging/macos/with-signing-keychain.sh bash -c '
+            codesign --force --timestamp --options runtime \
+              --sign "$CODESIGN_IDENTITY" --keychain "$CODESIGN_KEYCHAIN" \
+              "$RUNNER_TEMP/navifast-signing-probe"
+          '
+          codesign --verify --strict "$RUNNER_TEMP/navifast-signing-probe"
+          codesign -v -R="certificate leaf = H\"$MACOS_SIGNING_IDENTITY\"" "$RUNNER_TEMP/navifast-signing-probe"
+          "$RUNNER_TEMP/navifast-signing-probe"
+          rm "$RUNNER_TEMP/navifast-signing-probe"
       - name: Build the native app
         run: cargo build --locked --release --bin navifast
       - name: Sign and verify the bundle
+        timeout-minutes: 5
         env:
           MACOS_SIGNING_CERTIFICATE_P12: ${{ secrets.MACOS_SIGNING_CERTIFICATE_P12 }}
           MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}

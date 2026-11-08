@@ -27,6 +27,11 @@ elif tool == "openssl":
         print("fixture-keychain-password")
     else:
         sys.exit(1)
+elif tool == "sudo":
+    assert args[:2] == ["-n", "security"]
+    assert args[2] in ("add-trusted-cert", "remove-trusted-cert")
+    assert "-d" in args
+    os.execvp("security", args[1:])
 elif tool == "security":
     with open(os.environ["SECURITY_LOG"], "a") as log:
         log.write(args[0] + "\n")
@@ -58,7 +63,7 @@ class SigningTest(unittest.TestCase):
         self.base = Path(self.temporary.name)
         self.tools = self.base / "tools"
         self.tools.mkdir()
-        for name in ["uname", "openssl", "security", "signed-command"]:
+        for name in ["uname", "openssl", "security", "sudo", "signed-command"]:
             command = self.tools / name
             command.write_text(f"#!{sys.executable}\n" + TOOLS)
             command.chmod(0o755)
@@ -72,6 +77,7 @@ class SigningTest(unittest.TestCase):
             **os.environ,
             "PATH": str(self.tools) + os.pathsep + os.environ["PATH"],
             "GITHUB_ACTIONS": "true",
+            "RUNNER_ENVIRONMENT": "github-hosted",
             "RUNNER_TEMP": str(self.runner),
             "MACOS_SIGNING_CERTIFICATE_P12": base64.b64encode(b"fixture p12").decode(),
             "MACOS_SIGNING_CERTIFICATE_PASSWORD": "fixture-export-password",
@@ -130,7 +136,7 @@ class SigningTest(unittest.TestCase):
         self.assertNotIn("add-trusted-cert", self.security_log.read_text())
 
     def test_refuses_local_or_non_macos_execution(self):
-        for env in [{"GITHUB_ACTIONS": ""}, {"FIXTURE_OS": "Linux"}, {"RUNNER_TEMP": ""}]:
+        for env in [{"GITHUB_ACTIONS": ""}, {"RUNNER_ENVIRONMENT": "self-hosted"}, {"FIXTURE_OS": "Linux"}, {"RUNNER_TEMP": ""}]:
             with self.subTest(env=env):
                 result = self.run_signing(**env)
                 self.assertNotEqual(result.returncode, 0)

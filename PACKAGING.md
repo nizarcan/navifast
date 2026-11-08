@@ -187,13 +187,15 @@ intended identity, not every private key in the login Keychain.
 
 `with-signing-keychain.sh` imports the identity into a temporary Keychain on the
 disposable GitHub-hosted Mac. It checks the certificate fingerprint, grants
-code-signing trust, signs using that explicit Keychain, and removes the temporary
+code-signing trust in the administrator domain using non-interactive `sudo`,
+signs using that explicit Keychain, and removes the temporary
 trust and Keychain on success or failure. Missing or mismatched secrets fail.
 The self-signed path does not invoke notarization, and macOS may still require
 Open Anyway for downloaded previews.
 
 Run `gh workflow run macos-signing.yml --ref main` to build and validate an app
-without publishing a release. The workflow checks the final signature and
+without publishing a release. A small native signing probe runs before compilation
+to catch Keychain authorization failures promptly. The workflow checks the final signature and
 certificate, runs `--version`, and retains a ZIP artifact for seven days. It
 uses the same certificate as the release job in self-signed mode.
 `python3 packaging/macos/test-signing.py` covers import failure, missing secrets,

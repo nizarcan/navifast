@@ -181,6 +181,7 @@ jobs:
         run: gem install native-packages --version 0.8.1 --no-document
 
       - name: App bundle
+        timeout-minutes: 5
         env:
           MACOS_SIGNING_CERTIFICATE_P12: ${{ secrets.MACOS_SIGNING_CERTIFICATE_P12 }}
           MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
