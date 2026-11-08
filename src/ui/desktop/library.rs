@@ -1177,7 +1177,7 @@ pub(super) fn collection_header(
     inspect_art: bool,
 ) -> El {
     let edge = if v.content_width() > 720. { 212. } else { 160. };
-    let mut art = v.cover(cover, CoverSize::Sleeve, edge, 6.);
+    let mut art = v.cover(cover, CoverSize::Detail, edge, 6.);
     if inspect_art {
         art = art
             .role("button")

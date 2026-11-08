@@ -12,7 +12,9 @@ pub const PAGE_SIZE: usize = 60;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CoverSize {
+    Thumbnail,
     Sleeve,
+    Detail,
     Portrait,
     Original,
 }
@@ -20,7 +22,9 @@ pub enum CoverSize {
 impl CoverSize {
     pub fn pixels(self) -> u32 {
         match self {
+            Self::Thumbnail => 128,
             Self::Sleeve => 300,
+            Self::Detail => 600,
             Self::Portrait => 1200,
             // Keep the display texture bounded; exported bytes retain the server image.
             Self::Original => 2048,
@@ -1003,7 +1007,9 @@ mod tests {
             assert_eq!(url.path(), "/rest/getCoverArt.view");
             match query["id"].as_ref() {
                 "original:/λ" => assert!(!query.contains_key("size")),
+                "thumbnail" => assert_eq!(query["size"], "128"),
                 "sleeve" => assert_eq!(query["size"], "300"),
+                "detail" => assert_eq!(query["size"], "600"),
                 _ => assert_eq!(query["size"], "1200"),
             }
             response("200 OK", "Content-Type: image/png\r\n", b"binary bytes")
@@ -1017,7 +1023,9 @@ mod tests {
         .unwrap();
         for (id, size) in [
             ("original:/λ", CoverSize::Original),
+            ("thumbnail", CoverSize::Thumbnail),
             ("sleeve", CoverSize::Sleeve),
+            ("detail", CoverSize::Detail),
             ("portrait", CoverSize::Portrait),
         ] {
             assert_eq!(client.cover(id, size).await.unwrap(), b"binary bytes");

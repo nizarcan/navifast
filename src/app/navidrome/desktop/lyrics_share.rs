@@ -149,8 +149,8 @@ impl State {
             return;
         }
         let cover = self.app.playing_cover().and_then(|id| {
-            self.cover_image(id, crate::navidrome::api::CoverSize::Sleeve)
-                .1
+            self.cover_for_view(id, crate::navidrome::api::CoverSize::Sleeve)
+                .pixels
         });
         self.lyrics_share.revision = self.lyrics_share.revision.wrapping_add(1);
         self.lyrics_share.draft = Some(Draft {

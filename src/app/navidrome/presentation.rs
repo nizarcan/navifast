@@ -4,6 +4,8 @@ use crate::model::{Action as UiAction, Page, RowContext};
 
 pub(super) fn artwork_uri(session: u64, id: &str, size: CoverSize) -> String {
     let variant = match size {
+        CoverSize::Thumbnail => "thumbnail:",
+        CoverSize::Detail => "detail:",
         CoverSize::Portrait => "portrait:",
         CoverSize::Original => "original:",
         CoverSize::Sleeve => "",
@@ -14,7 +16,11 @@ pub(super) fn artwork_uri(session: u64, id: &str, size: CoverSize) -> String {
 #[cfg(test)]
 fn artwork_request(session: u64, uri: &str) -> Option<(String, CoverSize)> {
     let key = uri.strip_prefix(&format!("navifast-art:{session}:"))?;
-    let (id, size) = if let Some(id) = key.strip_prefix("original:") {
+    let (id, size) = if let Some(id) = key.strip_prefix("thumbnail:") {
+        (id, CoverSize::Thumbnail)
+    } else if let Some(id) = key.strip_prefix("detail:") {
+        (id, CoverSize::Detail)
+    } else if let Some(id) = key.strip_prefix("original:") {
         (id, CoverSize::Original)
     } else {
         key.strip_prefix("portrait:")
@@ -549,7 +555,13 @@ mod tests {
     }
     #[test]
     fn artwork_sizes_and_sessions_round_trip_opaque_service_ids_separately() {
-        for size in [CoverSize::Sleeve, CoverSize::Portrait, CoverSize::Original] {
+        for size in [
+            CoverSize::Thumbnail,
+            CoverSize::Sleeve,
+            CoverSize::Detail,
+            CoverSize::Portrait,
+            CoverSize::Original,
+        ] {
             let uri = artwork_uri(7, "portrait:/λ", size);
             assert_eq!(artwork_request(7, &uri), Some(("portrait:/λ".into(), size)));
             assert_eq!(artwork_request(8, &uri), None);

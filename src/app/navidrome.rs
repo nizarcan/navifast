@@ -997,6 +997,9 @@ impl App {
                     self.requested_covers.remove(&uri);
                     if let Some(color) = cover.color {
                         let tint = self.palette.tint_from_art(color);
+                        if matches!(size, CoverSize::Thumbnail | CoverSize::Detail) {
+                            self.presentation.accents.entry(self.cover_uri(&id)).or_insert(tint);
+                        }
                         self.presentation.accents.insert(uri.clone(), tint);
                     }
                     host.insert_cover(self, uri, cover);
@@ -1309,16 +1312,18 @@ impl App {
                     255,
                 ])
             });
-            host.insert_cover(
-                self,
-                self.cover_uri(&id),
-                crate::navidrome::backend::Cover {
-                    preview: image.clone(),
-                    image,
-                    bytes: Arc::from([]),
-                    color: None,
-                },
-            );
+            for size in [CoverSize::Thumbnail, CoverSize::Sleeve, CoverSize::Detail] {
+                host.insert_cover(
+                    self,
+                    presentation::artwork_uri(self.session, &id, size),
+                    crate::navidrome::backend::Cover {
+                        preview: image::imageops::thumbnail(&image, 64, 64),
+                        image: image.clone(),
+                        bytes: Arc::from([]),
+                        color: None,
+                    },
+                );
+            }
         }
         if page.is_some_and(|page| page.starts_with("album:")) {
             self.album = self.albums.first().cloned();

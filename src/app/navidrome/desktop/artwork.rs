@@ -4,6 +4,7 @@ use crate::navidrome::backend::Cover;
 use rune::Pixels;
 use std::{
     collections::HashMap,
+    rc::{Rc, Weak},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -14,6 +15,12 @@ struct Entry {
     bytes: Arc<[u8]>,
     color: Option<[u8; 3]>,
     used: Instant,
+}
+
+pub(crate) struct View {
+    pub key: String,
+    pub pixels: Option<Pixels>,
+    pub keep: Vec<Rc<()>>,
 }
 
 fn memory(p: &Pixels) -> usize {
@@ -31,6 +38,8 @@ fn pixels(image: image::RgbaImage) -> Pixels {
 pub(super) struct Covers {
     items: HashMap<String, Entry>,
     failures: HashMap<String, Retry>,
+    held: HashMap<String, Weak<()>>,
+    over_budget: bool,
 }
 
 struct Retry {
@@ -39,6 +48,24 @@ struct Retry {
 }
 
 impl Covers {
+    /// The view owns this lease, including while waiting for its first pixels.
+    /// Rune can remove a virtual row without firing an off-screen callback.
+    pub fn hold(&mut self, key: &str) -> Rc<()> {
+        if let Some(held) = self.held.get(key).and_then(Weak::upgrade) {
+            return held;
+        }
+        let held = Rc::new(());
+        self.held.insert(key.to_owned(), Rc::downgrade(&held));
+        held
+    }
+
+    pub fn maintain(&mut self) {
+        self.held.retain(|_, held| held.strong_count() > 0);
+        if self.over_budget {
+            self.trim(32 * 1024 * 1024, 64 * 1024 * 1024);
+        }
+    }
+
     pub fn insert(&mut self, key: String, cover: Cover) {
         self.failures.remove(&key);
         self.items.insert(
@@ -55,6 +82,7 @@ impl Covers {
     }
 
     fn trim(&mut self, full_budget: usize, retained_budget: usize) {
+        self.held.retain(|_, held| held.strong_count() > 0);
         let mut full: usize = self
             .items
             .values()
@@ -67,11 +95,13 @@ impl Covers {
             .map(|e| e.bytes.len() + memory(&e.preview))
             .sum();
         if full <= full_budget && retained <= retained_budget {
+            self.over_budget = false;
             return;
         }
         let mut keys: Vec<_> = self
             .items
             .iter()
+            .filter(|(key, _)| !self.held.contains_key(*key))
             .map(|(k, e)| (e.used, k.clone()))
             .collect();
         keys.sort_by_key(|(used, _)| *used);
@@ -88,6 +118,9 @@ impl Covers {
                 break;
             }
         }
+        // A view's working set may exceed the budgets. Reclaim it after the
+        // view releases its leases, rather than repeatedly decoding visible art.
+        self.over_budget = full > full_budget || retained > retained_budget;
     }
 
     /// A changed key re-arms Rune's visibility callback. An on-screen demoted
@@ -134,8 +167,9 @@ impl Covers {
         self.items.get(key)?.color
     }
 
-    pub fn get(&self, key: &str) -> Option<Pixels> {
-        let e = self.items.get(key)?;
+    pub fn get(&mut self, key: &str) -> Option<Pixels> {
+        let e = self.items.get_mut(key)?;
+        e.used = Instant::now();
         Some(e.full.as_ref().unwrap_or(&e.preview).clone())
     }
 
@@ -228,5 +262,42 @@ mod tests {
         );
         assert_ne!(initial, covers.view_key("art"));
         assert!(matches!(covers.visible("art"), Some(None)));
+    }
+
+    #[test]
+    fn mounted_art_survives_pressure_until_every_view_releases_it() {
+        let mut covers = Covers::default();
+        // The player and a card can show the same cover. Hold before its reply
+        // arrives, as the real placeholder does.
+        let player = covers.hold("playing");
+        let card = covers.hold("playing");
+        covers.insert("playing".into(), cover());
+        let shown = format!("{:?}", covers.get("playing").unwrap());
+        let key = covers.view_key("playing");
+        for index in 0..100 {
+            covers.insert(format!("offscreen-{index}"), cover());
+            covers.trim(0, 0);
+            assert_eq!(format!("{:?}", covers.get("playing").unwrap()), shown);
+            assert_eq!(covers.view_key("playing"), key);
+            assert!(covers.visible("playing").is_none(), "no decode loop");
+            assert_eq!(covers.items.len(), 1);
+        }
+        drop(card);
+        covers.trim(0, 0);
+        assert_eq!(covers.get("playing").unwrap().size(), (4, 4));
+        drop(player);
+        covers.trim(0, 0);
+        assert!(covers.get("playing").is_none());
+        assert!(covers.held.is_empty());
+    }
+
+    #[test]
+    fn released_placeholders_leave_no_unbounded_lease_registry() {
+        let mut covers = Covers::default();
+        for index in 0..100 {
+            drop(covers.hold(&format!("missing-{index}")));
+        }
+        covers.maintain();
+        assert!(covers.held.is_empty());
     }
 }

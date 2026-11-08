@@ -236,6 +236,11 @@ do not change the player shell or lyric typography.
 - Reuse `Paint` helpers for labels, icon buttons, menus, artwork, loading and
   empty states. Text actions use the existing rounded button; a collection's
   main playback control uses the circular play button.
+- Artwork resolution follows its use: 128-pixel thumbnails for small rows when
+  sufficient at the current display scale, 300-pixel grid sleeves, and 600-pixel
+  collection-header and expanded-player images. Keep the cached image visible
+  while a larger size loads, and keep mounted covers resident under cache pressure.
+  The full-artwork viewer continues to request the original image.
 - Let artwork tint use the existing palette-aware backdrop. Preserve text
   contrast and the same fallback behavior in both themes and custom themes.
 - Keep actions accessible with names, roles, focus and keyboard behavior.

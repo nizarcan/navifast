@@ -272,19 +272,29 @@ impl Paint<'_> {
         let Some(id) = id else {
             return tile.child(self.icon(Icon::Music, edge * 0.35, self.p.dim));
         };
-        let (view_key, pixels) = self.s.cover_image(id, size);
-        if let Some(p) = pixels {
+        let size = if size == CoverSize::Sleeve && edge * self.scale * self.zoom <= 128. {
+            CoverSize::Thumbnail
+        } else {
+            size
+        };
+        let artwork = self.s.cover_for_view(id, size);
+        if let Some(p) = artwork.pixels {
             tile = tile.pixels_fit(&p, rune::SurfaceFit::Fill)
         } else {
             tile = tile.child(self.icon(Icon::Music, edge * 0.35, self.p.dim));
         }
         let id = id.to_owned();
-        tile.key(view_key).on_visible(move |s: &mut State, on, tx| {
-            if on {
-                s.request_cover(&id, size);
-            }
-            tx.live_only();
-        })
+        let keep = artwork.keep;
+        tile.key(artwork.key)
+            .on_visible(move |s: &mut State, on, tx| {
+                // Keep both the requested size and any painted fallback resident
+                // until Rune drops this tile, even if it unmounts without a callback.
+                let _ = &keep;
+                if on {
+                    s.request_cover(&id, size);
+                }
+                tx.live_only();
+            })
     }
     fn logo(&self, edge: f32) -> El {
         let pixels = (edge * self.scale * self.zoom).round() as u32 + 4;

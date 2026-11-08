@@ -7,17 +7,20 @@ pub(super) fn dialog(v: &Paint<'_>) -> El {
     };
     let width = 900_f32.min(v.width - 16.);
     let image_height = (v.height - 230.).max(120.);
-    let pixels = art.id.as_deref().and_then(|id| {
-        v.s.cover_image(id, CoverSize::Original)
-            .1
-            .or_else(|| v.s.cover_image(id, CoverSize::Sleeve).1)
-    });
+    let artwork = art
+        .id
+        .as_deref()
+        .map(|id| v.s.cover_for_view(id, CoverSize::Original));
     let mut image = el().key("artwork-image").w_full().h(image_height).center();
-    if let Some(pixels) = pixels {
-        image = image.pixels_fit(&pixels, rune::SurfaceFit::Fit);
+    if let Some(pixels) = artwork.as_ref().and_then(|art| art.pixels.as_ref()) {
+        image = image.pixels_fit(pixels, rune::SurfaceFit::Fit);
     } else {
         image = image.child(v.icon(Icon::Music, 72., v.p.dim));
     }
+    image = image.on_visible(move |_: &mut State, _, tx| {
+        let _ = &artwork;
+        tx.live_only();
+    });
     let failed = v.s.artwork_failed();
     let ready = v.s.artwork_bytes().is_some();
     let status = if let Some(error) = art.error {

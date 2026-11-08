@@ -80,7 +80,11 @@ pub(super) fn artwork(v: &Paint<'_>, edge: f32, expanded: bool) -> El {
     let a = &v.s.app;
     let mut sleeve = v.cover(
         a.playing_cover(),
-        CoverSize::Sleeve,
+        if expanded {
+            CoverSize::Detail
+        } else {
+            CoverSize::Sleeve
+        },
         edge,
         if expanded { 8. } else { 6. },
     );

@@ -1497,6 +1497,11 @@ mod tests {
         assert_eq!(cover.preview.dimensions(), (64, 32));
         assert!(Arc::ptr_eq(&bytes, &cover.bytes));
         assert!(cover.color.is_some());
+        let thumbnail = decode_cover(bytes.clone(), CoverSize::Thumbnail).unwrap();
+        assert_eq!(thumbnail.image.dimensions(), (128, 64));
+        assert_eq!(thumbnail.preview.dimensions(), (64, 32));
+        let detail = decode_cover(bytes.clone(), CoverSize::Detail).unwrap();
+        assert_eq!(detail.image.dimensions(), (600, 300));
         let portrait = decode_cover(bytes, CoverSize::Portrait).unwrap();
         assert_eq!(portrait.image.dimensions(), (600, 300));
         assert_eq!(portrait.preview.dimensions(), (64, 32));

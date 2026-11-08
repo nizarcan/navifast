@@ -12,12 +12,22 @@ actions go to the controller in `src/app/navidrome.rs`; the presentation
 adapter reuses the existing models and preferences.
 No Spotify service backend is included.
 Artwork uses opaque, session-scoped image-loader keys rather than authenticated
-URLs, with bounded CPU/GPU caching. Full decoded covers have a 32 MiB memory
-budget. A separate 64 MiB cache retains downloaded bytes and small previews, so
+URLs. Small rows request 128-pixel thumbnails when they cover the device-pixel
+size; album grids request 300-pixel sleeves, collection headers and the expanded
+player request 600-pixel detail images, and artist backdrops request 1200 pixels.
+Each size has its own session-scoped key. Decoding enforces the requested maximum
+edge even if the server returns a larger image, preserving aspect ratio.
+Decoded covers have a 32 MiB memory budget. A separate 64 MiB cache retains
+downloaded bytes and 64-pixel previews, so
 scrolling back paints a preview immediately while the worker restores the full
 cover without another server request. Both caches evict the least recently
-viewed artwork; only a cover evicted from the second cache needs downloading
-again. GPU textures are released with their corresponding images. Sign-out
+viewed inactive artwork; only a cover evicted from the second cache needs
+downloading again. Mounted tiles hold leases on their requested image and any
+fallback they paint. They cannot be demoted or evicted during cache pressure,
+including the stationary player cover. If the mounted working set exceeds a
+budget, it takes priority until those views release it; subsequent polling trims
+the excess. Larger artwork keeps the best cached thumbnail visible while it
+loads. Rune manages the GPU atlas separately. Sign-out
 clears both caches. Artwork stays in memory unless you explicitly save a copy. `navidrome::backend`
 executes API requests on a dedicated Tokio runtime with cancellation and
 session/request generations. IDs are opaque strings. Album pages use

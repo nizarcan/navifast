@@ -24,6 +24,77 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
 }
 
 #[test]
+fn mounted_artwork_keeps_its_resolution_and_releases_it_after_navigation() {
+    fn pressure(rt: &mut Runtime<State>) {
+        for index in 0..32 {
+            rt.state.window.covers.borrow_mut().insert(
+                format!("pressure-{index}"),
+                Cover {
+                    image: image::RgbaImage::new(600, 600),
+                    preview: image::RgbaImage::new(64, 64),
+                    bytes: Arc::from([]),
+                    color: None,
+                },
+            );
+        }
+    }
+    let mut rt = runtime("albums", "restored");
+    let image = |rt: &Runtime<State>, size| rt.state.cover_image("alb0", size).1.unwrap();
+    let player = format!("{:?}", image(&rt, CoverSize::Thumbnail));
+    let grid = format!("{:?}", image(&rt, CoverSize::Sleeve));
+    pressure(&mut rt);
+    assert_eq!(format!("{:?}", image(&rt, CoverSize::Thumbnail)), player);
+    assert_eq!(format!("{:?}", image(&rt, CoverSize::Sleeve)), grid);
+    assert_eq!(image(&rt, CoverSize::Detail).size(), (64, 64));
+
+    rt.update(|s, _| {
+        s.app.presentation.settings.sidebar_visible = false;
+        s.app.presentation.open(Page::Settings);
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    pressure(&mut rt);
+    assert_eq!(format!("{:?}", image(&rt, CoverSize::Thumbnail)), player);
+    assert_eq!(image(&rt, CoverSize::Sleeve).size(), (64, 64));
+
+    rt.update(|s, _| {
+        s.app.album = Some(crate::demo::album(0));
+        s.app
+            .presentation
+            .open(Page::Album(super::super::encode("alb0")));
+        s.sync_tracks();
+        s.window.covers.borrow_mut().insert(
+            presentation::artwork_uri(s.app.session, "alb0", CoverSize::Detail),
+            Cover {
+                image: image::RgbaImage::new(600, 600),
+                preview: image::RgbaImage::new(64, 64),
+                bytes: Arc::from([]),
+                color: None,
+            },
+        );
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    pressure(&mut rt);
+    assert_eq!(image(&rt, CoverSize::Detail).size(), (600, 600));
+
+    rt.update(|s, _| {
+        s.app.presentation.open(Page::Settings);
+        s.app.presentation.settings.sidebar_visible = true;
+        s.app.presentation.settings.art_expanded = true;
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    pressure(&mut rt);
+    assert_eq!(image(&rt, CoverSize::Detail).size(), (600, 600));
+    rt.update(|s, _| s.app.presentation.settings.art_expanded = false);
+    rt.frame(0.);
+    rt.settle_all();
+    pressure(&mut rt);
+    assert_eq!(image(&rt, CoverSize::Detail).size(), (64, 64));
+}
+
+#[test]
 fn library_options_switch_views_and_restore_the_hidden_sidebar() {
     let click = rune::accesskit::Action::Click;
     for flags in ["restored", "restored,light"] {
@@ -639,7 +710,14 @@ fn home_artwork_loads_when_sign_in_finishes_after_cards_are_visible() {
             response("200 OK", "Content-Type: application/json\r\n", br#"{"subsonic-response":{"status":"ok","artist":{"coverArt":"portrait:/opaque"}}}"#)
         } else {
             assert_eq!(url.path(), "/rest/getCoverArt.view");
-            assert_eq!(query["size"], "300");
+            assert_eq!(
+                query["size"],
+                if id == "recent-cover:/opaque" {
+                    "128"
+                } else {
+                    "300"
+                }
+            );
             response("200 OK", "Content-Type: image/png\r\n", png.get_ref())
         }
     });
@@ -689,9 +767,12 @@ fn home_artwork_loads_when_sign_in_finishes_after_cards_are_visible() {
         });
         rt.frame(0.);
         rt.settle_all();
-        if ["recent-cover:/opaque", "portrait:/opaque"]
-            .iter()
-            .all(|id| rt.state.cover_image(id, CoverSize::Sleeve).1.is_some())
+        if [
+            ("recent-cover:/opaque", CoverSize::Thumbnail),
+            ("portrait:/opaque", CoverSize::Sleeve),
+        ]
+        .iter()
+        .all(|(id, size)| rt.state.cover_image(id, *size).1.is_some())
         {
             break;
         }

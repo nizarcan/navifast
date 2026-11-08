@@ -15,8 +15,10 @@ The current build supports:
   a section without leaving Home. First visits offer albums from your library;
   reopening still restores playback paused.
 - Browsing recently added or alphabetically sorted albums, with pagination,
-  artwork and album track lists. Recently viewed covers stay visible when
-  scrolling back, with full images restored from a bounded session cache.
+  artwork and album track lists. Small rows use thumbnails; album grids keep
+  Retina-ready covers, with larger images on collection pages and in the expanded
+  player. Mounted artwork stays resident while older covers share a bounded
+  session cache. Scrolling back shows a preview while its image is restored.
 - Click an album cover to view the complete artwork fitted to the window.
   **Save image** writes a JPEG or PNG copy to a location you choose. Escape
   closes the viewer and returns focus to the cover.

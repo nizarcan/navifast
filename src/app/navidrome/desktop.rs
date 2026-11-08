@@ -893,7 +893,7 @@ impl State {
     }
     pub(crate) fn cover_image(&self, id: &str, size: CoverSize) -> (String, Option<rune::Pixels>) {
         let uri = presentation::artwork_uri(self.app.session, id, size);
-        let covers = self.window.covers.borrow();
+        let mut covers = self.window.covers.borrow_mut();
         (
             self.artwork_visibility_key(&covers.view_key(&uri)),
             covers.get(&uri),
@@ -904,6 +904,34 @@ impl State {
     /// Re-arm visibility when authenticated requests become possible.
     pub(crate) fn artwork_visibility_key(&self, key: &str) -> String {
         format!("{key}/{}/{}", self.app.session, self.app.client.is_some())
+    }
+
+    pub(crate) fn cover_for_view(&self, id: &str, size: CoverSize) -> artwork::View {
+        let uri = presentation::artwork_uri(self.app.session, id, size);
+        let mut covers = self.window.covers.borrow_mut();
+        let mut keep = vec![covers.hold(&uri)];
+        let key = self.artwork_visibility_key(&covers.view_key(&uri));
+        let mut pixels = covers.get(&uri);
+        // Keep the best already-loaded version while the requested size loads.
+        // Its lease lasts just as long as the tile painting it.
+        if pixels.is_none() {
+            let best = [CoverSize::Detail, CoverSize::Sleeve, CoverSize::Thumbnail]
+                .into_iter()
+                .filter(|fallback| *fallback != size)
+                .filter_map(|fallback| {
+                    let key = presentation::artwork_uri(self.app.session, id, fallback);
+                    covers.get(&key).map(|image| (key, image))
+                })
+                .max_by_key(|(_, image)| {
+                    let (w, h) = image.size();
+                    w.max(h)
+                });
+            if let Some((fallback, image)) = best {
+                keep.push(covers.hold(&fallback));
+                pixels = Some(image);
+            }
+        }
+        artwork::View { key, pixels, keep }
     }
 
     pub(crate) fn request_home_artist_cover(&mut self, id: &str) {
@@ -938,6 +966,7 @@ impl Drop for State {
 
 fn poll(s: &mut State, _time: f64, tx: &mut Tx) -> bool {
     s.autoscroll.poll(tx);
+    s.window.covers.borrow_mut().maintain();
     let restoring = s.app.restoring_login;
     let mut changed = s.app.poll(&s.window);
     changed |= s.poll_artwork_save();
