@@ -71,7 +71,7 @@ impl App {
     }
     pub(super) fn ui_action(&mut self, action: UiAction, host: &impl Host) {
         let was_favorites = self.presentation.page().is_favorites();
-        let was_playlists = matches!(self.presentation.page(), Page::Home | Page::Playlists);
+        let was_playlists = self.playlist_library_visible();
         match action {
             UiAction::Browse(action) if self.connected => self.browse_action(action),
             UiAction::Open(ref page) if self.connected && page.is_browse() => {
@@ -242,20 +242,21 @@ impl App {
                     self.apply(Action::Open(id));
                 }
             }
-            UiAction::SetLibrarySort {
-                shelf: crate::settings::LibraryShelf::Albums,
-                sort,
-            } => {
-                self.presentation
-                    .settings
-                    .library_sort
-                    .insert(crate::settings::LibraryShelf::Albums, sort);
+            UiAction::CycleLibraryContent => {
+                self.presentation.settings.library_content =
+                    self.presentation.settings.library_content.next();
                 self.mark_dirty();
-                if matches!(
-                    sort,
-                    crate::settings::LibrarySort::RecentlyAdded
-                        | crate::settings::LibrarySort::Name
-                ) {
+            }
+            UiAction::SetLibrarySort { shelf, sort } if sort.supports(shelf) => {
+                self.presentation.settings.library_sort.insert(shelf, sort);
+                self.mark_dirty();
+                if shelf == crate::settings::LibraryShelf::Albums
+                    && matches!(
+                        sort,
+                        crate::settings::LibrarySort::RecentlyAdded
+                            | crate::settings::LibrarySort::Name
+                    )
+                {
                     self.apply(Action::Browse(
                         sort == crate::settings::LibrarySort::RecentlyAdded,
                     ));
@@ -296,7 +297,7 @@ impl App {
         if !was_favorites && self.presentation.page().is_favorites() {
             self.refresh_favorites();
         }
-        let is_playlists = matches!(self.presentation.page(), Page::Home | Page::Playlists);
+        let is_playlists = self.playlist_library_visible();
         if is_playlists
             && (!was_playlists
                 || matches!(

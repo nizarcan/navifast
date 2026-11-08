@@ -943,7 +943,7 @@ impl App {
                             self.list_request += 1;
                             self.fetch_albums(0);
                             self.refresh_favorites();
-                            if self.presentation.page() == &crate::model::Page::Home {
+                            if self.playlist_library_visible() {
                                 self.fetch_playlists();
                             }
                         }

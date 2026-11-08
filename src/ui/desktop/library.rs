@@ -674,22 +674,14 @@ const SORTS: [(crate::settings::LibrarySort, &str); 4] = [
     ),
 ];
 fn sort_menu(v: &Paint<'_>) -> El {
-    use crate::settings::LibraryShelf;
-    let selected = crate::ui::sidebar::selected_sort(&v.s.app.presentation, LibraryShelf::Albums);
+    let shelf = v.s.app.presentation.settings.library_content.shelf();
+    let selected = library_shelf::selected_sort(&v.s.app);
     let mut menu = v.menu("sort");
-    for (sort, title) in SORTS {
+    for (sort, title) in SORTS.into_iter().filter(|(sort, _)| sort.supports(shelf)) {
         menu = menu.child(v.menu_item(
             &v.tr(title),
             (sort == selected).then_some(Icon::Check),
-            move |s, tx| {
-                s.dispatch(
-                    Action::SetLibrarySort {
-                        shelf: LibraryShelf::Albums,
-                        sort,
-                    },
-                    tx,
-                )
-            },
+            move |s, tx| s.dispatch(Action::SetLibrarySort { shelf, sort }, tx),
         ));
     }
     menu
@@ -829,7 +821,8 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
                     .expanded(v.s.menu == Some("library-options")),
                 ),
         );
-    let selected = crate::ui::sidebar::selected_sort(&app.presentation, LibraryShelf::Albums);
+    let content = app.presentation.settings.library_content;
+    let selected = library_shelf::selected_sort(app);
     let name = SORTS
         .iter()
         .find(|(sort, _)| *sort == selected)
@@ -864,11 +857,27 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
             .gap(8.)
             .items_center()
             .child(
-                label(v.tr(mark("Albums")), 13., 600., v.p.text)
-                    .key("library-albums-heading")
+                row()
+                    .key("library-content")
+                    .h(30.)
                     .grow(1.)
                     .min_w(0.)
-                    .truncate(),
+                    .items_center()
+                    .radius(6.)
+                    .role("button")
+                    .focusable(true)
+                    .label(v.tr(library_shelf::title(content)))
+                    .help(
+                        v.tr(mark("Show {kind}"))
+                            .replace("{kind}", &v.tr(library_shelf::title(content.next()))),
+                    )
+                    .hover(color(v.p.surface_hover))
+                    .child(
+                        label(v.tr(library_shelf::title(content)), 13., 600., v.p.text)
+                            .min_w(0.)
+                            .truncate(),
+                    )
+                    .on_press_tx(|s: &mut State, tx| s.dispatch(Action::CycleLibraryContent, tx)),
             )
             .child(
                 row()
@@ -893,134 +902,7 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
                     .on_press_tx(|s: &mut State, _| s.menu = Some("sort")),
             ),
     );
-    let filter = v.s.library_filter.text.to_lowercase();
-    let mut order: Vec<_> = app
-        .albums
-        .iter()
-        .enumerate()
-        .filter(|(_, a)| {
-            filter.is_empty()
-                || a.name.to_lowercase().contains(&filter)
-                || a.artist.to_lowercase().contains(&filter)
-        })
-        .map(|(i, _)| i)
-        .collect();
-    use crate::settings::{LibraryShelf, LibrarySort};
-    match app
-        .presentation
-        .settings
-        .library_sort
-        .get(&LibraryShelf::Albums)
-    {
-        Some(LibrarySort::Name) => order
-            .sort_by_cached_key(|&i| (app.albums[i].name.to_lowercase(), app.albums[i].id.clone())),
-        Some(LibrarySort::RecentlyPlayed) => order.sort_by_cached_key(|&i| {
-            let uri = format!("navidrome:album:{}", navidrome::encode(&app.albums[i].id));
-            app.presentation
-                .recent_contexts
-                .iter()
-                .position(|key| key == &uri)
-                .unwrap_or(usize::MAX)
-        }),
-        _ => {}
-    }
-    let grid = app.presentation.settings.sidebar_grid;
-    let compact = app.presentation.settings.sidebar_compact;
-    let layout = crate::ui::sidebar::grid_layout(width - 24.);
-    let columns = if grid { layout.columns } else { 1 };
-    let height = if grid {
-        layout.row_height
-    } else if compact {
-        34.
-    } else {
-        60.
-    };
-    let edge = (layout.card_width - 14.).max(1.);
-    let p = v.p;
-    let scale = v.scale;
-    let zoom = v.zoom;
-    let order = std::rc::Rc::new(order);
-    let keys = order.clone();
-    let list = col()
-        .key("sidebar-albums")
-        .grow(1.)
-        .min_h(0.)
-        .scroll(ScrollSpec {
-            stick_bottom: false,
-        })
-        .child(col().growth(rune::GrowthSpec::default()).virtual_rows(
-            order.len().div_ceil(columns),
-            height,
-            move |s: &State, i| Cow::Owned(format!("shelf-{}", s.app.albums[keys[i * columns]].id)),
-            move |s: &State, r| {
-                let v = Paint {
-                    s,
-                    p,
-                    scale,
-                    zoom,
-                    width,
-                    height: 0.,
-                };
-                let mut band = row().w_full().h(height);
-                for &i in order.iter().skip(r * columns).take(columns) {
-                    let a = &s.app.albums[i];
-                    let id = navidrome::encode(&a.id);
-                    let playing = s.app.playing_album.as_ref().is_some_and(|p| p.id == a.id);
-                    let name = label(&a.name, 14., 550., if playing { p.accent } else { p.text })
-                        .truncate();
-                    let by = label(
-                        format!("{} • {}", v.tr(mark("Album")), a.artist),
-                        12.5,
-                        400.,
-                        p.secondary,
-                    )
-                    .truncate();
-                    let mut item = if grid {
-                        col()
-                            .w(layout.card_width)
-                            .padding(6.)
-                            .gap(3.)
-                            .child(v.cover(a.cover_art.as_deref(), CoverSize::Sleeve, edge, 6.))
-                            .child(name)
-                            .child(by)
-                    } else {
-                        let mut line = row().w_full().px(8.).items_center().gap(12.);
-                        if !compact {
-                            line = line.child(v.cover(
-                                a.cover_art.as_deref(),
-                                CoverSize::Sleeve,
-                                44.,
-                                6.,
-                            ));
-                        }
-                        let mut titles = col().min_w(0.).grow(1.).gap(3.).child(name);
-                        if !compact {
-                            titles = titles.child(by);
-                        }
-                        line = line.child(titles);
-                        if playing {
-                            line = line.child(v.icon(Icon::Volume2, 16., p.accent));
-                        }
-                        line
-                    };
-                    if s.app.presentation.page() == &Page::Album(id.clone()) {
-                        item = item.fill(color(p.surface));
-                    }
-                    band = band.child(
-                        item.h_full()
-                            .radius(6.)
-                            .role("button")
-                            .label(&a.name)
-                            .focusable(true)
-                            .hover(color(p.surface_hover))
-                            .on_press_tx(move |s: &mut State, tx| {
-                                s.dispatch(Action::Open(Page::Album(id.clone())), tx)
-                            }),
-                    );
-                }
-                band
-            },
-        ));
+    let list = library_shelf::list(v, width);
     let enabled = crate::autoscroll::enabled(app.presentation.settings.middle_click_autoscroll);
     let list = if enabled {
         let viewport = v.s.autoscroll.viewport(Pane::Library);
@@ -1042,7 +924,7 @@ fn sidebar(v: &Paint<'_>, width: f32) -> El {
             28.,
             color(Srgba::from_black_alpha(if v.p.dark { 120 } else { 40 })),
         );
-        side = if grid {
+        side = if app.presentation.settings.sidebar_grid {
             side.child(
                 col()
                     .pin(Some(12.), None, None, Some(0.))

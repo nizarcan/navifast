@@ -100,7 +100,7 @@ fn library_search_filters_and_clears_without_moving_primary_navigation() {
     let before = nav(&rt);
     assert_eq!(before.len(), 4);
     assert!(
-        !rt.elements()
+        rt.elements()
             .iter()
             .any(|e| e.role == "button" && e.label.as_deref() == Some("Albums"))
     );
@@ -117,7 +117,7 @@ fn library_search_filters_and_clears_without_moving_primary_navigation() {
             .filter_map(|e| e.key.filter(|key| key.starts_with("shelf-")))
             .collect::<Vec<_>>()
     };
-    assert_eq!(shelf(&rt), ["shelf-alb0"]);
+    assert_eq!(shelf(&rt), ["shelf-album-alb0"]);
     rt.update(|s, _| s.library_filter.replace_text("no matching album"));
     rt.frame(0.);
     rt.settle_all();
@@ -178,7 +178,7 @@ fn library_sort_controls_fit_narrow_and_normal_sidebars() {
                         .rect
                 };
                 let [x, _, width, _] = rect("sort");
-                let [label_x, _, label_width, _] = rect("library-albums-heading");
+                let [label_x, _, label_width, _] = rect("library-content");
                 assert!(
                     x >= label_x + label_width,
                     "sort overlaps Albums at {sidebar}"
@@ -199,6 +199,187 @@ fn library_sort_controls_fit_narrow_and_normal_sidebars() {
             }
         }
     }
+}
+
+#[test]
+fn library_content_cycles_by_click_and_keyboard_without_changing_page_or_search() {
+    use crate::settings::LibraryContent;
+    let click = rune::accesskit::Action::Click;
+    let mut rt = runtime("home", "restored,library-filtered");
+    let playing = rt.state.app.transport.song().unwrap().id.clone();
+    let rows = |rt: &Runtime<State>| {
+        rt.elements()
+            .into_iter()
+            .filter_map(|e| e.key.filter(|key| key.starts_with("shelf-")))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(rows(&rt), ["shelf-album-alb0"]);
+    assert!(rt.accessibility_action("library-content", click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert_eq!(
+        rt.state.app.presentation.settings.library_content,
+        LibraryContent::Playlists
+    );
+    assert_eq!(rows(&rt), ["shelf-playlist-list1"]);
+    assert!(rt.accessibility_action("library-content", rune::accesskit::Action::Focus, None));
+    rt.frame(0.);
+    rt.settle_all();
+    rt.key(rune::KeyEvent {
+        key: rune::Key::Text(" ".into()),
+        mods: Default::default(),
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    assert_eq!(
+        rt.state.app.presentation.settings.library_content,
+        LibraryContent::All
+    );
+    assert_eq!(rows(&rt), ["shelf-playlist-list1", "shelf-album-alb0"]);
+    assert!(rt.accessibility_action("library-content", click, None));
+    rt.frame(0.);
+    rt.settle_all();
+    assert_eq!(
+        rt.state.app.presentation.settings.library_content,
+        LibraryContent::Albums
+    );
+    assert_eq!(rows(&rt), ["shelf-album-alb0"]);
+    assert_eq!(rt.state.library_filter.text, "Bonobo");
+    assert_eq!(rt.state.app.presentation.page(), &Page::Home);
+    assert_eq!(rt.state.app.transport.song().unwrap().id, playing);
+    assert!(rt.state.app.transport.paused);
+}
+
+#[test]
+fn library_mixed_rows_keep_duplicate_names_and_cross_type_ids_distinct() {
+    use crate::settings::{LibraryContent, LibrarySort};
+    let click = rune::accesskit::Action::Click;
+    for grid in [false, true] {
+        let mut rt = runtime("home", "restored,library-all");
+        rt.set_viewport((1280., 1600.), 2.);
+        rt.update(|s, _| {
+            s.app.presentation.settings.sidebar_grid = grid;
+            s.app.presentation.settings.sidebar_width = 378.;
+            let list = s
+                .app
+                .presentation
+                .navidrome_playlists
+                .list
+                .get_mut()
+                .unwrap();
+            list[0].id = "alb0".into();
+            list[0].name = s.app.albums[0].name.clone();
+            s.app.preferences.home_history.collections = [
+                super::super::home::Kind::Playlist,
+                super::super::home::Kind::Album,
+            ]
+            .into_iter()
+            .map(|kind| super::super::home::Entry {
+                kind,
+                id: "alb0".into(),
+                name: s.app.albums[0].name.clone(),
+                by: String::new(),
+                cover: None,
+            })
+            .collect();
+        });
+        rt.frame(0.);
+        rt.settle_all();
+        let elements = rt.elements();
+        for key in [
+            "library-album-alb0",
+            "library-playlist-alb0",
+            "library-playlist-list2",
+        ] {
+            assert!(
+                elements.iter().any(|e| e.key.as_deref() == Some(key)),
+                "missing {key}"
+            );
+        }
+        assert!(rt.accessibility_action("sort", click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert!(
+            !rt.elements()
+                .iter()
+                .any(|e| e.role == "menuitem" && e.label.as_deref() == Some("Recently added"))
+        );
+        click_label(&mut rt, "Recently played", 0);
+        assert_eq!(
+            rt.state
+                .app
+                .presentation
+                .settings
+                .library_sort
+                .get(&LibraryContent::All.shelf()),
+            Some(&LibrarySort::RecentlyPlayed)
+        );
+        let elements = rt.elements();
+        let position = |key| {
+            let [x, y, _, _] = elements
+                .iter()
+                .find(|e| e.key.as_deref() == Some(key))
+                .unwrap()
+                .rect;
+            (y as i32, x as i32)
+        };
+        assert!(position("library-playlist-alb0") < position("library-album-alb0"));
+        assert!(rt.accessibility_action("library-playlist-alb0", click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(
+            rt.state.app.presentation.page(),
+            &Page::Playlist(super::super::encode("alb0"))
+        );
+        assert_eq!(
+            rt.state.app.presentation.settings.library_content,
+            LibraryContent::All
+        );
+        assert!(rt.state.app.transport.paused);
+        assert!(rt.accessibility_action("library-album-alb0", click, None));
+        rt.frame(0.);
+        rt.settle_all();
+        assert_eq!(
+            rt.state.app.presentation.page(),
+            &Page::Album(super::super::encode("alb0"))
+        );
+        assert!(rt.state.app.transport.paused);
+    }
+}
+
+#[test]
+fn library_playlists_keep_cached_rows_during_loading_and_error_and_support_retry() {
+    let mut rt = runtime("home", "restored,library-playlists");
+    let has = |rt: &Runtime<State>, key: &str| {
+        rt.elements().iter().any(|e| e.key.as_deref() == Some(key))
+    };
+    rt.update(|s, _| s.app.presentation.navidrome_playlists.refreshing = true);
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(has(&rt, "shelf-playlists-loading"));
+    assert!(has(&rt, "library-playlist-list0"));
+    rt.update(|s, _| {
+        s.app.presentation.navidrome_playlists.refreshing = false;
+        s.app.presentation.navidrome_playlists.error = Some("Unavailable".into());
+    });
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(has(&rt, "shelf-playlists-error"));
+    assert!(has(&rt, "library-playlist-list0"));
+    click_label(&mut rt, "Retry", 0);
+    assert!(
+        rt.state
+            .app
+            .presentation
+            .navidrome_playlists
+            .error
+            .is_none()
+    );
+    assert!(has(&rt, "library-playlist-list0"));
+    rt.update(|s, _| s.app.presentation.navidrome_playlists.list = Loadable::Loaded(Vec::new()));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(has(&rt, "shelf-playlists-empty"));
 }
 
 #[test]

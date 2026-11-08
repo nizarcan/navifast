@@ -476,6 +476,22 @@ impl State {
         state.sync_tracks();
         #[cfg(feature = "navidrome-demo")]
         if launch.demo {
+            state.app.presentation.settings.library_content = if flags.contains(&"library-all") {
+                crate::settings::LibraryContent::All
+            } else if flags.contains(&"library-playlists") {
+                crate::settings::LibraryContent::Playlists
+            } else {
+                crate::settings::LibraryContent::Albums
+            };
+            if state.app.presentation.settings.library_content
+                != crate::settings::LibraryContent::Albums
+                && matches!(
+                    state.app.presentation.navidrome_playlists.list,
+                    crate::model::Loadable::NotLoaded
+                )
+            {
+                state.app.populate_demo_playlists(&flags);
+            }
             state.library_search = flags.iter().any(|flag| {
                 matches!(
                     *flag,
@@ -750,6 +766,7 @@ impl State {
     }
     pub(crate) fn dispatch(&mut self, action: Action, tx: &mut Tx) {
         self.autoscroll.cancel();
+        let library_content = self.app.presentation.settings.library_content;
         let previous = self.app.presentation.page().clone();
         if self.queue_compact.get()
             && matches!(
@@ -767,6 +784,9 @@ impl State {
         }
         let session = self.app.session;
         self.app.ui_action(action, &self.window);
+        if self.app.presentation.settings.library_content != library_content {
+            tx.scroll_to_y("sidebar-albums", 0.);
+        }
         self.menu = None;
         self.favorite_menu = None;
         self.queue_menu = None;

@@ -38,10 +38,22 @@ new pattern. Do not create a second set of components with copied styling.
 The Library shelf uses the approved **Quiet shelf** layout. Below the existing
 divider, use a muted 12-pixel Library heading with Search and Library options
 icons. Keep the 48-pixel header and align its label with the navigation's left
-inset. Search opens the existing search field above the album controls; closing
-search clears its filter. The next 36-pixel row has a plain 13-pixel Albums label
-and a quiet, right-aligned sort control. Albums is a label, not a single-option
-filter. Keep the selected sort's full accessible name when its text truncates.
+inset. Search opens the existing search field above the collection controls; closing
+search clears its filter. The next 36-pixel row has a quiet 13-pixel collection
+button and a right-aligned sort control. Clicking the collection label, or
+activating it with the keyboard, cycles **Albums → Playlists → All** in place.
+Keep its text treatment, hover and focus feedback; its accessible help names
+the next mode. Cycling retains the search term, returns the shelf to the top,
+and leaves the main page and playback alone. The choice persists across restarts.
+Keep the selected sort's full accessible name when its text truncates.
+
+All is one combined virtual list or grid, initially ordered by name. Each mode
+remembers its own order. Name and local recent-listening order work for both
+collection types; Recently added is album-only. Use the existing album row and
+artwork treatment for playlists, with a Playlist subtitle. Type and ID together
+identify each entry, so matching names or IDs never merge different collections.
+Playlist loading, empty and failed refresh states use shared inline feedback;
+cached rows stay usable, including during a failed refresh.
 
 Library options uses the shared anchored menu with checked **List view** and
 **Grid view** choices, then **Hide sidebar**. The existing top-bar control

@@ -12,6 +12,35 @@ pub enum LibraryShelf {
     Albums,
     Artists,
     Podcasts,
+    All,
+}
+
+/// Collections shown in the native Library shelf.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LibraryContent {
+    #[default]
+    Albums,
+    Playlists,
+    All,
+}
+
+impl LibraryContent {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Albums => Self::Playlists,
+            Self::Playlists => Self::All,
+            Self::All => Self::Albums,
+        }
+    }
+
+    pub fn shelf(self) -> LibraryShelf {
+        match self {
+            Self::Albums => LibraryShelf::Albums,
+            Self::Playlists => LibraryShelf::Playlists,
+            Self::All => LibraryShelf::All,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -212,6 +241,8 @@ pub struct Settings {
     pub sidebar_compact: bool,
     /// Show the Library as responsive cover cards instead of rows.
     pub sidebar_grid: bool,
+    /// Albums, playlists or both. Older profiles retain the album shelf.
+    pub library_content: LibraryContent,
     pub sidebar_width: f32,
     /// Use compact single-line rows without cover art in track lists.
     pub tracklist_compact: bool,
@@ -304,6 +335,7 @@ impl Default for Settings {
             art_expanded: false,
             sidebar_compact: false,
             sidebar_grid: false,
+            library_content: LibraryContent::Albums,
             sidebar_width: 250.0,
             tracklist_compact: false,
             middle_click_autoscroll: false,
@@ -813,6 +845,36 @@ mod tests {
         let json = serde_json::to_string(&settings).unwrap();
         let restored: Settings = serde_json::from_str(&json).unwrap();
         assert!(restored.sidebar_grid);
+    }
+
+    #[test]
+    fn library_content_defaults_to_albums_and_preserves_each_mode_and_order() {
+        use super::{LibraryContent, LibrarySort};
+        let old: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(old.library_content, LibraryContent::Albums);
+        let mut content = LibraryContent::Albums;
+        for expected in [
+            LibraryContent::Playlists,
+            LibraryContent::All,
+            LibraryContent::Albums,
+        ] {
+            content = content.next();
+            assert_eq!(content, expected);
+            let mut settings = Settings {
+                library_content: content,
+                ..Settings::default()
+            };
+            settings
+                .library_sort
+                .insert(content.shelf(), LibrarySort::Name);
+            let restored: Settings =
+                serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+            assert_eq!(restored.library_content, content);
+            assert_eq!(
+                restored.library_sort.get(&content.shelf()),
+                Some(&LibrarySort::Name)
+            );
+        }
     }
 
     #[test]

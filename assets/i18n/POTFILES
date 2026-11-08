@@ -38,3 +38,4 @@ src/ui/desktop/inspector.rs
 src/app/navidrome/desktop/artwork_viewer.rs
 src/ui/desktop/downloads.rs
 src/ui/desktop/sync.rs
+src/ui/desktop/library_shelf.rs

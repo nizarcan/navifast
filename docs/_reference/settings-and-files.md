@@ -23,6 +23,11 @@ profiles containing only `navidrome.json` remain readable. Custom JSON themes
 live in the config directory's `themes/` folder. Both settings files are written
 atomically on the background worker and contain no password. Unknown historical settings are retained as data, and automatic update checks remain disabled.
 
+`library_content` selects `albums`, `playlists` or `all` in the Library shelf.
+Older profiles default to albums. `library_sort` keeps independent orders for
+those three modes; All defaults to name order. The existing sidebar grid,
+compact-row and width preferences apply to every mode.
+
 A successful Navidrome login is stored separately in Keychain on macOS,
 Credential Manager on Windows, or Secret Service on Linux. The protected record
 contains the server URL, username and password together. Editing the server or

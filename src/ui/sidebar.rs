@@ -8,7 +8,11 @@ pub(crate) fn selected_sort(app: &App, shelf: Filter) -> LibrarySort {
         .get(&shelf)
         .copied()
         .filter(|sort| sort.supports(shelf))
-        .unwrap_or(LibrarySort::Library)
+        .unwrap_or(if shelf == Filter::All {
+            LibrarySort::Name
+        } else {
+            LibrarySort::Library
+        })
 }
 const GRID_MIN_CARD_WIDTH: f32 = 108.0;
 const GRID_MAX_COLUMNS: usize = 4;

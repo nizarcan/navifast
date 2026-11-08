@@ -22,8 +22,11 @@ The current build supports:
   closes the viewer and returns focus to the cover.
 - The primary menu is **Home**, **Playlists**, **Favorites**, and **Discover**.
   Discover groups Albums, Songs, Genres, and Listening stats as top pills.
-- The Library shelf has search on demand and an album sort menu. Its **Library
-  options** menu switches between list and grid views or hides the sidebar.
+- Click the Library shelf's **Albums** label to cycle **Albums → Playlists → All**.
+  The choice is remembered, and search filters the selected collections. Each
+  mode remembers its sort; All starts in name order and mixes albums and playlists.
+  Recently added is available for albums only. The **Library options** menu
+  switches between list and grid views or hides the sidebar.
   Use **Show sidebar** in the top bar to bring it back.
 - Choosing **Year range**, **Frequently played**, **Recently played on server**
   or **Random selection** from the Albums order menu. Year bounds are inclusive.

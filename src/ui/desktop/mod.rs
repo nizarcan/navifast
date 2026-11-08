@@ -21,6 +21,7 @@ mod downloads;
 mod home;
 mod inspector;
 mod library;
+mod library_shelf;
 mod lyrics;
 pub(crate) mod lyrics_card;
 mod playlists;

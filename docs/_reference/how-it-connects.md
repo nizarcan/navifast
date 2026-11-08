@@ -93,10 +93,15 @@ the session and the current query generation. Retry repeats only the failed
 request. Opening a playlist loads its ordered songs with `getPlaylist`.
 The Playlists page requests the full accessible list using `getPlaylists`,
 independently of search. Refresh keeps existing rows available if it fails.
-Leaving the page cancels its pending list request and ignores late results.
-Home shares this playlist list and its cancellation group. Moving directly between
-Home and Playlists retains the current request; leaving both cancels it. Startup
-restores Home while authentication is pending. Visible artwork requests re-arm
+Home and the visible Library shelf in Playlists or All mode share this list and
+its cancellation group. Navigating between consumers retains the current request;
+leaving the last consumer cancels it and rejects late results. Cycling to Albums
+or hiding the sidebar only cancels the request when neither Home nor Playlists
+still needs it. The shelf uses the same optimistic playlist overlays as the page,
+so pending creations and deletions cannot flicker back to stale server state.
+Switching modes reuses cached rows immediately and requests a refresh only when
+the playlist list gains a consumer. Search filters that shared list locally.
+Startup restores Home while authentication is pending. Visible artwork requests re-arm
 when the client becomes available. Its recent collections and artist metadata live
 in bounded, account-scoped preferences and reuse playback metadata. A visible
 recent artist whose credits omitted `coverArt` resolves it through `getArtist`

@@ -50,6 +50,14 @@ pub struct State {
 }
 
 impl App {
+    pub(super) fn playlist_library_visible(&self) -> bool {
+        self.connected
+            && (matches!(self.presentation.page(), Page::Home | Page::Playlists)
+                || self.presentation.settings.sidebar_visible
+                    && self.presentation.settings.library_content
+                        != crate::settings::LibraryContent::Albums)
+    }
+
     pub fn can_create_playlist(&self) -> bool {
         !self.presentation.navidrome_playlists.jobs.iter().any(|j| {
             !j.dismissed
@@ -433,7 +441,7 @@ impl App {
     }
 
     pub(super) fn playlists_event(&mut self, event: Event) {
-        let browsing = matches!(self.presentation.page(), Page::Home | Page::Playlists);
+        let browsing = self.playlist_library_visible();
         let state = &mut self.presentation.navidrome_playlists;
         match event {
             Event::PlaylistLibrary {
@@ -956,6 +964,73 @@ mod tests {
                 matches!(app.presentation.navidrome_search.collection.get(), Some(Collection::Playlist { name, .. }) if name == "Recovered")
             );
             assert_eq!(app.transport.generation, generation);
+        });
+    }
+
+    #[test]
+    fn sidebar_consumes_playlist_reads_across_pages_and_rejects_cancelled_or_old_account_results() {
+        use crate::settings::LibraryContent;
+        with_app(|app, host| {
+            app.demo = false;
+            app.ui_action(UiAction::Open(Page::Albums), host);
+            let session = app.session;
+            let event = |request, name: &str| Event::PlaylistLibrary {
+                session,
+                request,
+                result: Ok(vec![NamedItem {
+                    id: "mix".into(),
+                    name: name.into(),
+                    cover_art: None,
+                }]),
+            };
+            app.ui_action(UiAction::CycleLibraryContent, host);
+            assert_eq!(
+                app.presentation.settings.library_content,
+                LibraryContent::Playlists
+            );
+            let first = app.presentation.navidrome_playlists.request;
+            app.ui_action(UiAction::Open(Page::Settings), host);
+            assert_eq!(app.presentation.navidrome_playlists.request, first);
+            app.playlists_event(event(first, "Current"));
+            assert_eq!(
+                app.presentation.navidrome_playlists.list.get().unwrap()[0].name,
+                "Current"
+            );
+            app.ui_action(UiAction::CycleLibraryContent, host);
+            assert_eq!(
+                app.presentation.navidrome_playlists.request, first,
+                "All keeps the same request and rows"
+            );
+            app.ui_action(UiAction::Reload(Page::Playlists), host);
+            let second = app.presentation.navidrome_playlists.request;
+            app.ui_action(UiAction::CycleLibraryContent, host);
+            assert_eq!(
+                app.presentation.settings.library_content,
+                LibraryContent::Albums
+            );
+            app.playlists_event(event(second, "Cancelled"));
+            assert_eq!(
+                app.presentation.navidrome_playlists.list.get().unwrap()[0].name,
+                "Current"
+            );
+            app.ui_action(UiAction::CycleLibraryContent, host);
+            let third = app.presentation.navidrome_playlists.request;
+            assert!(app.presentation.navidrome_playlists.refreshing);
+            assert_eq!(
+                app.presentation.navidrome_playlists.list.get().unwrap()[0].name,
+                "Current"
+            );
+            app.ui_action(UiAction::ToggleSidebar, host);
+            app.playlists_event(event(third, "Hidden"));
+            assert_eq!(
+                app.presentation.navidrome_playlists.list.get().unwrap()[0].name,
+                "Current"
+            );
+            app.ui_action(UiAction::ToggleSidebar, host);
+            let fourth = app.presentation.navidrome_playlists.request;
+            app.apply(Action::SignOut);
+            app.playlists_event(event(fourth, "Other account"));
+            assert!(app.presentation.navidrome_playlists.list.get().is_none());
         });
     }
 

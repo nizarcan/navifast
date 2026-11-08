@@ -300,6 +300,7 @@ pub enum Action {
         sort: crate::settings::LibrarySort,
     },
     SetLibraryGrid(bool),
+    CycleLibraryContent,
     ArrangeLibrary {
         pinned: Vec<String>,
         /// A drag outside the pin block selects this local playlist order.
