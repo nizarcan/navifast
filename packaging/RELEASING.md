@@ -15,13 +15,13 @@ to this project. Keep the original MIT notices and README attribution.
    `NAVIFAST_UPDATE_SIGNING_KEY`. Its public key is committed in
    `assets/update-public-key.hex`. Keep an encrypted backup in your secret
    manager. Never commit the private key or attach it to a release.
-4. For a Developer ID-signed and notarized Mac download, add the six Apple
-   secrets listed in [PACKAGING.md](../PACKAGING.md#automatic-macos-notarization).
-   Without them the workflow creates an ad-hoc-signed DMG, which does not
-   establish a trusted developer identity for downloaded apps. The maintainer
-   has chosen an unsigned preview for `0.1.0-rc.1`; keep the Mac installation
-   guidance and unsigned-download notice in its release notes. Developer ID
-   signing and notarization remain a follow-up for later releases.
+4. Configure the `macos-signing` environment as described in
+   [PACKAGING.md](../PACKAGING.md#self-signed-macos-remote-builds). Current previews
+   use `MACOS_SIGNING_MODE=self-signed` with the maintainer's certificate.
+   This does not provide Developer ID recognition or notarization. Keep that
+   limitation and the Mac installation guidance in preview release notes.
+   For a notarized release, configure all six Apple secrets and switch to
+   `MACOS_SIGNING_MODE=developer-id` before building the release.
 5. Windows installers are currently unsigned. Authenticode signing is optional
    for a preview, but recipients may see an unrecognized-publisher warning.
    CI installs, launches and removes the x64 installer on Windows. The release

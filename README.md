@@ -165,7 +165,8 @@ On macOS, build an optimized app and install it into `/Applications` with:
 make install
 ```
 
-This packages the current checkout with its icon and a local ad-hoc signature,
+This packages the current checkout with its icon and the configured signing
+certificate (or an ad-hoc signature when none is configured),
 then replaces `Navifast.app` only after the build and bundle checks succeed.
 Quit and reopen Navifast to use the new build. To install for your user only,
 run `make install APPLICATIONS_DIR="$HOME/Applications"`. See
@@ -241,7 +242,7 @@ Add `--demo-page search`, `--demo-page album:alb0`, `--demo-page settings`, `--d
 Preview sessions use isolated profiles and local fixtures. The preview feature
 adds no alternate renderer or service dependencies.
 
-The first Navifast release candidate is `0.1.0-rc.1`. Release preparation does
+The current development version is `0.2.1-rc.1`. Release preparation does
 not mean the downloads have been published: use the assets listed on
 [GitHub Releases](https://github.com/nizarcan/navifast/releases), or build from
 source until they are available. Upstream release history is available in the

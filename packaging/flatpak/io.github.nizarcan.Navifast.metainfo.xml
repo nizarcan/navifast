@@ -32,6 +32,15 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.2.1-rc.1" date="2026-11-08" type="development">
+      <description>
+        <p>Explore your Navidrome library with Home, search, artists, playlists,
+        favorites, genres and listening stats. Edit the queue, follow lyrics,
+        choose streaming quality, and keep selected music available offline.</p>
+        <p>Remember sign-ins securely, retain artwork while browsing, and sign
+        local and remote Mac previews with a consistent certificate.</p>
+      </description>
+    </release>
     <release version="0.1.0-rc.30" date="2026-11-08" type="development">
       <description><p>Restore recently played covers after sign-in and resolve missing artist photos on Home.</p></description>
     </release>
