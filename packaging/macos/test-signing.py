@@ -29,12 +29,15 @@ elif tool == "openssl":
         sys.exit(1)
 elif tool == "sudo":
     assert args[:2] == ["-n", "security"]
-    assert args[2] in ("add-trusted-cert", "remove-trusted-cert")
+    assert args[2] == "add-trusted-cert"
     assert "-d" in args
     os.execvp("security", args[1:])
 elif tool == "security":
     with open(os.environ["SECURITY_LOG"], "a") as log:
-        log.write(args[0] + "\n")
+        operation = args[0]
+        if operation == "add-trusted-cert":
+            operation += ":" + args[args.index("-r") + 1]
+        log.write(operation + "\n")
     if args[0] == os.environ.get("SECURITY_FAIL"):
         sys.exit(9)
     if args[0] == "create-keychain":
@@ -112,14 +115,15 @@ class SigningTest(unittest.TestCase):
         self.assertEqual(command["args"], ["path with spaces"])
         self.assertFalse(Path(command["keychain"]).exists())
         operations = self.security_log.read_text().splitlines()
-        self.assertEqual(operations[-2:], ["delete-keychain", "remove-trusted-cert"])
+        self.assertEqual(operations[-2:], ["add-trusted-cert:unspecified", "delete-keychain"])
+        self.assertIn("add-trusted-cert:trustRoot", operations)
         self.assertEqual(operations.count("list-keychains"), 2)
 
     def test_failure_preserves_exit_status_and_cleans_keychain(self):
         result = self.run_signing(COMMAND_EXIT="23")
         self.assertEqual(result.returncode, 23)
         self.assertTrue(self.command_log.exists())
-        self.assertIn("remove-trusted-cert", self.security_log.read_text())
+        self.assertIn("add-trusted-cert:unspecified", self.security_log.read_text())
 
     def test_partial_import_and_trust_failures_are_cleaned(self):
         for failure in ["create-keychain", "import", "add-trusted-cert"]:
@@ -149,7 +153,7 @@ class SigningTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("no usable code-signing identity", result.stderr)
         self.assertFalse(self.command_log.exists())
-        self.assertEqual(self.security_log.read_text().splitlines()[-2:], ["delete-keychain", "remove-trusted-cert"])
+        self.assertEqual(self.security_log.read_text().splitlines()[-2:], ["add-trusted-cert:unspecified", "delete-keychain"])
 
     def test_refuses_local_or_non_macos_execution(self):
         for env in [{"GITHUB_ACTIONS": ""}, {"RUNNER_ENVIRONMENT": "self-hosted"}, {"FIXTURE_OS": "Linux"}, {"RUNNER_TEMP": ""}]:

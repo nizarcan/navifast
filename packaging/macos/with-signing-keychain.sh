@@ -29,12 +29,16 @@ certificate="$work/certificate.pem"
 trusted=false
 cleanup() {
     local status=$?
+    if [[ "$trusted" == true ]]; then
+        # remove-trusted-cert hangs on hosted macOS (runner-images#12116).
+        # An unspecified result clears our trust grant without that API. The
+        # inert settings record disappears when GitHub discards this VM.
+        echo "Clearing temporary code-signing trust."
+        sudo -n security add-trusted-cert -d -r unspecified -p codeSign \
+            -k "$keychain" "$certificate" >/dev/null 2>&1 || true
+    fi
     echo "Deleting the temporary signing Keychain."
     security delete-keychain "$keychain" >/dev/null 2>&1 || true
-    if [[ "$trusted" == true ]]; then
-        echo "Removing temporary code-signing trust."
-        sudo -n security remove-trusted-cert -d "$certificate" >/dev/null 2>&1 || true
-    fi
     rm -rf "$work"
     return "$status"
 }

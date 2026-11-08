@@ -188,8 +188,10 @@ intended identity, not every private key in the login Keychain.
 `with-signing-keychain.sh` imports the identity into a temporary Keychain on the
 disposable GitHub-hosted Mac. It checks the certificate fingerprint, grants
 code-signing trust in the administrator domain using non-interactive `sudo`,
-signs using that explicit Keychain, and removes the temporary
-trust and Keychain on success or failure. Missing or mismatched secrets fail.
+signs using that explicit Keychain, and clears the temporary trust grant and
+deletes the Keychain on success or failure. To avoid a hosted macOS trust-removal
+hang, cleanup leaves an inert trust-settings record until GitHub discards the VM.
+Missing or mismatched secrets fail.
 The self-signed path does not invoke notarization, and macOS may still require
 Open Anyway for downloaded previews.
 
