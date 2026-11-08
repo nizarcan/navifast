@@ -41,6 +41,14 @@ elif tool == "security":
         Path(args[-1]).touch()
     if args[0] == "find-certificate":
         print("-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----")
+    if args[0] == "find-identity":
+        print("0 valid identities found" if os.environ.get("FIXTURE_NO_IDENTITY") else "A" * 40)
+    if args[0] == "list-keychains":
+        if "-s" not in args:
+            print('    "/existing keychains/login.keychain-db"')
+        else:
+            assert args[4] == "/existing keychains/login.keychain-db"
+            assert Path(args[5]).is_file()
 elif tool == "signed-command":
     assert "MACOS_SIGNING_CERTIFICATE_P12" not in os.environ
     assert "MACOS_SIGNING_CERTIFICATE_PASSWORD" not in os.environ
@@ -104,7 +112,8 @@ class SigningTest(unittest.TestCase):
         self.assertEqual(command["args"], ["path with spaces"])
         self.assertFalse(Path(command["keychain"]).exists())
         operations = self.security_log.read_text().splitlines()
-        self.assertEqual(operations[-2:], ["remove-trusted-cert", "delete-keychain"])
+        self.assertEqual(operations[-2:], ["delete-keychain", "remove-trusted-cert"])
+        self.assertEqual(operations.count("list-keychains"), 2)
 
     def test_failure_preserves_exit_status_and_cleans_keychain(self):
         result = self.run_signing(COMMAND_EXIT="23")
@@ -134,6 +143,13 @@ class SigningTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.command_log.exists())
         self.assertNotIn("add-trusted-cert", self.security_log.read_text())
+
+    def test_unusable_identity_fails_before_signing_and_cleans_up(self):
+        result = self.run_signing(FIXTURE_NO_IDENTITY="true")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no usable code-signing identity", result.stderr)
+        self.assertFalse(self.command_log.exists())
+        self.assertEqual(self.security_log.read_text().splitlines()[-2:], ["delete-keychain", "remove-trusted-cert"])
 
     def test_refuses_local_or_non_macos_execution(self):
         for env in [{"GITHUB_ACTIONS": ""}, {"RUNNER_ENVIRONMENT": "self-hosted"}, {"FIXTURE_OS": "Linux"}, {"RUNNER_TEMP": ""}]:

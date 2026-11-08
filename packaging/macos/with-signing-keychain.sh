@@ -29,10 +29,12 @@ certificate="$work/certificate.pem"
 trusted=false
 cleanup() {
     local status=$?
+    echo "Deleting the temporary signing Keychain."
+    security delete-keychain "$keychain" >/dev/null 2>&1 || true
     if [[ "$trusted" == true ]]; then
+        echo "Removing temporary code-signing trust."
         sudo -n security remove-trusted-cert -d "$certificate" >/dev/null 2>&1 || true
     fi
-    security delete-keychain "$keychain" >/dev/null 2>&1 || true
     rm -rf "$work"
     return "$status"
 }
@@ -44,6 +46,16 @@ printf '%s' "$MACOS_SIGNING_CERTIFICATE_P12" | base64 --decode > "$work/identity
 keychain_password="$(openssl rand -hex 32)"
 echo "Creating the temporary signing Keychain."
 security create-keychain -p "$keychain_password" "$keychain" >/dev/null
+# codesign still needs the keychain in the user search list when --keychain
+# is explicit. Preserve existing entries; delete-keychain removes only ours.
+python3 - "$keychain" <<'PY'
+import shlex
+import subprocess
+import sys
+paths = shlex.split(subprocess.check_output(["security", "list-keychains", "-d", "user"], text=True))
+if sys.argv[1] not in paths:
+    subprocess.run(["security", "list-keychains", "-d", "user", "-s", *paths, sys.argv[1]], check=True)
+PY
 security set-keychain-settings -lut 3600 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
 echo "Importing the signing identity."
@@ -69,6 +81,11 @@ security set-key-partition-list -S apple-tool:,apple: -s \
 trusted=true
 echo "Temporarily trusting the certificate for code signing."
 sudo -n security add-trusted-cert -d -r trustRoot -p codeSign -k "$keychain" "$certificate"
+if ! security find-identity -v -p codesigning "$keychain" | grep -F "$fingerprint" >/dev/null; then
+    security find-identity -p codesigning "$keychain" >&2
+    echo "The imported certificate has no usable code-signing identity." >&2
+    exit 1
+fi
 export CODESIGN_IDENTITY="$MACOS_SIGNING_IDENTITY"
 export CODESIGN_KEYCHAIN="$keychain"
 unset MACOS_SIGNING_CERTIFICATE_P12 MACOS_SIGNING_CERTIFICATE_PASSWORD keychain_password
