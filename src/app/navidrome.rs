@@ -1371,6 +1371,11 @@ impl App {
         if self.preferences.light {
             self.presentation.settings.theme = crate::settings::ThemeChoice::Light;
         }
+        if flags.contains(&"tracklist-compact") {
+            self.presentation.settings.tracklist_style = crate::settings::TracklistStyle::Compact;
+        } else if flags.contains(&"tracklist-artwork") {
+            self.presentation.settings.tracklist_style = crate::settings::TracklistStyle::Artwork;
+        }
         if let Some(page) = favorite_page {
             self.presentation.history = vec![crate::model::Page::LikedSongs];
             if page != crate::model::Page::LikedSongs {

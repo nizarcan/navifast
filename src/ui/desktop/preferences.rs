@@ -561,12 +561,41 @@ pub(super) fn settings(v: &Paint<'_>) -> El {
         settings.sidebar_compact,
         |s| &mut s.sidebar_compact,
     ));
-    rows.extend(toggle(
-        mark("Compact track list"),
-        mark("Show each track on one line without a cover."),
-        settings.tracklist_compact,
-        |s| &mut s.tracklist_compact,
+    let name = v.tr(mark("Track list"));
+    let desc = v.tr(mark(
+        "Choose how rows look in playlists, albums and song lists.",
     ));
+    if matches(&[&appearance, &name, &desc]) {
+        use crate::settings::TracklistStyle;
+        let choices = row().flex_wrap().gap(6.).children(
+            [
+                (
+                    mark("Compact"),
+                    TracklistStyle::Compact,
+                    "tracklist-compact",
+                ),
+                (
+                    mark("Comfortable"),
+                    TracklistStyle::Comfortable,
+                    "tracklist-comfortable",
+                ),
+                (
+                    mark("Artwork"),
+                    TracklistStyle::Artwork,
+                    "tracklist-artwork",
+                ),
+            ]
+            .into_iter()
+            .map(|(key, style, widget)| {
+                chip(v, &v.tr(key), settings.tracklist_style == style, move |s| {
+                    s.app.presentation.settings.tracklist_style = style;
+                    s.app.mark_dirty();
+                })
+                .key(widget)
+            }),
+        );
+        rows.push(setting(v, &name, &desc, choices, 250.));
+    }
     let name = v.tr(mark("Interface zoom"));
     let desc = v.tr(crate::ui::keys::platform_shortcut(
         mark("Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets."),

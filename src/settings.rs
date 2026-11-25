@@ -95,6 +95,19 @@ impl PlayerBarVis {
     }
 }
 
+/// How the track table on a collection page draws its rows.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TracklistStyle {
+    /// One line without a cover.
+    Compact,
+    /// Two lines without a cover.
+    #[default]
+    Comfortable,
+    /// Two lines with the track's cover beside the title.
+    Artwork,
+}
+
 /// The interface language: the operating system's, or one chosen in Settings.
 ///
 /// Stored as `"system"` or a locale tag such as `"es"` or `"pt-BR"`. A file
@@ -244,7 +257,12 @@ pub struct Settings {
     /// Albums, playlists or both. Older profiles retain the album shelf.
     pub library_content: LibraryContent,
     pub sidebar_width: f32,
-    /// Use compact single-line rows without cover art in track lists.
+    /// How track lists draw their rows.
+    pub tracklist_style: TracklistStyle,
+    /// The former compact track list toggle. Read for older files, then
+    /// replaced by `tracklist_style`; saved as true only for Compact so an
+    /// older version still sees a sensible value.
+    #[serde(default, skip_serializing)]
     pub tracklist_compact: bool,
     /// Linux: middle-click a list to autoscroll it. Off by default, because
     /// Linux desktops usually paste the primary selection on middle click.
@@ -337,6 +355,7 @@ impl Default for Settings {
             sidebar_grid: false,
             library_content: LibraryContent::Albums,
             sidebar_width: 250.0,
+            tracklist_style: TracklistStyle::Comfortable,
             tracklist_compact: false,
             middle_click_autoscroll: false,
             search_history: Vec::new(),
@@ -409,6 +428,7 @@ impl Settings {
                     Self::default()
                 });
                 settings.migrate_proxy(text);
+                settings.migrate_tracklist(text);
                 settings.proxy_password_legacy = !settings.proxy_password.is_empty();
                 settings
             }
@@ -436,7 +456,14 @@ impl Settings {
     }
 
     fn encode(&self) -> serde_json::Result<String> {
-        serde_json::to_string_pretty(self)
+        let mut preferences = serde_json::to_value(self)?;
+        if let Some(fields) = preferences.as_object_mut() {
+            fields.insert(
+                "tracklist_compact".into(),
+                serde_json::Value::Bool(self.tracklist_style == TracklistStyle::Compact),
+            );
+        }
+        serde_json::to_string_pretty(&preferences)
     }
 
     pub fn remember_search(&mut self, query: &str) {
@@ -460,6 +487,16 @@ impl Settings {
                 self.proxy_port = port;
             }
         }
+    }
+
+    /// Older files only had the compact toggle. The new style replaced it,
+    /// so a stored `true` becomes Compact and everything else stays
+    /// Comfortable, which was the old non-compact row.
+    pub(crate) fn migrate_tracklist(&mut self, text: &str) {
+        if !text.contains("\"tracklist_style\"") && self.tracklist_compact {
+            self.tracklist_style = TracklistStyle::Compact;
+        }
+        self.tracklist_compact = self.tracklist_style == TracklistStyle::Compact;
     }
 
     /// The proxy the HTTP client should use. Off and System always succeed.
@@ -878,20 +915,54 @@ mod tests {
     }
 
     #[test]
-    fn older_settings_default_to_standard_tracklist() {
+    fn older_settings_default_to_a_comfortable_tracklist() {
+        use super::TracklistStyle;
         let settings: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(settings.tracklist_style, TracklistStyle::Comfortable);
         assert!(!settings.tracklist_compact);
     }
 
     #[test]
-    fn compact_tracklist_round_trips() {
-        let settings = Settings {
-            tracklist_compact: true,
-            ..Settings::default()
-        };
-        let json = serde_json::to_string(&settings).unwrap();
-        let restored: Settings = serde_json::from_str(&json).unwrap();
-        assert!(restored.tracklist_compact);
+    fn legacy_compact_tracklist_loads_as_compact_and_false_as_comfortable() {
+        use super::TracklistStyle;
+        let dir = std::env::temp_dir().join(format!("navifast-tracklist-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("settings.json");
+
+        std::fs::write(&path, r#"{"tracklist_compact":true}"#).unwrap();
+        let compact = Settings::load(&path);
+        assert_eq!(compact.tracklist_style, TracklistStyle::Compact);
+        assert!(compact.tracklist_compact);
+
+        std::fs::write(&path, r#"{"tracklist_compact":false}"#).unwrap();
+        let comfortable = Settings::load(&path);
+        assert_eq!(comfortable.tracklist_style, TracklistStyle::Comfortable);
+        assert!(!comfortable.tracklist_compact);
+
+        std::fs::write(&path, "{}").unwrap();
+        let absent = Settings::load(&path);
+        assert_eq!(absent.tracklist_style, TracklistStyle::Comfortable);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn every_tracklist_style_round_trips_and_keeps_the_legacy_flag_sensible() {
+        use super::TracklistStyle;
+        for (style, json, legacy) in [
+            (TracklistStyle::Compact, "compact", true),
+            (TracklistStyle::Comfortable, "comfortable", false),
+            (TracklistStyle::Artwork, "artwork", false),
+        ] {
+            let settings = Settings {
+                tracklist_style: style,
+                ..Settings::default()
+            };
+            let encoded = settings.encode().unwrap();
+            assert!(encoded.contains(json), "{encoded}");
+            assert!(encoded.contains(&format!("\"tracklist_compact\": {legacy}")));
+            let restored: Settings = serde_json::from_str(&encoded).unwrap();
+            assert_eq!(restored.tracklist_style, style);
+        }
     }
 
     #[test]

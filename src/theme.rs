@@ -137,6 +137,8 @@ pub const ROW_HEIGHT: f32 = 56.0;
 pub const COMPACT_ROW_HEIGHT: f32 = 48.0;
 /// The compact track list: one line, no cover.
 pub const THIN_ROW_HEIGHT: f32 = 36.0;
+/// The cover beside a track title in Artwork style.
+pub const TRACK_COVER_SIZE: f32 = 40.0;
 pub const PLAYER_BAR_HEIGHT: f32 = 88.0;
 /// The narrowest either right-hand panel goes. The queue and the lyrics
 /// take the same edge and swap places there, so a width that suits one

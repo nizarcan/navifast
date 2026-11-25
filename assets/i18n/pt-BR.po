@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-25 20:38+0300\n"
+"POT-Creation-Date: 2026-11-25 20:51+0300\n"
 "PO-Revision-Date: 2026-09-23 20:00+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -58,32 +58,32 @@ msgstr "{name}, pasta, recolhida"
 msgid "{name}, folder, expanded"
 msgstr "{name}, pasta, expandida"
 
-#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:551
-#: src/ui/desktop/library.rs:777
+#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:567
+#: src/ui/desktop/library.rs:793
 msgid "Home"
 msgstr "Início"
 
-#: src/settings.rs:145
+#: src/settings.rs:158
 msgctxt "theme"
 msgid "Dark"
 msgstr "Escuro"
 
-#: src/settings.rs:146
+#: src/settings.rs:159
 msgctxt "theme"
 msgid "Light"
 msgstr "Claro"
 
-#: src/settings.rs:147 src/ui/desktop/preferences.rs:153
+#: src/settings.rs:160 src/ui/desktop/preferences.rs:153
 #: src/ui/desktop/preferences.rs:469
 msgid "Follow system"
 msgstr "Seguir o sistema"
 
-#: src/settings.rs:173
+#: src/settings.rs:186
 msgctxt "proxy"
 msgid "Off"
 msgstr "Desativado"
 
-#: src/settings.rs:174
+#: src/settings.rs:187
 msgctxt "proxy"
 msgid "System"
 msgstr "Sistema"
@@ -152,9 +152,9 @@ msgstr "Mostrar menos"
 msgid "See more"
 msgstr "Ver mais"
 
-#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1293
-#: src/ui/desktop/library.rs:1838 src/ui/desktop/library.rs:2174
-#: src/ui/desktop/library.rs:2300 src/ui/desktop/library.rs:2329
+#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1309
+#: src/ui/desktop/library.rs:1901 src/ui/desktop/library.rs:2237
+#: src/ui/desktop/library.rs:2363 src/ui/desktop/library.rs:2392
 #: src/ui/desktop/playlists.rs:160 src/ui/desktop/playlists.rs:267
 #: src/ui/desktop/preferences.rs:317 src/ui/desktop/preferences.rs:389
 #: src/ui/desktop/ratings.rs:106 src/ui/desktop/scrobble.rs:36
@@ -164,7 +164,7 @@ msgid "Retry"
 msgstr "Tentar novamente"
 
 #: src/ui/desktop/artist.rs:82 src/ui/desktop/autoplay.rs:43
-#: src/ui/desktop/library.rs:1332 src/ui/desktop/library_shelf.rs:230
+#: src/ui/desktop/library.rs:1348 src/ui/desktop/library_shelf.rs:230
 msgid "Album"
 msgstr "Álbum"
 
@@ -177,7 +177,7 @@ msgid "EP"
 msgstr "EP"
 
 #: src/ui/desktop/artist.rs:278 src/ui/desktop/autoplay.rs:44
-#: src/ui/desktop/library.rs:2382 src/ui/desktop/home.rs:181
+#: src/ui/desktop/library.rs:2445 src/ui/desktop/home.rs:181
 msgid "Artist"
 msgstr "Artista"
 
@@ -185,9 +185,9 @@ msgstr "Artista"
 msgid "Discography"
 msgstr "Discografia"
 
-#: src/ui/desktop/artist.rs:330 src/ui/desktop/library.rs:750
-#: src/ui/desktop/library.rs:2081 src/ui/desktop/library.rs:2096
-#: src/ui/desktop/library.rs:2200 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
+#: src/ui/desktop/artist.rs:330 src/ui/desktop/library.rs:766
+#: src/ui/desktop/library.rs:2144 src/ui/desktop/library.rs:2159
+#: src/ui/desktop/library.rs:2263 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
 #: src/ui/desktop/albums.rs:40 src/ui/desktop/library_shelf.rs:9
 msgid "Albums"
 msgstr "Álbuns"
@@ -196,7 +196,7 @@ msgstr "Álbuns"
 msgid "Singles & EPs"
 msgstr "Singles e EPs"
 
-#: src/ui/desktop/artist.rs:356 src/ui/desktop/preferences.rs:656
+#: src/ui/desktop/artist.rs:356 src/ui/desktop/preferences.rs:685
 msgid "About"
 msgstr "Sobre"
 
@@ -270,292 +270,292 @@ msgstr "Anterior"
 msgid "Next"
 msgstr "Próxima"
 
-#: src/ui/desktop/library.rs:231 src/ui/desktop/library.rs:309
-#: src/ui/desktop/library.rs:1424
+#: src/ui/desktop/library.rs:231 src/ui/desktop/library.rs:313
+#: src/ui/desktop/library.rs:1440
 msgid "Remove from Favorites"
 msgstr "Remover dos favoritos"
 
-#: src/ui/desktop/library.rs:233 src/ui/desktop/library.rs:311
-#: src/ui/desktop/library.rs:1426
+#: src/ui/desktop/library.rs:233 src/ui/desktop/library.rs:315
+#: src/ui/desktop/library.rs:1442
 msgid "Add to Favorites"
 msgstr "Adicionar aos favoritos"
 
-#: src/ui/desktop/library.rs:245 src/ui/desktop/library.rs:337
-#: src/ui/desktop/library.rs:350 src/ui/desktop/queue.rs:406
+#: src/ui/desktop/library.rs:246 src/ui/desktop/library.rs:346
+#: src/ui/desktop/library.rs:363 src/ui/desktop/queue.rs:411
 msgid "Go to artist"
 msgstr "Ir para o artista"
 
-#: src/ui/desktop/library.rs:252 src/ui/desktop/library.rs:260
-#: src/ui/desktop/library.rs:362 src/ui/desktop/playlists.rs:22
+#: src/ui/desktop/library.rs:256 src/ui/desktop/library.rs:264
+#: src/ui/desktop/library.rs:378 src/ui/desktop/playlists.rs:22
 msgid "Add to playlists"
 msgstr "Adicionar às playlists"
 
-#: src/ui/desktop/library.rs:265 src/ui/desktop/downloads.rs:353
+#: src/ui/desktop/library.rs:269 src/ui/desktop/downloads.rs:353
 msgid "Download"
 msgstr "Baixar"
 
-#: src/ui/desktop/library.rs:273 src/ui/desktop/playlists.rs:212
+#: src/ui/desktop/library.rs:277 src/ui/desktop/playlists.rs:212
 #: src/ui/desktop/playlists.rs:217
 msgid "Delete playlist"
 msgstr "Excluir playlist"
 
-#: src/ui/desktop/library.rs:326 src/ui/desktop/queue.rs:395
+#: src/ui/desktop/library.rs:331 src/ui/desktop/queue.rs:396
 msgid "Go to album"
 msgstr "Ir para o álbum"
 
-#: src/ui/desktop/library.rs:371
+#: src/ui/desktop/library.rs:387
 msgid "Remove from playlist"
 msgstr "Remover da playlist"
 
-#: src/ui/desktop/library.rs:378 src/ui/desktop/library.rs:1037
-#: src/ui/desktop/library.rs:1262 src/ui/desktop/library.rs:1637
+#: src/ui/desktop/library.rs:394 src/ui/desktop/library.rs:1053
+#: src/ui/desktop/library.rs:1278 src/ui/desktop/library.rs:1683
 #: src/ui/desktop/queue.rs:272 src/ui/desktop/queue.rs:363
 #: src/ui/desktop/transport.rs:277
 msgid "Play"
 msgstr "Reproduzir"
 
-#: src/ui/desktop/library.rs:392 src/ui/desktop/library.rs:477
+#: src/ui/desktop/library.rs:408 src/ui/desktop/library.rs:493
 msgid "Play next"
 msgstr "Tocar a seguir"
 
-#: src/ui/desktop/library.rs:394 src/ui/desktop/library.rs:479
+#: src/ui/desktop/library.rs:410 src/ui/desktop/library.rs:495
 msgid "Add to queue"
 msgstr "Adicionar à fila"
 
-#: src/ui/desktop/library.rs:413 src/ui/desktop/queue.rs:373
+#: src/ui/desktop/library.rs:429 src/ui/desktop/queue.rs:373
 #: src/ui/desktop/inspector.rs:175
 msgid "Track details"
 msgstr "Detalhes da faixa"
 
-#: src/ui/desktop/library.rs:574
+#: src/ui/desktop/library.rs:590
 msgid "Back"
 msgstr "Voltar"
 
-#: src/ui/desktop/library.rs:580
+#: src/ui/desktop/library.rs:596
 msgid "Forward"
 msgstr "Avançar"
 
-#: src/ui/desktop/library.rs:585 src/ui/desktop/library.rs:2018
+#: src/ui/desktop/library.rs:601 src/ui/desktop/library.rs:2081
 msgid "What do you want to play?"
 msgstr "O que você quer ouvir?"
 
-#: src/ui/desktop/library.rs:626 src/ui/desktop/library.rs:673
+#: src/ui/desktop/library.rs:642 src/ui/desktop/library.rs:689
 #: src/ui/desktop/preferences.rs:238 src/ui/keys.rs:55
 #: src/ui/desktop/sync.rs:23
 msgid "Settings"
 msgstr "Configurações"
 
-#: src/ui/desktop/library.rs:638 src/ui/desktop/preferences.rs:241
+#: src/ui/desktop/library.rs:654 src/ui/desktop/preferences.rs:241
 msgid "Account"
 msgstr "Conta"
 
-#: src/ui/desktop/library.rs:679 src/ui/desktop/preferences.rs:657
-#: src/ui/desktop/preferences.rs:860 src/ui/desktop/preferences.rs:861
+#: src/ui/desktop/library.rs:695 src/ui/desktop/preferences.rs:686
+#: src/ui/desktop/preferences.rs:889 src/ui/desktop/preferences.rs:890
 msgid "Keyboard shortcuts"
 msgstr "Atalhos de teclado"
 
-#: src/ui/desktop/library.rs:687 src/ui/desktop/preferences.rs:242
+#: src/ui/desktop/library.rs:703 src/ui/desktop/preferences.rs:242
 msgid "Sign out"
 msgstr "Sair da conta"
 
-#: src/ui/desktop/library.rs:694 src/ui/desktop/library.rs:858
-#: src/ui/desktop/library.rs:1510
+#: src/ui/desktop/library.rs:710 src/ui/desktop/library.rs:874
+#: src/ui/desktop/library.rs:1546
 msgid "Library order"
 msgstr "Ordem da biblioteca"
 
-#: src/ui/desktop/library.rs:697 src/ui/desktop/home.rs:299
+#: src/ui/desktop/library.rs:713 src/ui/desktop/home.rs:299
 msgid "Recently played"
 msgstr "Reproduzidos recentemente"
 
-#: src/ui/desktop/library.rs:699 src/ui/desktop/albums.rs:18
+#: src/ui/desktop/library.rs:715 src/ui/desktop/albums.rs:18
 msgid "Name"
 msgstr "Nome"
 
-#: src/ui/desktop/library.rs:702 src/ui/desktop/albums.rs:17
+#: src/ui/desktop/library.rs:718 src/ui/desktop/albums.rs:17
 msgid "Recently added"
 msgstr "Adicionados recentemente"
 
-#: src/ui/desktop/library.rs:721
+#: src/ui/desktop/library.rs:737
 msgid "List view"
 msgstr "Visualização em lista"
 
-#: src/ui/desktop/library.rs:721
+#: src/ui/desktop/library.rs:737
 msgid "Grid view"
 msgstr "Visualização em grade"
 
-#: src/ui/desktop/library.rs:739
+#: src/ui/desktop/library.rs:755
 msgid "Hide sidebar"
 msgstr "Ocultar a barra lateral"
 
-#: src/ui/desktop/library.rs:751 src/ui/desktop/library.rs:2080
-#: src/ui/desktop/library.rs:2095 src/ui/desktop/library.rs:2194
+#: src/ui/desktop/library.rs:767 src/ui/desktop/library.rs:2143
+#: src/ui/desktop/library.rs:2158 src/ui/desktop/library.rs:2257
 #: src/ui/desktop/browse.rs:14 src/ui/desktop/browse.rs:32
 msgid "Songs"
 msgstr "Músicas"
 
-#: src/ui/desktop/library.rs:752 src/ui/desktop/browse.rs:13
+#: src/ui/desktop/library.rs:768 src/ui/desktop/browse.rs:13
 msgid "Genres"
 msgstr "Gêneros"
 
-#: src/ui/desktop/library.rs:753 src/ui/desktop/stats.rs:16
+#: src/ui/desktop/library.rs:769 src/ui/desktop/stats.rs:16
 msgid "Listening stats"
 msgstr "Estatísticas de escuta"
 
-#: src/ui/desktop/library.rs:778 src/ui/desktop/library.rs:1972
-#: src/ui/desktop/library.rs:2098 src/ui/desktop/library.rs:2145
+#: src/ui/desktop/library.rs:794 src/ui/desktop/library.rs:2035
+#: src/ui/desktop/library.rs:2161 src/ui/desktop/library.rs:2208
 #: src/ui/desktop/library_shelf.rs:10 src/ui/desktop/library_shelf.rs:181
 msgid "Playlists"
 msgstr "Playlists"
 
-#: src/ui/desktop/library.rs:779 src/ui/desktop/library.rs:2278
+#: src/ui/desktop/library.rs:795 src/ui/desktop/library.rs:2341
 #: src/ui/keys.rs:47
 msgid "Favorites"
 msgstr "Favoritos"
 
-#: src/ui/desktop/library.rs:780
+#: src/ui/desktop/library.rs:796
 msgid "Discover"
 msgstr "Descobrir"
 
-#: src/ui/desktop/library.rs:817
+#: src/ui/desktop/library.rs:833
 msgid "Library"
 msgstr "Biblioteca"
 
-#: src/ui/desktop/library.rs:825 src/ui/desktop/library.rs:866
+#: src/ui/desktop/library.rs:841 src/ui/desktop/library.rs:882
 msgid "Search in Your Library"
 msgstr "Buscar na Sua Biblioteca"
 
-#: src/ui/desktop/library.rs:842
+#: src/ui/desktop/library.rs:858
 msgid "Library options"
 msgstr "Opções da biblioteca"
 
-#: src/ui/desktop/library.rs:900
+#: src/ui/desktop/library.rs:916
 #, rust-format
 msgid "Show {kind}"
 msgstr "Mostrar {kind}"
 
-#: src/ui/desktop/library.rs:1101 src/ui/desktop/library.rs:1378
+#: src/ui/desktop/library.rs:1117 src/ui/desktop/library.rs:1394
 #: src/ui/desktop/home.rs:307 src/ui/desktop/library_shelf.rs:229
 msgid "Playlist"
 msgstr "Playlist"
 
-#: src/ui/desktop/library.rs:1192
+#: src/ui/desktop/library.rs:1208
 msgid "No albums"
 msgstr "Nenhum álbum"
 
-#: src/ui/desktop/library.rs:1193 src/ui/desktop/home.rs:137
+#: src/ui/desktop/library.rs:1209 src/ui/desktop/home.rs:137
 msgid "Albums in your Navidrome library appear here."
 msgstr "Os álbuns da sua biblioteca do Navidrome aparecem aqui."
 
-#: src/ui/desktop/library.rs:1213
+#: src/ui/desktop/library.rs:1229
 msgid "View artwork"
 msgstr "Ver capa"
 
-#: src/ui/desktop/library.rs:1262 src/ui/desktop/library.rs:1635
+#: src/ui/desktop/library.rs:1278 src/ui/desktop/library.rs:1681
 #: src/ui/desktop/transport.rs:277
 msgid "Pause"
 msgstr "Pausar"
 
-#: src/ui/desktop/library.rs:1320 src/ui/desktop/library.rs:1383
-#: src/ui/desktop/library.rs:1692 src/ui/desktop/library.rs:2130
+#: src/ui/desktop/library.rs:1336 src/ui/desktop/library.rs:1399
+#: src/ui/desktop/library.rs:1738 src/ui/desktop/library.rs:2193
 #: src/ui/desktop/home.rs:217 src/ui/desktop/queue.rs:324
 msgid "More"
 msgstr "Mais"
 
-#: src/ui/desktop/library.rs:1398 src/ui/desktop/queue.rs:104
+#: src/ui/desktop/library.rs:1414 src/ui/desktop/queue.rs:104
 msgid "Nothing here yet."
 msgstr "Nada por aqui ainda."
 
-#: src/ui/desktop/library.rs:1454
+#: src/ui/desktop/library.rs:1490
 msgctxt "column heading"
 msgid "TITLE"
 msgstr "TÍTULO"
 
-#: src/ui/desktop/library.rs:1512
+#: src/ui/desktop/library.rs:1548
 msgid "Sort by playlist order"
 msgstr "Ordenar pela ordem da playlist"
 
-#: src/ui/desktop/library.rs:1519
+#: src/ui/desktop/library.rs:1555
 #, rust-format
 msgid "Sort by {column}"
 msgstr "Ordenar por {column}"
 
-#: src/ui/desktop/library.rs:1526
+#: src/ui/desktop/library.rs:1562
 msgid "Sort by duration"
 msgstr "Ordenar por duração"
 
-#: src/ui/desktop/library.rs:1974 src/ui/desktop/playlists.rs:20
+#: src/ui/desktop/library.rs:2037 src/ui/desktop/playlists.rs:20
 msgid "Create playlist"
 msgstr "Criar playlist"
 
-#: src/ui/desktop/library.rs:1984 src/ui/desktop/library.rs:2289
+#: src/ui/desktop/library.rs:2047 src/ui/desktop/library.rs:2352
 #: src/ui/desktop/home.rs:233 src/ui/desktop/browse.rs:23
 #: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "Atualizar"
 
-#: src/ui/desktop/library.rs:2002 src/ui/desktop/library_shelf.rs:188
+#: src/ui/desktop/library.rs:2065 src/ui/desktop/library_shelf.rs:188
 msgid "No playlists"
 msgstr "Nenhuma playlist"
 
-#: src/ui/desktop/library.rs:2003
+#: src/ui/desktop/library.rs:2066
 msgid "Playlists available on your server appear here."
 msgstr "As playlists disponíveis no seu servidor aparecem aqui."
 
-#: src/ui/desktop/library.rs:2017
+#: src/ui/desktop/library.rs:2080
 msgid "Search"
 msgstr "Buscar"
 
-#: src/ui/desktop/library.rs:2026
+#: src/ui/desktop/library.rs:2089
 msgid "Recent searches"
 msgstr "Buscas recentes"
 
-#: src/ui/desktop/library.rs:2036 src/ui/desktop/downloads.rs:58
+#: src/ui/desktop/library.rs:2099 src/ui/desktop/downloads.rs:58
 msgid "Remove"
 msgstr "Remover"
 
-#: src/ui/desktop/library.rs:2082 src/ui/desktop/library.rs:2097
-#: src/ui/desktop/library.rs:2206
+#: src/ui/desktop/library.rs:2145 src/ui/desktop/library.rs:2160
+#: src/ui/desktop/library.rs:2269
 msgid "Artists"
 msgstr "Artistas"
 
-#: src/ui/desktop/library.rs:2156
+#: src/ui/desktop/library.rs:2219
 #, rust-format
 msgid "No results for “{query}”"
 msgstr "Nenhum resultado para “{query}”"
 
-#: src/ui/desktop/library.rs:2158
+#: src/ui/desktop/library.rs:2221
 msgid "Check the spelling, or try fewer words."
 msgstr "Verifique a ortografia ou tente menos palavras."
 
-#: src/ui/desktop/library.rs:2195
+#: src/ui/desktop/library.rs:2258
 msgid "Songs you favorite appear here."
 msgstr "Suas músicas favoritas aparecem aqui."
 
-#: src/ui/desktop/library.rs:2201
+#: src/ui/desktop/library.rs:2264
 msgid "Albums you favorite appear here."
 msgstr "Seus álbuns favoritos aparecem aqui."
 
-#: src/ui/desktop/library.rs:2207
+#: src/ui/desktop/library.rs:2270
 msgid "Artists you favorite appear here."
 msgstr "Seus artistas favoritos aparecem aqui."
 
-#: src/ui/desktop/library.rs:2220 src/ui/desktop/home.rs:123
+#: src/ui/desktop/library.rs:2283 src/ui/desktop/home.rs:123
 msgid "See all"
 msgstr "Ver tudo"
 
-#: src/ui/desktop/library.rs:2279
+#: src/ui/desktop/library.rs:2342
 msgid "Favorite Songs"
 msgstr "Músicas favoritas"
 
-#: src/ui/desktop/library.rs:2280
+#: src/ui/desktop/library.rs:2343
 msgid "Favorite Albums"
 msgstr "Álbuns favoritos"
 
-#: src/ui/desktop/library.rs:2281
+#: src/ui/desktop/library.rs:2344
 msgid "Favorite Artists"
 msgstr "Artistas favoritos"
 
-#: src/ui/desktop/library.rs:2321
+#: src/ui/desktop/library.rs:2384
 #, rust-format
 msgid "Could not update Favorites for {name}. {error}"
 msgstr "Não foi possível atualizar os favoritos para {name}. {error}"
@@ -649,7 +649,7 @@ msgstr "Criar"
 msgid "Read-only"
 msgstr "Somente leitura"
 
-#: src/ui/desktop/playlists.rs:169 src/ui/desktop/preferences.rs:847
+#: src/ui/desktop/playlists.rs:169 src/ui/desktop/preferences.rs:876
 msgid "Done"
 msgstr "Concluído"
 
@@ -721,15 +721,15 @@ msgstr "Depois"
 msgid "Playing next"
 msgstr "A seguir"
 
-#: src/ui/desktop/queue.rs:415
+#: src/ui/desktop/queue.rs:423
 msgid "Move up"
 msgstr "Mover para cima"
 
-#: src/ui/desktop/queue.rs:416
+#: src/ui/desktop/queue.rs:424
 msgid "Move down"
 msgstr "Mover para baixo"
 
-#: src/ui/desktop/queue.rs:431
+#: src/ui/desktop/queue.rs:439
 msgid "Remove from queue"
 msgstr "Remover da fila"
 
@@ -947,31 +947,44 @@ msgstr "Barra lateral compacta da biblioteca"
 msgid "Show names without covers in the sidebar."
 msgstr "Mostra os nomes sem capas na barra lateral."
 
-#: src/ui/desktop/preferences.rs:565
-msgid "Compact track list"
-msgstr "Lista de faixas compacta"
+#: src/ui/desktop/preferences.rs:564
+msgid "Track list"
+msgstr "Lista de faixas"
 
 #: src/ui/desktop/preferences.rs:566
-msgid "Show each track on one line without a cover."
-msgstr "Mostra cada faixa em uma linha, sem capa."
+msgid "Choose how rows look in playlists, albums and song lists."
+msgstr ""
+"Escolha como as linhas aparecem em playlists, álbuns e listas de faixas."
 
-#: src/ui/desktop/preferences.rs:570
+#: src/ui/desktop/preferences.rs:573
+msgid "Compact"
+msgstr "Compacta"
+
+#: src/ui/desktop/preferences.rs:578
+msgid "Comfortable"
+msgstr "Confortável"
+
+#: src/ui/desktop/preferences.rs:583 src/ui/desktop/artwork.rs:68
+msgid "Artwork"
+msgstr "Capa"
+
+#: src/ui/desktop/preferences.rs:599
 msgid "Interface zoom"
 msgstr "Zoom da interface"
 
-#: src/ui/desktop/preferences.rs:572
+#: src/ui/desktop/preferences.rs:601
 msgid "Ctrl+Plus and Ctrl+Minus work anywhere; Ctrl+0 resets."
 msgstr "Ctrl+Plus e Ctrl+Minus funcionam em qualquer lugar; Ctrl+0 restaura."
 
-#: src/ui/desktop/preferences.rs:573
+#: src/ui/desktop/preferences.rs:602
 msgid "Cmd+Plus and Cmd+Minus work anywhere; Cmd+0 resets."
 msgstr "Cmd+Plus e Cmd+Minus funcionam em qualquer lugar; Cmd+0 restaura."
 
-#: src/ui/desktop/preferences.rs:590
+#: src/ui/desktop/preferences.rs:619
 msgid "Middle-click autoscroll"
 msgstr "Rolagem automática com o botão do meio"
 
-#: src/ui/desktop/preferences.rs:590
+#: src/ui/desktop/preferences.rs:619
 msgid ""
 "Middle-click a list, then move the pointer to scroll it. Off by default, "
 "because a middle click usually pastes on Linux."
@@ -979,11 +992,11 @@ msgstr ""
 "Clique com o botão do meio em uma lista e mova o ponteiro para rolá-la. "
 "Desativado por padrão, porque no Linux o clique do meio costuma colar."
 
-#: src/ui/desktop/preferences.rs:595
+#: src/ui/desktop/preferences.rs:624
 msgid "Equalizer"
 msgstr "Equalizador"
 
-#: src/ui/desktop/preferences.rs:597
+#: src/ui/desktop/preferences.rs:626
 msgid ""
 "A ten-band equalizer for playback on this computer. It does not affect other "
 "devices."
@@ -991,33 +1004,33 @@ msgstr ""
 "Um equalizador de dez bandas para a reprodução neste computador. Não afeta "
 "outros dispositivos."
 
-#: src/ui/desktop/preferences.rs:613
+#: src/ui/desktop/preferences.rs:642
 msgid "Presets"
 msgstr "Presets"
 
-#: src/ui/desktop/preferences.rs:614
+#: src/ui/desktop/preferences.rs:643
 msgid "Preamp"
 msgstr "Pré-amplificador"
 
-#: src/ui/desktop/preferences.rs:615
+#: src/ui/desktop/preferences.rs:644
 msgid "Bands"
 msgstr "Bandas"
 
-#: src/ui/desktop/preferences.rs:644
+#: src/ui/desktop/preferences.rs:673
 msgctxt "equalizer"
 msgid "Pre"
 msgstr "Pré"
 
-#: src/ui/desktop/preferences.rs:658
+#: src/ui/desktop/preferences.rs:687
 msgid "Source code"
 msgstr "Código-fonte"
 
-#: src/ui/desktop/preferences.rs:687
+#: src/ui/desktop/preferences.rs:716
 #, rust-format
 msgid "No settings for “{query}”"
 msgstr "Nenhuma configuração para “{query}”"
 
-#: src/ui/desktop/preferences.rs:694
+#: src/ui/desktop/preferences.rs:723
 msgid "Try fewer words, or check the spelling."
 msgstr "Tente menos palavras ou verifique a ortografia."
 
@@ -1427,10 +1440,6 @@ msgstr "Nenhuma capa disponível"
 #: src/ui/desktop/artwork.rs:35
 msgid "Loading artwork…"
 msgstr "Carregando capa…"
-
-#: src/ui/desktop/artwork.rs:68
-msgid "Artwork"
-msgstr "Capa"
 
 #: src/ui/desktop/inspector.rs:36
 msgid "Unknown"

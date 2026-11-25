@@ -29,6 +29,13 @@ Older profiles default to albums. `library_sort` keeps independent orders for
 those three modes; All defaults to name order. The existing sidebar grid,
 compact-row and width preferences apply to every mode.
 
+`tracklist_style` chooses `compact`, `comfortable` or `artwork` rows. Older
+profiles with `tracklist_compact` load as Compact when it was true and
+Comfortable otherwise. The Artwork style adds each song's cover to playlists,
+song lists and downloads; album pages keep comfortable rows. A legacy
+`tracklist_compact` value is still written, true only for Compact, so an older
+version reads the same preference.
+
 A successful Navidrome login is stored separately in Keychain on macOS,
 Credential Manager on Windows, or Secret Service on Linux. The protected record
 contains the server URL, username and password together. Editing the server or

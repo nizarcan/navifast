@@ -2518,3 +2518,98 @@ fn queue_menu_opens_the_track_album_and_primary_artist() {
     assert_eq!(rt.state.app.presentation.page(), &artist);
     assert!(rt.state.queue_menu.is_none());
 }
+
+#[test]
+fn tracklist_styles_choose_cover_rows_and_leave_album_pages_plain() {
+    use crate::settings::TracklistStyle;
+
+    let row_rect = |rt: &Runtime<State>, key: &str| {
+        rt.elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(key))
+            .unwrap_or_else(|| panic!("missing row {key}"))
+            .rect
+    };
+    let cover_rect = |rt: &Runtime<State>, key: &str| {
+        rt.elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(key))
+            .map(|e| e.rect)
+    };
+
+    let mut playlist = runtime("playlist:list0", "");
+    let key = playlist.state.table.key(0).to_owned();
+    assert_eq!(row_rect(&playlist, &key)[3], crate::theme::ROW_HEIGHT);
+    assert!(cover_rect(&playlist, &format!("track-cover-{key}")).is_none());
+    playlist.update(|s, _| {
+        s.app.presentation.settings.tracklist_style = TracklistStyle::Artwork;
+    });
+    playlist.frame(0.);
+    playlist.settle_all();
+    let cover = cover_rect(&playlist, &format!("track-cover-{key}"))
+        .expect("an artwork row draws its cover");
+    assert_eq!(cover[2], crate::theme::TRACK_COVER_SIZE);
+    assert_eq!(row_rect(&playlist, &key)[3], crate::theme::ROW_HEIGHT);
+    let scale = playlist.env.scale;
+    let [x, y, w, h] = cover.map(|value| value * scale);
+    assert!(
+        playlist.instances.iter().any(|image| {
+            image.params[1] == rune::render::KIND_IMAGE
+                && image.rect[0] >= x - 1.
+                && image.rect[1] >= y - 1.
+                && image.rect[0] + image.rect[2] <= x + w + 1.
+                && image.rect[1] + image.rect[3] <= y + h + 1.
+        }),
+        "the loaded cover is painted inside the row"
+    );
+
+    let mut album = runtime("album:alb0", "");
+    album.update(|s, _| {
+        s.app.presentation.settings.tracklist_style = TracklistStyle::Artwork;
+    });
+    album.frame(0.);
+    album.settle_all();
+    let album_key = album.state.table.key(0).to_owned();
+    assert_eq!(row_rect(&album, &album_key)[3], crate::theme::ROW_HEIGHT);
+    assert!(
+        cover_rect(&album, &format!("track-cover-{album_key}")).is_none(),
+        "album pages keep comfortable rows because every cover would repeat"
+    );
+    album.update(|s, _| {
+        s.app.presentation.settings.tracklist_style = TracklistStyle::Compact;
+    });
+    album.frame(0.);
+    album.settle_all();
+    assert_eq!(
+        row_rect(&album, &album_key)[3],
+        crate::theme::THIN_ROW_HEIGHT,
+        "an explicit compact choice still shortens album rows"
+    );
+
+    playlist.update(|s, _| {
+        s.app.presentation.settings.tracklist_style = TracklistStyle::Compact;
+    });
+    playlist.frame(0.);
+    playlist.settle_all();
+    assert_eq!(row_rect(&playlist, &key)[3], crate::theme::THIN_ROW_HEIGHT);
+}
+
+#[test]
+fn tracklist_style_chips_switch_the_setting() {
+    use crate::settings::TracklistStyle;
+    let click = rune::accesskit::Action::Click;
+    let mut rt = runtime("settings", "appearance");
+    assert_eq!(
+        rt.state.app.presentation.settings.tracklist_style,
+        TracklistStyle::Comfortable
+    );
+    for (key, style) in [
+        ("tracklist-compact", TracklistStyle::Compact),
+        ("tracklist-artwork", TracklistStyle::Artwork),
+        ("tracklist-comfortable", TracklistStyle::Comfortable),
+    ] {
+        assert!(rt.accessibility_action(key, click, None), "missing {key}");
+        rt.frame(0.);
+        assert_eq!(rt.state.app.presentation.settings.tracklist_style, style);
+    }
+}

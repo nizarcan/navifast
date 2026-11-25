@@ -22,6 +22,10 @@ The current build supports:
 - Click an album cover to view the complete artwork fitted to the window.
   **Save image** writes a JPEG or PNG copy to a location you choose. Escape
   closes the viewer and returns focus to the cover.
+- Choosing **Settings → Appearance → Track list** for compact one-line rows,
+  comfortable two-line rows or artwork rows with each song's cover on playlists,
+  song lists and downloads. Album pages keep comfortable rows in the artwork
+  style.
 - The primary menu is **Home**, **Playlists**, **Favorites**, and **Discover**.
   Discover groups Albums, Songs, Genres, and Listening stats as top pills.
 - Click the Library shelf's **Albums** label to cycle **Albums → Playlists → All**.

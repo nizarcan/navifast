@@ -149,7 +149,7 @@ come from their metadata and supported actions, not separate layouts.
 | Metadata | Secondary color, approximately 14 pixels; creator, applicable year, song count and duration |
 | Action row | 56-pixel circular accent Play/Pause button, then supported secondary icon controls; 18-pixel gaps |
 | Track heading | Number, title and duration columns with the existing divider and sorting behavior |
-| Track rows | 56-pixel normal rows or 36-pixel compact rows; shared selection, hover, active-song and context-menu treatments |
+| Track rows | 56-pixel comfortable or artwork rows, 36-pixel compact rows; shared selection, hover, active-song and context-menu treatments |
 
 Use a playlist's artwork and owner only when the server supplies them. Song
 counts and duration must describe the loaded contents. Do not invent an artist,
@@ -167,6 +167,12 @@ Song menus offer **Go to album** and **Go to artist** for the loaded track, and
 album menus offer **Go to artist** for the primary credit. The queue menu carries
 the same song navigation. Hide an item when its page is already open, and omit it
 when the menu has no loaded album or artist to name.
+
+Track rows follow the **Track list** setting. Comfortable rows show the title
+over its credits. Compact rows put both on one line. Artwork rows keep the
+comfortable two lines and add a 40-pixel cover between the number and the
+title on playlists, song lists and downloads. In the artwork style album pages
+keep comfortable rows because every row would repeat the album cover.
 
 ## Artwork viewer
 

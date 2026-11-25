@@ -1460,6 +1460,26 @@ pub(super) fn star(v: &Paint<'_>, kind: FavoriteKind, id: &str, size: f32) -> El
 fn list_songs(s: &State) -> &[Song] {
     s.app.page_songs().unwrap_or_default()
 }
+
+/// The song's own cover, or its album's when the server leaves it unset.
+/// Both sources are already loaded, so this never starts a request of its own.
+fn song_cover<'a>(s: &'a State, song: &'a Song) -> Option<&'a str> {
+    song.cover_art.as_deref().or_else(|| {
+        let album_id = song.album_id.as_deref()?;
+        s.app
+            .album
+            .as_ref()
+            .filter(|album| album.id == album_id)
+            .and_then(|album| album.cover_art.as_deref())
+            .or_else(|| {
+                s.app
+                    .albums
+                    .iter()
+                    .find(|album| album.id == album_id)
+                    .and_then(|album| album.cover_art.as_deref())
+            })
+    })
+}
 fn open_song(s: &mut State, i: usize, tx: &mut Tx) {
     s.play_collection_row(i);
     tx.instant();
@@ -1550,10 +1570,20 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
     let p = v.p;
     let zoom = v.zoom;
     let scale = v.scale;
-    let h = if v.s.app.presentation.settings.tracklist_compact {
-        36.
+    let selected = v.s.app.presentation.settings.tracklist_style;
+    let style = if selected == crate::settings::TracklistStyle::Artwork
+        && matches!(v.s.app.presentation.page(), Page::Album(_))
+    {
+        crate::settings::TracklistStyle::Comfortable
     } else {
-        56.
+        selected
+    };
+    let compact = style == crate::settings::TracklistStyle::Compact;
+    let artwork = style == crate::settings::TracklistStyle::Artwork;
+    let h = if compact {
+        crate::theme::THIN_ROW_HEIGHT
+    } else {
+        crate::theme::ROW_HEIGHT
     };
     let bounds = (v.width, v.height);
     let mut grid = col()
@@ -1686,7 +1716,7 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                     ))
                     .group_opacity(0., 1.),
             );
-            let description = if s.app.presentation.settings.tracklist_compact {
+            let description = if compact {
                 row()
                     .min_w(0.)
                     .grow(1.)
@@ -1719,7 +1749,7 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                 })
                 .key(format!("more-{key}"))
                 .group_opacity(if show_more { 1. } else { 0. }, 1.);
-            row()
+            let mut track = row()
                 .key(key.clone())
                 .w_full()
                 .h(h)
@@ -1741,7 +1771,24 @@ pub(super) fn songs(v: &Paint<'_>) -> El {
                     p.surface_hover
                         .gamma_multiply(if p.dark { 0.7 } else { 1. })
                 }))
-                .child(number)
+                .child(number);
+            if artwork {
+                track = track.child(
+                    el().key(format!("track-cover-{key}"))
+                        .size(
+                            crate::theme::TRACK_COVER_SIZE,
+                            crate::theme::TRACK_COVER_SIZE,
+                        )
+                        .mr(12.)
+                        .child(v.cover(
+                            song_cover(s, song),
+                            CoverSize::Sleeve,
+                            crate::theme::TRACK_COVER_SIZE,
+                            6.,
+                        )),
+                );
+            }
+            track
                 .child(description)
                 .child(downloads::availability(&v, &song.id))
                 .child(if matches!(s.app.presentation.page(), Page::Download(_)) {
