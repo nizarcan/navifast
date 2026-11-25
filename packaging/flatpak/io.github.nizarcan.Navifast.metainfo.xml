@@ -32,6 +32,14 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.2.2" date="2026-11-25" type="stable">
+      <description>
+        <p>Choose compact, comfortable or artwork rows for track lists, and
+        jump from a song or album menu to its album or artist.</p>
+        <p>Right-clicking while a menu is open closes it instead of being
+        ignored, and the desktop builds on the latest Rune toolkit.</p>
+      </description>
+    </release>
     <release version="0.2.1-rc.1" date="2026-11-08" type="development">
       <description>
         <p>Explore your Navidrome library with Home, search, artists, playlists,
