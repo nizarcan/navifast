@@ -97,7 +97,13 @@ fn fragmented_headers_wait_for_the_rest_of_the_request() {
         .set_read_timeout(Some(Duration::from_millis(100)))
         .unwrap();
     socket.write_all(b"GET /fixture HTTP/1.1\r\n").unwrap();
-    let pending = socket.read(&mut [0]);
+    // A signal may interrupt the wait before its timeout; that is not a reply.
+    let pending = loop {
+        match socket.read(&mut [0]) {
+            Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+            other => break other,
+        }
+    };
     assert!(
         matches!(pending, Err(ref error) if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut)),
         "the server must wait for complete headers, got {pending:?}"
