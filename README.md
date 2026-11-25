@@ -58,6 +58,9 @@ The current build supports:
   player bar. Artist pages show Discography, About, Similar artists from your
   library, and Appears on for guest releases. The header shows the artist portrait
   when available and a record otherwise. Open a release cover to pick a song.
+- **Go to album** and **Go to artist** in song menus, and **Go to artist** in
+  album menus, open the loaded album or its primary credited artist. The item is
+  hidden when that page is already open.
 - Starring songs, albums and artists on your Navidrome account. Open **Favorites**
   in the sidebar for two-row artwork previews. Choose **See all** to browse
   the full grid of favorite songs, albums or artists.

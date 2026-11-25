@@ -388,6 +388,36 @@ pub(super) fn menu(v: &Paint<'_>) -> Option<El> {
             v,
             &crate::navidrome::api::FavoriteKind::Song.uri(&song.id),
         ));
+        if let Some(id) = song.album_id.as_deref().filter(|id| !id.is_empty()) {
+            let page = Page::Album(navidrome::encode(id));
+            if v.s.app.presentation.page() != &page {
+                menu = menu.child(
+                    v.menu_item(
+                        &v.tr(mark("Go to album")),
+                        Some(Icon::Disc),
+                        move |s, tx| {
+                            s.dispatch(Action::Open(page.clone()), tx);
+                        },
+                    )
+                    .key("queue-go-to-album"),
+                );
+            }
+        }
+        if let Some(id) = song.credits.ids().next() {
+            let page = Page::Artist(navidrome::encode(id));
+            if v.s.app.presentation.page() != &page {
+                menu = menu.child(
+                    v.menu_item(
+                        &v.tr(mark("Go to artist")),
+                        Some(Icon::User),
+                        move |s, tx| {
+                            s.dispatch(Action::Open(page.clone()), tx);
+                        },
+                    )
+                    .key("queue-go-to-artist"),
+                );
+            }
+        }
     }
     for (delta, name, icon) in [
         (-1, mark("Move up"), Icon::ChevronUp),

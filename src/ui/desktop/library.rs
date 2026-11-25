@@ -232,18 +232,31 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
             } else {
                 mark("Add to Favorites")
             });
-            collection_queue_items(v, v.menu("album-more"), None)
+            let mut menu = collection_queue_items(v, v.menu("album-more"), None)
                 .child(rating)
                 .child(downloads::menu_item(v, &uri))
                 .child(autoplay::menu_item(v, &uri))
                 .child(v.menu_item(&name, Some(Icon::Star), move |s, tx| {
                     s.dispatch(Action::ToggleSaved(uri.clone()), tx)
-                }))
-                .child(v.menu_item(
-                    &v.tr(mark("Add to playlists")),
-                    Some(Icon::ListMusic),
-                    |s, tx| s.add_to_playlists(None, tx),
-                ))
+                }));
+            if let Some(id) = a.credits.ids().next() {
+                let page = Page::Artist(navidrome::encode(id));
+                menu = menu.child(
+                    v.menu_item(
+                        &v.tr(mark("Go to artist")),
+                        Some(Icon::User),
+                        move |s, tx| {
+                            s.dispatch(Action::Open(page.clone()), tx);
+                        },
+                    )
+                    .key("go-to-artist"),
+                );
+            }
+            menu.child(v.menu_item(
+                &v.tr(mark("Add to playlists")),
+                Some(Icon::ListMusic),
+                |s, tx| s.add_to_playlists(None, tx),
+            ))
         }),
         Some("playlist") => {
             let mut menu =
@@ -309,23 +322,55 @@ pub(super) fn shell(v: &Paint<'_>) -> El {
                 },
             ));
         }
-        if let Some(key) = menu.row.clone() {
-            if s.app.presentation.page().is_browse_songs()
-                && let Some(id) = s
-                    .table
-                    .index(&key)
-                    .and_then(|i| s.app.page_songs()?.get(s.table.source(i)))
-                    .and_then(|song| song.album_id.as_ref())
-                    .filter(|id| !id.is_empty())
-            {
+        if let Some(song) = s.menu_song() {
+            if let Some(id) = song.album_id.as_deref().filter(|id| !id.is_empty()) {
                 let page = Page::Album(navidrome::encode(id));
+                if s.app.presentation.page() != &page {
+                    popup = popup.child(
+                        v.menu_item(
+                            &v.tr(mark("Go to album")),
+                            Some(Icon::Disc),
+                            move |s, tx| {
+                                s.dispatch(Action::Open(page.clone()), tx);
+                            },
+                        )
+                        .key("go-to-album"),
+                    );
+                }
+            }
+            if let Some(id) = song.credits.ids().next() {
+                let page = Page::Artist(navidrome::encode(id));
+                if s.app.presentation.page() != &page {
+                    popup = popup.child(
+                        v.menu_item(
+                            &v.tr(mark("Go to artist")),
+                            Some(Icon::User),
+                            move |s, tx| {
+                                s.dispatch(Action::Open(page.clone()), tx);
+                            },
+                        )
+                        .key("go-to-artist"),
+                    );
+                }
+            }
+        } else if let Some(album) = s.menu_album()
+            && let Some(id) = album.credits.ids().next()
+        {
+            let page = Page::Artist(navidrome::encode(id));
+            if s.app.presentation.page() != &page {
                 popup = popup.child(
-                    v.menu_item(&v.tr(mark("Open album")), Some(Icon::Disc), move |s, tx| {
-                        s.dispatch(Action::Open(page.clone()), tx);
-                    })
-                    .key("browse-open-album"),
+                    v.menu_item(
+                        &v.tr(mark("Go to artist")),
+                        Some(Icon::User),
+                        move |s, tx| {
+                            s.dispatch(Action::Open(page.clone()), tx);
+                        },
+                    )
+                    .key("go-to-artist"),
                 );
             }
+        }
+        if let Some(key) = menu.row.clone() {
             popup = collection_queue_items(v, popup, Some(key.clone()));
             let add_key = key.clone();
             popup = popup.child(

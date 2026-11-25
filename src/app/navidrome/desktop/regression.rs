@@ -629,16 +629,17 @@ fn browse_retry_retains_tracks_and_song_menu_opens_its_album() {
     let mut rt = runtime("songs", "restored,error");
     assert_eq!(rt.state.app.page_songs().unwrap().len(), 60);
     rt.update(|s, _| {
-        s.favorite_menu = Some(ItemMenu {
+        let uri = crate::navidrome::api::FavoriteKind::Song.uri(&s.app.page_songs().unwrap()[0].id);
+        s.open_item_menu(ItemMenu {
             anchor: None,
-            uri: String::new(),
+            uri,
             row: Some(s.table.key(0).into()),
             at: Some([500., 200.]),
         })
     });
     rt.frame(0.);
     rt.settle_all();
-    assert!(rt.accessibility_action("browse-open-album", rune::accesskit::Action::Click, None));
+    assert!(rt.accessibility_action("go-to-album", rune::accesskit::Action::Click, None));
     rt.frame(0.);
     assert!(matches!(rt.state.app.presentation.page(), Page::Album(_)));
     rt.update(|s, tx| {
@@ -2383,4 +2384,137 @@ fn right_click_beside_an_open_item_menu_dismisses_it() {
     rt.pointer_up(beside.0, beside.1);
     settle(&mut rt);
     assert!(rt.state.favorite_menu.is_none());
+}
+
+fn secondary_click(rt: &mut Runtime<State>, key: &str) {
+    let [x, y, w, h] = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.key.as_deref() == Some(key))
+        .unwrap_or_else(|| panic!("missing element {key}"))
+        .rect;
+    rt.secondary_down(x + w / 2., y + h / 2.);
+    rt.secondary_up(x + w / 2., y + h / 2.);
+    rt.frame(0.);
+    rt.settle_all();
+}
+
+fn has_key(rt: &Runtime<State>, key: &str) -> bool {
+    rt.elements().iter().any(|e| e.key.as_deref() == Some(key))
+}
+
+#[test]
+fn playlist_track_menu_opens_its_album_and_primary_artist() {
+    let mut rt = runtime("playlist:list0", "restored");
+    let song = rt.state.app.page_songs().unwrap()[0].clone();
+    let album = Page::Album(super::super::encode(song.album_id.as_deref().unwrap()));
+    let artist = Page::Artist(super::super::encode(song.credits.ids().next().unwrap()));
+    let key = rt.state.table.key(0).to_owned();
+    secondary_click(&mut rt, &key);
+    assert!(has_key(&rt, "go-to-album") && has_key(&rt, "go-to-artist"));
+    assert!(rt.accessibility_action("go-to-album", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &album);
+    assert!(rt.state.favorite_menu.is_none());
+
+    let mut rt = runtime("playlist:list0", "restored");
+    let key = rt.state.table.key(0).to_owned();
+    secondary_click(&mut rt, &key);
+    assert!(rt.accessibility_action("go-to-artist", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &artist);
+    assert!(rt.state.favorite_menu.is_none());
+}
+
+#[test]
+fn album_page_track_menu_omits_go_to_album_but_opens_the_artist() {
+    let mut rt = runtime("album:alb0", "restored");
+    let album = rt.state.app.album.as_ref().unwrap().clone();
+    let song = rt.state.app.page_songs().unwrap()[0].clone();
+    assert_eq!(song.album_id.as_deref(), Some(album.id.as_str()));
+    let artist = Page::Artist(super::super::encode(song.credits.ids().next().unwrap()));
+    let key = rt.state.table.key(0).to_owned();
+    secondary_click(&mut rt, &key);
+    assert!(!has_key(&rt, "go-to-album"));
+    assert!(has_key(&rt, "go-to-artist"));
+    assert!(rt.accessibility_action("go-to-artist", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &artist);
+
+    let mut rt = runtime("album:alb0", "restored");
+    let key = rt.state.table.key(1).to_owned();
+    secondary_click(&mut rt, &key);
+    assert!(has_key(&rt, "go-to-album"));
+}
+
+#[test]
+fn album_tile_menu_opens_the_primary_artist() {
+    let mut rt = runtime("albums", "restored");
+    let album = rt
+        .state
+        .app
+        .albums
+        .iter()
+        .find(|album| album.id == "alb0")
+        .unwrap()
+        .clone();
+    let artist = Page::Artist(super::super::encode(album.credits.ids().next().unwrap()));
+    secondary_click(&mut rt, "album-alb0");
+    assert!(rt.state.favorite_menu.is_some());
+    assert!(!has_key(&rt, "go-to-album"));
+    assert!(rt.accessibility_action("go-to-artist", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &artist);
+}
+
+#[test]
+fn player_bar_track_menu_opens_the_album_and_primary_artist() {
+    let mut rt = runtime("albums", "restored");
+    let song = rt.state.app.transport.song().unwrap().clone();
+    let album = Page::Album(super::super::encode(song.album_id.as_deref().unwrap()));
+    let [x, y, w, h] = rt
+        .elements()
+        .into_iter()
+        .find(|e| e.label.as_deref() == Some("Now playing"))
+        .unwrap()
+        .rect;
+    rt.secondary_down(x + w / 2., y + h / 2.);
+    rt.secondary_up(x + w / 2., y + h / 2.);
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(has_key(&rt, "go-to-album") && has_key(&rt, "go-to-artist"));
+    assert!(rt.accessibility_action("go-to-album", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &album);
+}
+
+#[test]
+fn queue_menu_opens_the_track_album_and_primary_artist() {
+    let mut rt = runtime("albums", "queue-menu");
+    let id = rt.state.queue_menu.unwrap();
+    let song = rt
+        .state
+        .app
+        .transport
+        .queue
+        .upcoming()
+        .iter()
+        .find(|entry| entry.id == id)
+        .and_then(|entry| rt.state.app.transport.queue.song(entry))
+        .cloned()
+        .unwrap();
+    let album = Page::Album(super::super::encode(song.album_id.as_deref().unwrap()));
+    let artist = Page::Artist(super::super::encode(song.credits.ids().next().unwrap()));
+    assert!(rt.accessibility_action("queue-go-to-album", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &album);
+    assert!(rt.state.queue_menu.is_none());
+
+    rt.update(|s, _| s.queue_menu = Some(id));
+    rt.frame(0.);
+    rt.settle_all();
+    assert!(rt.accessibility_action("queue-go-to-artist", rune::accesskit::Action::Click, None));
+    rt.frame(0.);
+    assert_eq!(rt.state.app.presentation.page(), &artist);
+    assert!(rt.state.queue_menu.is_none());
 }

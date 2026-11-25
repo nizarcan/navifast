@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Navifast\n"
 "Report-Msgid-Bugs-To: https://github.com/nizarcan/navifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-11-08 14:07+0300\n"
+"POT-Creation-Date: 2026-11-25 20:38+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Navifast contributors\n"
 "Language-Team: Swedish\n"
@@ -58,8 +58,8 @@ msgstr "{name}, mapp, hopfälld"
 msgid "{name}, folder, expanded"
 msgstr "{name}, mapp, expanderad"
 
-#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:522
-#: src/ui/desktop/library.rs:748
+#: src/i18n.rs:308 src/i18n.rs:311 src/ui/desktop/library.rs:551
+#: src/ui/desktop/library.rs:777
 msgid "Home"
 msgstr "Hem"
 
@@ -152,19 +152,19 @@ msgstr "Visa mindre"
 msgid "See more"
 msgstr "Visa mer"
 
-#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1264
-#: src/ui/desktop/library.rs:1809 src/ui/desktop/library.rs:2145
-#: src/ui/desktop/library.rs:2271 src/ui/desktop/library.rs:2300
+#: src/ui/desktop/artist.rs:65 src/ui/desktop/library.rs:1293
+#: src/ui/desktop/library.rs:1838 src/ui/desktop/library.rs:2174
+#: src/ui/desktop/library.rs:2300 src/ui/desktop/library.rs:2329
 #: src/ui/desktop/playlists.rs:160 src/ui/desktop/playlists.rs:267
 #: src/ui/desktop/preferences.rs:317 src/ui/desktop/preferences.rs:389
 #: src/ui/desktop/ratings.rs:106 src/ui/desktop/scrobble.rs:36
-#: src/ui/desktop/artwork.rs:39 src/ui/desktop/downloads.rs:49
+#: src/ui/desktop/artwork.rs:42 src/ui/desktop/downloads.rs:49
 #: src/ui/desktop/downloads.rs:100 src/ui/desktop/sync.rs:128
 msgid "Retry"
 msgstr "Försök igen"
 
 #: src/ui/desktop/artist.rs:82 src/ui/desktop/autoplay.rs:43
-#: src/ui/desktop/library.rs:1303 src/ui/desktop/library_shelf.rs:230
+#: src/ui/desktop/library.rs:1332 src/ui/desktop/library_shelf.rs:230
 msgid "Album"
 msgstr "Album"
 
@@ -177,7 +177,7 @@ msgid "EP"
 msgstr "EP"
 
 #: src/ui/desktop/artist.rs:278 src/ui/desktop/autoplay.rs:44
-#: src/ui/desktop/library.rs:2353 src/ui/desktop/home.rs:181
+#: src/ui/desktop/library.rs:2382 src/ui/desktop/home.rs:181
 msgid "Artist"
 msgstr "Artist"
 
@@ -185,9 +185,9 @@ msgstr "Artist"
 msgid "Discography"
 msgstr "Diskografi"
 
-#: src/ui/desktop/artist.rs:330 src/ui/desktop/library.rs:721
-#: src/ui/desktop/library.rs:2052 src/ui/desktop/library.rs:2067
-#: src/ui/desktop/library.rs:2171 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
+#: src/ui/desktop/artist.rs:330 src/ui/desktop/library.rs:750
+#: src/ui/desktop/library.rs:2081 src/ui/desktop/library.rs:2096
+#: src/ui/desktop/library.rs:2200 src/ui/keys.rs:43 src/ui/desktop/browse.rs:33
 #: src/ui/desktop/albums.rs:40 src/ui/desktop/library_shelf.rs:9
 msgid "Albums"
 msgstr "Album"
@@ -261,295 +261,300 @@ msgstr ""
 msgid "Song"
 msgstr "Låt"
 
-#: src/ui/desktop/autoplay.rs:76 src/ui/desktop/transport.rs:261
+#: src/ui/desktop/autoplay.rs:76 src/ui/desktop/transport.rs:265
 msgid "Previous"
 msgstr "Föregående"
 
-#: src/ui/desktop/autoplay.rs:83 src/ui/desktop/transport.rs:295
+#: src/ui/desktop/autoplay.rs:83 src/ui/desktop/transport.rs:299
 msgid "Next"
 msgstr "Nästa"
 
-#: src/ui/desktop/library.rs:231 src/ui/desktop/library.rs:300
-#: src/ui/desktop/library.rs:1395
+#: src/ui/desktop/library.rs:231 src/ui/desktop/library.rs:309
+#: src/ui/desktop/library.rs:1424
 msgid "Remove from Favorites"
 msgstr "Ta bort från favoriter"
 
-#: src/ui/desktop/library.rs:233 src/ui/desktop/library.rs:302
-#: src/ui/desktop/library.rs:1397
+#: src/ui/desktop/library.rs:233 src/ui/desktop/library.rs:311
+#: src/ui/desktop/library.rs:1426
 msgid "Add to Favorites"
 msgstr "Lägg till i favoriter"
 
-#: src/ui/desktop/library.rs:243 src/ui/desktop/library.rs:251
-#: src/ui/desktop/library.rs:333 src/ui/desktop/playlists.rs:22
+#: src/ui/desktop/library.rs:245 src/ui/desktop/library.rs:337
+#: src/ui/desktop/library.rs:350 src/ui/desktop/queue.rs:406
+msgid "Go to artist"
+msgstr "Gå till artisten"
+
+#: src/ui/desktop/library.rs:252 src/ui/desktop/library.rs:260
+#: src/ui/desktop/library.rs:362 src/ui/desktop/playlists.rs:22
 msgid "Add to playlists"
 msgstr "Lägg till i spellistor"
 
-#: src/ui/desktop/library.rs:256 src/ui/desktop/downloads.rs:353
+#: src/ui/desktop/library.rs:265 src/ui/desktop/downloads.rs:353
 msgid "Download"
 msgstr "Ladda ned"
 
-#: src/ui/desktop/library.rs:264 src/ui/desktop/playlists.rs:212
+#: src/ui/desktop/library.rs:273 src/ui/desktop/playlists.rs:212
 #: src/ui/desktop/playlists.rs:217
 msgid "Delete playlist"
 msgstr "Radera spellista"
 
-#: src/ui/desktop/library.rs:323
-msgid "Open album"
-msgstr "Öppna album"
+#: src/ui/desktop/library.rs:326 src/ui/desktop/queue.rs:395
+msgid "Go to album"
+msgstr "Gå till albumet"
 
-#: src/ui/desktop/library.rs:342
+#: src/ui/desktop/library.rs:371
 msgid "Remove from playlist"
 msgstr "Ta bort från spellista"
 
-#: src/ui/desktop/library.rs:349 src/ui/desktop/library.rs:1008
-#: src/ui/desktop/library.rs:1233 src/ui/desktop/library.rs:1608
+#: src/ui/desktop/library.rs:378 src/ui/desktop/library.rs:1037
+#: src/ui/desktop/library.rs:1262 src/ui/desktop/library.rs:1637
 #: src/ui/desktop/queue.rs:272 src/ui/desktop/queue.rs:363
-#: src/ui/desktop/transport.rs:273
+#: src/ui/desktop/transport.rs:277
 msgid "Play"
 msgstr "Spela"
 
-#: src/ui/desktop/library.rs:363 src/ui/desktop/library.rs:448
+#: src/ui/desktop/library.rs:392 src/ui/desktop/library.rs:477
 msgid "Play next"
 msgstr "Spela härnäst"
 
-#: src/ui/desktop/library.rs:365 src/ui/desktop/library.rs:450
+#: src/ui/desktop/library.rs:394 src/ui/desktop/library.rs:479
 msgid "Add to queue"
 msgstr "Lägg till i kön"
 
-#: src/ui/desktop/library.rs:384 src/ui/desktop/queue.rs:373
+#: src/ui/desktop/library.rs:413 src/ui/desktop/queue.rs:373
 #: src/ui/desktop/inspector.rs:175
 msgid "Track details"
 msgstr "Låtdetaljer"
 
-#: src/ui/desktop/library.rs:545
+#: src/ui/desktop/library.rs:574
 msgid "Back"
 msgstr "Bakåt"
 
-#: src/ui/desktop/library.rs:551
+#: src/ui/desktop/library.rs:580
 msgid "Forward"
 msgstr "Framåt"
 
-#: src/ui/desktop/library.rs:556 src/ui/desktop/library.rs:1989
+#: src/ui/desktop/library.rs:585 src/ui/desktop/library.rs:2018
 msgid "What do you want to play?"
 msgstr "Vad vill du spela?"
 
-#: src/ui/desktop/library.rs:597 src/ui/desktop/library.rs:644
+#: src/ui/desktop/library.rs:626 src/ui/desktop/library.rs:673
 #: src/ui/desktop/preferences.rs:238 src/ui/keys.rs:55
 #: src/ui/desktop/sync.rs:23
 msgid "Settings"
 msgstr "Inställningar"
 
-#: src/ui/desktop/library.rs:609 src/ui/desktop/preferences.rs:241
+#: src/ui/desktop/library.rs:638 src/ui/desktop/preferences.rs:241
 msgid "Account"
 msgstr "Konto"
 
-#: src/ui/desktop/library.rs:650 src/ui/desktop/preferences.rs:657
+#: src/ui/desktop/library.rs:679 src/ui/desktop/preferences.rs:657
 #: src/ui/desktop/preferences.rs:860 src/ui/desktop/preferences.rs:861
 msgid "Keyboard shortcuts"
 msgstr "Kortkommandon"
 
-#: src/ui/desktop/library.rs:658 src/ui/desktop/preferences.rs:242
+#: src/ui/desktop/library.rs:687 src/ui/desktop/preferences.rs:242
 msgid "Sign out"
 msgstr "Logga ut"
 
-#: src/ui/desktop/library.rs:665 src/ui/desktop/library.rs:829
-#: src/ui/desktop/library.rs:1481
+#: src/ui/desktop/library.rs:694 src/ui/desktop/library.rs:858
+#: src/ui/desktop/library.rs:1510
 msgid "Library order"
 msgstr "Biblioteksordning"
 
-#: src/ui/desktop/library.rs:668 src/ui/desktop/home.rs:299
+#: src/ui/desktop/library.rs:697 src/ui/desktop/home.rs:299
 msgid "Recently played"
 msgstr "Nyligen spelade"
 
-#: src/ui/desktop/library.rs:670 src/ui/desktop/albums.rs:18
+#: src/ui/desktop/library.rs:699 src/ui/desktop/albums.rs:18
 msgid "Name"
 msgstr "Namn"
 
-#: src/ui/desktop/library.rs:673 src/ui/desktop/albums.rs:17
+#: src/ui/desktop/library.rs:702 src/ui/desktop/albums.rs:17
 msgid "Recently added"
 msgstr "Nyligen tillagda"
 
-#: src/ui/desktop/library.rs:692
+#: src/ui/desktop/library.rs:721
 msgid "List view"
 msgstr "Listvy"
 
-#: src/ui/desktop/library.rs:692
+#: src/ui/desktop/library.rs:721
 msgid "Grid view"
 msgstr "Rutnätsvy"
 
-#: src/ui/desktop/library.rs:710
+#: src/ui/desktop/library.rs:739
 msgid "Hide sidebar"
 msgstr "Dölj sidofältet"
 
-#: src/ui/desktop/library.rs:722 src/ui/desktop/library.rs:2051
-#: src/ui/desktop/library.rs:2066 src/ui/desktop/library.rs:2165
+#: src/ui/desktop/library.rs:751 src/ui/desktop/library.rs:2080
+#: src/ui/desktop/library.rs:2095 src/ui/desktop/library.rs:2194
 #: src/ui/desktop/browse.rs:14 src/ui/desktop/browse.rs:32
 msgid "Songs"
 msgstr "Låtar"
 
-#: src/ui/desktop/library.rs:723 src/ui/desktop/browse.rs:13
+#: src/ui/desktop/library.rs:752 src/ui/desktop/browse.rs:13
 msgid "Genres"
 msgstr "Genrer"
 
-#: src/ui/desktop/library.rs:724 src/ui/desktop/stats.rs:16
+#: src/ui/desktop/library.rs:753 src/ui/desktop/stats.rs:16
 msgid "Listening stats"
 msgstr "Lyssningsstatistik"
 
-#: src/ui/desktop/library.rs:749 src/ui/desktop/library.rs:1943
-#: src/ui/desktop/library.rs:2069 src/ui/desktop/library.rs:2116
+#: src/ui/desktop/library.rs:778 src/ui/desktop/library.rs:1972
+#: src/ui/desktop/library.rs:2098 src/ui/desktop/library.rs:2145
 #: src/ui/desktop/library_shelf.rs:10 src/ui/desktop/library_shelf.rs:181
 msgid "Playlists"
 msgstr "Spellistor"
 
-#: src/ui/desktop/library.rs:750 src/ui/desktop/library.rs:2249
+#: src/ui/desktop/library.rs:779 src/ui/desktop/library.rs:2278
 #: src/ui/keys.rs:47
 msgid "Favorites"
 msgstr "Favoriter"
 
-#: src/ui/desktop/library.rs:751
+#: src/ui/desktop/library.rs:780
 msgid "Discover"
 msgstr "Upptäck"
 
-#: src/ui/desktop/library.rs:788
+#: src/ui/desktop/library.rs:817
 msgid "Library"
 msgstr "Bibliotek"
 
-#: src/ui/desktop/library.rs:796 src/ui/desktop/library.rs:837
+#: src/ui/desktop/library.rs:825 src/ui/desktop/library.rs:866
 msgid "Search in Your Library"
 msgstr "Sök i ditt bibliotek"
 
-#: src/ui/desktop/library.rs:813
+#: src/ui/desktop/library.rs:842
 msgid "Library options"
 msgstr "Biblioteksalternativ"
 
-#: src/ui/desktop/library.rs:871
+#: src/ui/desktop/library.rs:900
 #, rust-format
 msgid "Show {kind}"
 msgstr "Visa {kind}"
 
-#: src/ui/desktop/library.rs:1072 src/ui/desktop/library.rs:1349
+#: src/ui/desktop/library.rs:1101 src/ui/desktop/library.rs:1378
 #: src/ui/desktop/home.rs:307 src/ui/desktop/library_shelf.rs:229
 msgid "Playlist"
 msgstr "Spellista"
 
-#: src/ui/desktop/library.rs:1163
+#: src/ui/desktop/library.rs:1192
 msgid "No albums"
 msgstr "Inga album"
 
-#: src/ui/desktop/library.rs:1164 src/ui/desktop/home.rs:137
+#: src/ui/desktop/library.rs:1193 src/ui/desktop/home.rs:137
 msgid "Albums in your Navidrome library appear here."
 msgstr "Album från ditt Navidrome-bibliotek visas här."
 
-#: src/ui/desktop/library.rs:1184
+#: src/ui/desktop/library.rs:1213
 msgid "View artwork"
 msgstr "Visa omslag"
 
-#: src/ui/desktop/library.rs:1233 src/ui/desktop/library.rs:1606
-#: src/ui/desktop/transport.rs:273
+#: src/ui/desktop/library.rs:1262 src/ui/desktop/library.rs:1635
+#: src/ui/desktop/transport.rs:277
 msgid "Pause"
 msgstr "Pausa"
 
-#: src/ui/desktop/library.rs:1291 src/ui/desktop/library.rs:1354
-#: src/ui/desktop/library.rs:1663 src/ui/desktop/library.rs:2101
+#: src/ui/desktop/library.rs:1320 src/ui/desktop/library.rs:1383
+#: src/ui/desktop/library.rs:1692 src/ui/desktop/library.rs:2130
 #: src/ui/desktop/home.rs:217 src/ui/desktop/queue.rs:324
 msgid "More"
 msgstr "Mer"
 
-#: src/ui/desktop/library.rs:1369 src/ui/desktop/queue.rs:104
+#: src/ui/desktop/library.rs:1398 src/ui/desktop/queue.rs:104
 msgid "Nothing here yet."
 msgstr "Här finns inget än."
 
-#: src/ui/desktop/library.rs:1425
+#: src/ui/desktop/library.rs:1454
 msgctxt "column heading"
 msgid "TITLE"
 msgstr "TITEL"
 
-#: src/ui/desktop/library.rs:1483
+#: src/ui/desktop/library.rs:1512
 msgid "Sort by playlist order"
 msgstr "Sortera efter spellistans ordning"
 
-#: src/ui/desktop/library.rs:1490
+#: src/ui/desktop/library.rs:1519
 #, rust-format
 msgid "Sort by {column}"
 msgstr "Sortera efter {column}"
 
-#: src/ui/desktop/library.rs:1497
+#: src/ui/desktop/library.rs:1526
 msgid "Sort by duration"
 msgstr "Sortera efter längd"
 
-#: src/ui/desktop/library.rs:1945 src/ui/desktop/playlists.rs:20
+#: src/ui/desktop/library.rs:1974 src/ui/desktop/playlists.rs:20
 msgid "Create playlist"
 msgstr "Skapa spellista"
 
-#: src/ui/desktop/library.rs:1955 src/ui/desktop/library.rs:2260
+#: src/ui/desktop/library.rs:1984 src/ui/desktop/library.rs:2289
 #: src/ui/desktop/home.rs:233 src/ui/desktop/browse.rs:23
 #: src/ui/desktop/albums.rs:65 src/ui/desktop/stats.rs:22
 msgid "Refresh"
 msgstr "Uppdatera"
 
-#: src/ui/desktop/library.rs:1973 src/ui/desktop/library_shelf.rs:188
+#: src/ui/desktop/library.rs:2002 src/ui/desktop/library_shelf.rs:188
 msgid "No playlists"
 msgstr "Inga spellistor"
 
-#: src/ui/desktop/library.rs:1974
+#: src/ui/desktop/library.rs:2003
 msgid "Playlists available on your server appear here."
 msgstr "Spellistor som är tillgängliga på din server visas här."
 
-#: src/ui/desktop/library.rs:1988
+#: src/ui/desktop/library.rs:2017
 msgid "Search"
 msgstr "Sök"
 
-#: src/ui/desktop/library.rs:1997
+#: src/ui/desktop/library.rs:2026
 msgid "Recent searches"
 msgstr "Senaste sökningar"
 
-#: src/ui/desktop/library.rs:2007 src/ui/desktop/downloads.rs:58
+#: src/ui/desktop/library.rs:2036 src/ui/desktop/downloads.rs:58
 msgid "Remove"
 msgstr "Ta bort"
 
-#: src/ui/desktop/library.rs:2053 src/ui/desktop/library.rs:2068
-#: src/ui/desktop/library.rs:2177
+#: src/ui/desktop/library.rs:2082 src/ui/desktop/library.rs:2097
+#: src/ui/desktop/library.rs:2206
 msgid "Artists"
 msgstr "Artister"
 
-#: src/ui/desktop/library.rs:2127
+#: src/ui/desktop/library.rs:2156
 #, rust-format
 msgid "No results for “{query}”"
 msgstr "Inga resultat för ”{query}”"
 
-#: src/ui/desktop/library.rs:2129
+#: src/ui/desktop/library.rs:2158
 msgid "Check the spelling, or try fewer words."
 msgstr "Kontrollera stavningen eller prova färre ord."
 
-#: src/ui/desktop/library.rs:2166
+#: src/ui/desktop/library.rs:2195
 msgid "Songs you favorite appear here."
 msgstr "Dina favoritlåtar visas här."
 
-#: src/ui/desktop/library.rs:2172
+#: src/ui/desktop/library.rs:2201
 msgid "Albums you favorite appear here."
 msgstr "Dina favoritalbum visas här."
 
-#: src/ui/desktop/library.rs:2178
+#: src/ui/desktop/library.rs:2207
 msgid "Artists you favorite appear here."
 msgstr "Dina favoritartister visas här."
 
-#: src/ui/desktop/library.rs:2191 src/ui/desktop/home.rs:123
+#: src/ui/desktop/library.rs:2220 src/ui/desktop/home.rs:123
 msgid "See all"
 msgstr "Visa alla"
 
-#: src/ui/desktop/library.rs:2250
+#: src/ui/desktop/library.rs:2279
 msgid "Favorite Songs"
 msgstr "Favoritlåtar"
 
-#: src/ui/desktop/library.rs:2251
+#: src/ui/desktop/library.rs:2280
 msgid "Favorite Albums"
 msgstr "Favoritalbum"
 
-#: src/ui/desktop/library.rs:2252
+#: src/ui/desktop/library.rs:2281
 msgid "Favorite Artists"
 msgstr "Favoritartister"
 
-#: src/ui/desktop/library.rs:2292
+#: src/ui/desktop/library.rs:2321
 #, rust-format
 msgid "Could not update Favorites for {name}. {error}"
 msgstr "Det gick inte att uppdatera favoriter för {name}. {error}"
@@ -610,24 +615,24 @@ msgstr "Läser in…"
 msgid "Clear"
 msgstr "Rensa"
 
-#: src/ui/desktop/mod.rs:374
+#: src/ui/desktop/mod.rs:384
 msgid "Username"
 msgstr "Användarnamn"
 
-#: src/ui/desktop/mod.rs:375
+#: src/ui/desktop/mod.rs:385
 msgid "Password"
 msgstr "Lösenord"
 
-#: src/ui/desktop/mod.rs:420
+#: src/ui/desktop/mod.rs:430
 msgid "Connecting…"
 msgstr "Ansluter…"
 
-#: src/ui/desktop/mod.rs:421 src/ui/desktop/playlists.rs:208
+#: src/ui/desktop/mod.rs:431 src/ui/desktop/playlists.rs:208
 #: src/ui/desktop/lyrics_card.rs:231 src/ui/desktop/downloads.rs:41
 msgid "Cancel"
 msgstr "Avbryt"
 
-#: src/ui/desktop/mod.rs:428
+#: src/ui/desktop/mod.rs:438
 msgid "Open downloads offline"
 msgstr "Öppna nedladdningar offline"
 
@@ -678,7 +683,7 @@ msgid "Dismiss"
 msgstr "Avfärda"
 
 #: src/ui/desktop/queue.rs:27 src/ui/desktop/queue.rs:161
-#: src/ui/desktop/transport.rs:383
+#: src/ui/desktop/transport.rs:387
 msgid "Queue"
 msgstr "Kö"
 
@@ -699,7 +704,7 @@ msgstr "Fortsätt med slumpmässiga låtar från biblioteket"
 msgid "Finding a library song…"
 msgstr "Söker efter en låt i biblioteket…"
 
-#: src/ui/desktop/queue.rs:98 src/ui/desktop/transport.rs:210
+#: src/ui/desktop/queue.rs:98 src/ui/desktop/transport.rs:214
 msgid "Now playing"
 msgstr "Spelas nu"
 
@@ -715,15 +720,15 @@ msgstr "Sedan"
 msgid "Playing next"
 msgstr "Härnäst"
 
-#: src/ui/desktop/queue.rs:393
+#: src/ui/desktop/queue.rs:415
 msgid "Move up"
 msgstr "Flytta upp"
 
-#: src/ui/desktop/queue.rs:394
+#: src/ui/desktop/queue.rs:416
 msgid "Move down"
 msgstr "Flytta ned"
 
-#: src/ui/desktop/queue.rs:409
+#: src/ui/desktop/queue.rs:431
 msgid "Remove from queue"
 msgstr "Ta bort från kön"
 
@@ -849,7 +854,7 @@ msgstr ""
 "Skicka aktuell uppspelning och kvalificerade lyssningar till din server. "
 "Servern kan vidarebefordra rapporter till tjänster som du har konfigurerat."
 
-#: src/ui/desktop/preferences.rs:420 src/ui/desktop/transport.rs:369
+#: src/ui/desktop/preferences.rs:420 src/ui/desktop/transport.rs:373
 #: src/ui/desktop/lyrics.rs:21 src/ui/desktop/lyrics.rs:158
 msgid "Lyrics"
 msgstr "Låttext"
@@ -907,7 +912,7 @@ msgstr "Färg från albumomslaget"
 msgid "Use the current cover's colour on pages and the player bar."
 msgstr "Använd det aktuella omslagets färg på sidor och i spelarfältet."
 
-#: src/ui/desktop/preferences.rs:537 src/ui/desktop/transport.rs:470
+#: src/ui/desktop/preferences.rs:537 src/ui/desktop/transport.rs:474
 msgid "Player bar visualizer"
 msgstr "Visualisering i spelarfältet"
 
@@ -1011,51 +1016,51 @@ msgstr "Inga inställningar för ”{query}”"
 msgid "Try fewer words, or check the spelling."
 msgstr "Prova färre ord eller kontrollera stavningen."
 
-#: src/ui/desktop/transport.rs:132
+#: src/ui/desktop/transport.rs:136
 msgid "Shuffle"
 msgstr "Blanda"
 
-#: src/ui/desktop/transport.rs:155
+#: src/ui/desktop/transport.rs:159
 msgid "Repeat off"
 msgstr "Upprepning av"
 
-#: src/ui/desktop/transport.rs:156
+#: src/ui/desktop/transport.rs:160
 msgid "Repeat all"
 msgstr "Upprepa alla"
 
-#: src/ui/desktop/transport.rs:157
+#: src/ui/desktop/transport.rs:161
 msgid "Repeat one"
 msgstr "Upprepa en låt"
 
-#: src/ui/desktop/transport.rs:238 src/ui/desktop/lyrics.rs:76
+#: src/ui/desktop/transport.rs:242 src/ui/desktop/lyrics.rs:76
 msgid "Nothing playing"
 msgstr "Inget spelas"
 
-#: src/ui/desktop/transport.rs:245
+#: src/ui/desktop/transport.rs:249
 msgid "Pick a song, album, or playlist"
 msgstr "Välj en låt, ett album eller en spellista"
 
-#: src/ui/desktop/transport.rs:330
+#: src/ui/desktop/transport.rs:334
 msgid "Playback position (%)"
 msgstr "Uppspelningsposition (%)"
 
-#: src/ui/desktop/transport.rs:397
+#: src/ui/desktop/transport.rs:401
 msgid "Connect to a device"
 msgstr "Anslut till en enhet"
 
-#: src/ui/desktop/transport.rs:406
+#: src/ui/desktop/transport.rs:410
 msgid "Unmute"
 msgstr "Slå på ljudet"
 
-#: src/ui/desktop/transport.rs:408
+#: src/ui/desktop/transport.rs:412
 msgid "Mute"
 msgstr "Stäng av ljudet"
 
-#: src/ui/desktop/transport.rs:423
+#: src/ui/desktop/transport.rs:427
 msgid "Volume (%)"
 msgstr "Volym (%)"
 
-#: src/ui/desktop/transport.rs:471
+#: src/ui/desktop/transport.rs:475
 msgid "Click to change the visualizer"
 msgstr "Klicka för att byta visualisering"
 
@@ -1213,7 +1218,7 @@ msgstr "Inkludera omslag"
 msgid "Lyric image"
 msgstr "Bild av låttexten"
 
-#: src/ui/desktop/lyrics_card.rs:333 src/ui/desktop/artwork.rs:45
+#: src/ui/desktop/lyrics_card.rs:333 src/ui/desktop/artwork.rs:48
 #: src/ui/desktop/inspector.rs:177
 msgid "Close"
 msgstr "Stäng"
@@ -1227,7 +1232,7 @@ msgid "Copy image"
 msgstr "Kopiera bild"
 
 #: src/ui/desktop/lyrics_card.rs:382
-#: src/app/navidrome/desktop/lyrics_share.rs:352 src/ui/desktop/artwork.rs:49
+#: src/app/navidrome/desktop/lyrics_share.rs:352 src/ui/desktop/artwork.rs:52
 #: src/app/navidrome/desktop/artwork_viewer.rs:92
 msgid "Save image"
 msgstr "Spara bild"
@@ -1240,7 +1245,7 @@ msgstr "Välj färre eller kortare rader för den här bilden."
 msgid "Image copied"
 msgstr "Bilden kopierad"
 
-#: src/app/navidrome/desktop/lyrics_share.rs:345 src/ui/desktop/artwork.rs:30
+#: src/app/navidrome/desktop/lyrics_share.rs:345 src/ui/desktop/artwork.rs:33
 msgid "Image saved"
 msgstr "Bilden sparad"
 
@@ -1406,19 +1411,19 @@ msgstr "Mest spelade album"
 msgid "Top artists"
 msgstr "Mest spelade artister"
 
-#: src/ui/desktop/artwork.rs:26
+#: src/ui/desktop/artwork.rs:29
 msgid "Could not load artwork. Try again."
 msgstr "Kunde inte läsa in omslaget. Försök igen."
 
-#: src/ui/desktop/artwork.rs:28
+#: src/ui/desktop/artwork.rs:31
 msgid "No artwork available"
 msgstr "Inget omslag tillgängligt"
 
-#: src/ui/desktop/artwork.rs:32
+#: src/ui/desktop/artwork.rs:35
 msgid "Loading artwork…"
 msgstr "Läser in omslag…"
 
-#: src/ui/desktop/artwork.rs:65
+#: src/ui/desktop/artwork.rs:68
 msgid "Artwork"
 msgstr "Omslag"
 

@@ -163,6 +163,11 @@ same keyboard, selection, sorting and context-menu code serves both collection
 types. Repeated song IDs remain separate occurrences. Playing a sorted view
 uses its displayed order; the active-row marker follows the occurrence.
 
+Song menus offer **Go to album** and **Go to artist** for the loaded track, and
+album menus offer **Go to artist** for the primary credit. The queue menu carries
+the same song navigation. Hide an item when its page is already open, and omit it
+when the menu has no loaded album or artist to name.
+
 ## Artwork viewer
 
 The album header sleeve opens a centered native modal without changing the

@@ -192,6 +192,28 @@ impl State {
         self.app.prepare_rating(&menu.uri);
         self.favorite_menu = Some(menu);
     }
+    /// The loaded track named by the open item menu, when its data is known.
+    pub(crate) fn menu_song(&self) -> Option<crate::navidrome::api::Song> {
+        let uri = &self.favorite_menu.as_ref()?.uri;
+        if !uri.starts_with("navidrome:track:") {
+            return None;
+        }
+        match self.app.favorite_item(uri)? {
+            crate::navidrome::sync::Item::Song(song) => Some(song),
+            _ => None,
+        }
+    }
+    /// The loaded album named by the open item menu, when its data is known.
+    pub(crate) fn menu_album(&self) -> Option<crate::navidrome::api::Album> {
+        let uri = &self.favorite_menu.as_ref()?.uri;
+        if !uri.starts_with("navidrome:album:") {
+            return None;
+        }
+        match self.app.favorite_item(uri)? {
+            crate::navidrome::sync::Item::Album(album) => Some(album),
+            _ => None,
+        }
+    }
     pub(crate) fn toggle_autoplay_exclusion(&mut self, uri: &str) {
         self.app.toggle_autoplay_exclusion(uri);
         self.favorite_menu = None;
