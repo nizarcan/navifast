@@ -1279,6 +1279,13 @@ mod tests {
         let app = rune::App::new(spec);
         let state = State::new(launch, None, app.handle());
         let mut rt = Runtime::new(state, views::view, (1280., 800.), Env::new(true, 2.));
+        // Lay text out in the bundled Inter on every platform, as Rune's own
+        // fallback Inter did before it became optional, so layout assertions
+        // do not depend on the test machine's system font.
+        if let Some(sans) = rt.add_font(crate::theme::INTER).first() {
+            let mono = rt.font_families().1.to_owned();
+            rt.set_font_families(sans, &mono);
+        }
         rt.frame(0.);
         rt.settle_all();
         rt
