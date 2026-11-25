@@ -7,9 +7,17 @@ use crate::{
 };
 use rune::Runtime;
 
+/// Lands what the last frame started, as a frame of real time would: a menu's entrance fade
+/// and a removed row's exit. A press on a control still at zero entrance opacity finds no
+/// hit target, and an exiting row still shows in `elements()` until its exit lands.
+fn settle(rt: &mut Runtime<State>) {
+    rt.settle_all();
+    rt.frame(0.);
+}
+
 fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
     rt.frame(0.);
-    rt.settle_all();
+    settle(rt);
     let element = rt
         .elements()
         .into_iter()
@@ -20,7 +28,7 @@ fn click_label(rt: &mut Runtime<State>, name: &str, occurrence: usize) {
     rt.pointer_down(x + w / 2., y + h / 2.);
     rt.pointer_up(x + w / 2., y + h / 2.);
     rt.frame(0.);
-    rt.settle_all();
+    settle(rt);
 }
 
 #[test]
@@ -201,7 +209,7 @@ fn library_search_filters_and_clears_without_moving_primary_navigation() {
     rt.update(|s, _| s.library_filter.replace_text("Bonobo"));
     assert!(rt.accessibility_action("library-search", click, None));
     rt.frame(0.);
-    rt.settle_all();
+    settle(&mut rt);
     assert!(!rt.state.library_search);
     assert!(rt.state.library_filter.text.is_empty());
     assert!(
@@ -2289,7 +2297,7 @@ fn exclusion_settings_keep_the_rendered_list_bounded_and_reveal_later_rows() {
     assert_eq!(rows(&rt), 8);
     assert!(rt.accessibility_action("exclusions-next", rune::accesskit::Action::Click, None));
     rt.frame(0.);
-    rt.settle_all();
+    settle(&mut rt);
     assert_eq!(rows(&rt), 8);
     assert_eq!(rt.state.exclusions_page, 1);
     click_label(&mut rt, "Include in autoplay", 0);
@@ -2317,4 +2325,62 @@ fn artist_header_right_click_opens_the_shared_exclusion_menu() {
             .autoplay_excluded(&crate::navidrome::api::FavoriteKind::Artist.uri("art2")),
         Some(true)
     );
+}
+
+#[test]
+fn right_click_beside_an_open_item_menu_dismisses_it() {
+    let mut rt = runtime("album:alb0", "restored");
+    let point = |rt: &Runtime<State>, key: &str| {
+        let [x, y, w, h] = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(key))
+            .unwrap_or_else(|| panic!("missing row {key}"))
+            .rect;
+        (x + w / 2., y + h / 2.)
+    };
+    let first = rt.state.table.key(0).to_owned();
+    let second = rt.state.table.key(1).to_owned();
+    let right_click = |rt: &mut Runtime<State>, at: (f32, f32)| {
+        rt.secondary_down(at.0, at.1);
+        rt.secondary_up(at.0, at.1);
+        settle(rt);
+    };
+    let first_at = point(&rt, &first);
+    right_click(&mut rt, first_at);
+    assert_eq!(
+        rt.state
+            .favorite_menu
+            .as_ref()
+            .and_then(|m| m.row.as_deref()),
+        Some(first.as_str())
+    );
+    // A secondary press outside the open menu dismisses it on every platform. On Windows the
+    // press is then reposted, opening the row under it, so respect Chrome's per-OS policy.
+    let beside = point(&rt, &second);
+    right_click(&mut rt, beside);
+    if cfg!(windows) {
+        assert_eq!(
+            rt.state
+                .favorite_menu
+                .as_ref()
+                .and_then(|m| m.row.as_deref()),
+            Some(second.as_str())
+        );
+    } else {
+        assert!(rt.state.favorite_menu.is_none());
+        right_click(&mut rt, beside);
+        assert_eq!(
+            rt.state
+                .favorite_menu
+                .as_ref()
+                .and_then(|m| m.row.as_deref()),
+            Some(second.as_str())
+        );
+    }
+    // A primary click elsewhere dismisses the open menu too.
+    rt.pointer_down(beside.0, beside.1);
+    rt.pointer_up(beside.0, beside.1);
+    settle(&mut rt);
+    assert!(rt.state.favorite_menu.is_none());
 }

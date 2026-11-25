@@ -1716,6 +1716,8 @@ mod tests {
         assert!(rt.accessibility_action("account", rune::accesskit::Action::Click, None));
         rt.frame(0.);
         rt.settle_all();
+        // Let the menu's entrance fade land, as real time would before a user clicks it.
+        rt.frame(0.);
         let [x, y, w, h] = rt
             .elements()
             .into_iter()

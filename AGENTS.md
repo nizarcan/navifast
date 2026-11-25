@@ -31,8 +31,10 @@ These instructions add implementation constraints for coding agents.
 - For dependency fixes, use a maintainer-owned fork pinned to a commit and
   contribute the fix upstream. Use the fork until a release includes the fix;
   do not copy dependency source into this repository.
-- Rune uses the pinned shared `crmne/winit` fork. Keep platform behavior
-  intact when updating it, and do not add a competing frame-pacing policy.
+- Navifast patches winit and Rune's other vendored crates (wgpu-hal, naga,
+  sctk-adwaita, parley_engine and the AccessKit adapters) from the same pinned
+  Rune revision. Keep platform behavior intact when updating them, and do not
+  add a competing frame-pacing policy.
 - Pass logical text to Rune; never reorder strings before text layout.
 
 Read `docs/_reference/how-it-connects.md` before changing authentication,
